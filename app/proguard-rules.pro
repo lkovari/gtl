@@ -1,0 +1,3 @@
+-keep class com.lkovari.mobile.apps.gtl.engine.** { *; }
+-keep class org.mapsforge.** { *; }
+-dontwarn org.mapsforge.**

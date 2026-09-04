@@ -1,0 +1,237 @@
+package com.lkovari.mobile.apps.gtl.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
+import com.lkovari.mobile.apps.gtl.GtlApplication
+import com.lkovari.mobile.apps.gtl.MainActivity
+import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
+import com.lkovari.mobile.apps.gtl.data.gnss.GnssStatusSource
+import com.lkovari.mobile.apps.gtl.data.location.LocationClient
+import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
+import com.lkovari.mobile.apps.gtl.data.sensor.AccelerometerSource
+import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
+import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
+import com.lkovari.mobile.apps.gtl.engine.EventKind
+import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
+import com.lkovari.mobile.apps.gtl.engine.TrackFix
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
+class TrackingForegroundService : LifecycleService() {
+    private var locationJob: Job? = null
+    private var lastAccepted: TrackFix? = null
+    private var lastKind: EventKind = EventKind.START
+
+    override fun onCreate() {
+        super.onCreate()
+        createChannel()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        when (intent?.action) {
+            ACTION_STOP -> {
+                stopRecording()
+                return START_NOT_STICKY
+            }
+            else -> startRecording()
+        }
+        return START_STICKY
+    }
+
+    private fun startRecording() {
+        val app = application as GtlApplication
+        startAsForeground()
+        if (locationJob != null) {
+            return
+        }
+        locationJob = lifecycleScope.launch {
+            val settings = app.preferences.settings.first()
+            val sessionId = app.trackRepository.openSession()?.id
+                ?: app.trackRepository.startSession(settings.usageType, settings.measurementSystem)
+            app.trackingState.update {
+                it.copy(logging = true, sessionId = sessionId, temperatureAvailable = app.ambientTemperatureSource.isAvailable)
+            }
+            lastAccepted = app.trackRepository.latestEvent(sessionId)?.let { event ->
+                TrackFix(
+                    timestampMillis = event.timestamp,
+                    latitude = event.latitude,
+                    longitude = event.longitude,
+                    altitude = event.altitude,
+                    speedMps = event.speed,
+                    bearing = event.bearing,
+                    accuracyMeters = event.accuracy,
+                    satellitesInFix = event.satellitesInFix
+                )
+            }
+            lastKind = if (lastAccepted == null) EventKind.START else EventKind.MOVE
+            launch { collectLocation(app, sessionId, settings) }
+            launch {
+                app.gnssStatusSource.snapshots().collectLatest { snapshot ->
+                    app.trackingState.update { it.copy(gnss = snapshot) }
+                }
+            }
+            launch {
+                app.ambientTemperatureSource.temperatures().collectLatest { value ->
+                    app.trackingState.update { it.copy(temperatureCelsius = value, temperatureAvailable = true) }
+                }
+            }
+            launch {
+                app.accelerometerSource.accelerations().collectLatest { value ->
+                    app.trackingState.update { it.copy(accel = value) }
+                }
+            }
+            launch {
+                app.compassSource.azimuthDegrees().collectLatest { value ->
+                    app.trackingState.update { it.copy(azimuthDegrees = value) }
+                }
+            }
+        }
+    }
+
+    private suspend fun collectLocation(app: GtlApplication, sessionId: Long, settings: GtlSettings) {
+        val client = LocationClient(this)
+        client.locations(settings.minTimeMillis, settings.minDistanceMeters).collect { location ->
+            val gnss = app.trackingState.state.value.gnss
+            val fix = TrackFix(
+                timestampMillis = location.time,
+                latitude = location.latitude,
+                longitude = location.longitude,
+                altitude = location.altitude,
+                speedMps = location.speed,
+                bearing = location.bearing,
+                accuracyMeters = location.accuracy,
+                satellitesInFix = gnss?.satellitesInFix ?: 0
+            )
+            app.trackingState.update {
+                it.copy(lastLocation = location, provider = location.provider)
+            }
+            if (FixAcceptance.shouldAccept(lastAccepted, fix, settings.toFilter())) {
+                val kind = when {
+                    lastAccepted == null -> EventKind.START
+                    location.speed < settings.usageType.pauseSpeedMps() -> EventKind.PAUSE
+                    else -> EventKind.MOVE
+                }
+                val live = app.trackingState.state.value
+                app.trackRepository.insertEvent(
+                    GpsEventEntity(
+                        sessionId = sessionId,
+                        timestamp = fix.timestampMillis,
+                        latitude = fix.latitude,
+                        longitude = fix.longitude,
+                        altitude = fix.altitude,
+                        speed = fix.speedMps,
+                        bearing = fix.bearing,
+                        accuracy = fix.accuracyMeters,
+                        satellitesInFix = fix.satellitesInFix,
+                        ambientTemperature = live.temperatureCelsius,
+                        accelX = live.accel?.getOrNull(0),
+                        accelY = live.accel?.getOrNull(1),
+                        accelZ = live.accel?.getOrNull(2),
+                        isPlacemark = kind != EventKind.MOVE,
+                        eventKind = kind.name
+                    )
+                )
+                lastAccepted = fix
+                lastKind = kind
+            }
+        }
+    }
+
+    private fun stopRecording() {
+        locationJob?.cancel()
+        locationJob = null
+        val app = application as GtlApplication
+        lifecycleScope.launch {
+            val sessionId = app.trackingState.state.value.sessionId
+            if (sessionId != null) {
+                val live = app.trackingState.state.value
+                val last = live.lastLocation
+                if (last != null) {
+                    app.trackRepository.insertEvent(
+                        GpsEventEntity(
+                            sessionId = sessionId,
+                            timestamp = System.currentTimeMillis(),
+                            latitude = last.latitude,
+                            longitude = last.longitude,
+                            altitude = last.altitude,
+                            speed = last.speed,
+                            bearing = last.bearing,
+                            accuracy = last.accuracy,
+                            satellitesInFix = live.gnss?.satellitesInFix ?: 0,
+                            ambientTemperature = live.temperatureCelsius,
+                            accelX = live.accel?.getOrNull(0),
+                            accelY = live.accel?.getOrNull(1),
+                            accelZ = live.accel?.getOrNull(2),
+                            isPlacemark = true,
+                            eventKind = EventKind.STOP.name
+                        )
+                    )
+                }
+                app.trackRepository.stopSession(sessionId)
+            }
+            app.trackingState.update { LiveTrackingState(temperatureAvailable = app.ambientTemperatureSource.isAvailable) }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    private fun startAsForeground() {
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun buildNotification(): Notification {
+        val launch = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val stop = PendingIntent.getService(
+            this,
+            1,
+            Intent(this, TrackingForegroundService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_text))
+            .setContentIntent(launch)
+            .setOngoing(true)
+            .addAction(0, getString(R.string.action_stop), stop)
+            .build()
+    }
+
+    private fun createChannel() {
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.notification_channel),
+            NotificationManager.IMPORTANCE_LOW
+        )
+        manager.createNotificationChannel(channel)
+    }
+
+    companion object {
+        const val ACTION_STOP = "com.lkovari.mobile.apps.gtl.STOP_TRACKING"
+        private const val CHANNEL_ID = "gtl_tracking"
+        private const val NOTIFICATION_ID = 17
+    }
+}

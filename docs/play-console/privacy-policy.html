@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTL — Privacy Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --wash: #D8E4D4;
+      --paper: #F4F7F1;
+      --teal: #1F8A80;
+      --teal-deep: #0F5C58;
+      --chip: #B7D4CF;
+      --ink: #102027;
+      --muted: #4A5C63;
+      --track: #C13B2E;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% -8%, #ffffff 0 18%, transparent 42%),
+        radial-gradient(circle at 108% 8%, var(--chip) 0 12%, transparent 38%),
+        var(--wash);
+      color: var(--ink);
+      font-family: Outfit, system-ui, sans-serif;
+      line-height: 1.55;
+    }
+    header {
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 1.35rem 1.35rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand-mark {
+      width: 2.15rem;
+      height: 2.15rem;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-family: Fraunces, Georgia, serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+    .brand-name {
+      font-family: Fraunces, Georgia, serif;
+      font-weight: 700;
+      font-size: 1.28rem;
+    }
+    .lang {
+      display: flex;
+      align-items: center;
+      gap: 0.15rem;
+      flex-shrink: 0;
+    }
+    .lang button {
+      background: transparent;
+      border: 0;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.92rem;
+      cursor: pointer;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+    }
+    .lang button[aria-pressed="true"] {
+      color: #fff;
+      background: var(--teal);
+      font-weight: 600;
+    }
+    main {
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 1.5rem 1.35rem 2.5rem;
+    }
+    .board {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1.35rem;
+    }
+    .chip {
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      background: #fff;
+      border: 2px solid var(--chip);
+      color: var(--teal-deep);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    h1 {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(1.8rem, 4vw, 2.35rem);
+      margin: 0 0 0.4rem;
+      letter-spacing: -0.02em;
+    }
+    .meta {
+      color: var(--muted);
+      margin: 0 0 1.4rem;
+      font-size: 0.95rem;
+    }
+    .meta code { font-size: 0.86rem; }
+    .card {
+      background: var(--paper);
+      border-radius: 1.15rem;
+      padding: 1.15rem 1.25rem 1.2rem;
+      margin-bottom: 0.9rem;
+      box-shadow: 0 10px 28px rgba(15, 92, 88, 0.08);
+    }
+    h2 {
+      font-family: Fraunces, Georgia, serif;
+      font-size: 1.18rem;
+      margin: 0 0 0.5rem;
+      color: var(--teal-deep);
+    }
+    p, li { color: var(--muted); }
+    p { margin: 0 0 0.65rem; }
+    p:last-child, ul:last-child { margin-bottom: 0; }
+    ul { margin: 0; padding-left: 1.15rem; }
+    li { margin: 0.32rem 0; }
+    a { color: var(--teal-deep); }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 0 1.35rem 2.4rem;
+    }
+    [data-lang] { display: none; }
+    html[lang="en"] [data-lang="en"],
+    html[lang="hu"] [data-lang="hu"] { display: block; }
+    html[lang="en"] span[data-lang="en"],
+    html[lang="hu"] span[data-lang="hu"] { display: inline; }
+    [hidden] { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">
+      <span class="brand-mark">G</span>
+      <span class="brand-name">GTL</span>
+    </span>
+    <span class="lang">
+      <button type="button" data-set="en" aria-pressed="true">EN</button>
+      <button type="button" data-set="hu" aria-pressed="false">HU</button>
+    </span>
+  </header>
+  <main>
+    <div class="board" aria-hidden="true">
+      <span class="chip">GPS L1</span>
+      <span class="chip">GPS L5</span>
+      <span class="chip">GAL</span>
+      <span class="chip">GLO</span>
+      <span class="chip">BDS</span>
+      <span class="chip">QZSS</span>
+      <span class="chip">NavIC</span>
+    </div>
+    <h1 data-lang="en">Privacy Policy</h1>
+    <h1 data-lang="hu">Adatvédelmi tájékoztató</h1>
+    <p class="meta" data-lang="en">App: GTL GPS Track Logger (<code>com.lkovari.mobile.apps.gtl</code>)<br />Last updated: 4 September 2026<br />Publisher: László Kővári</p>
+    <p class="meta" data-lang="hu">Alkalmazás: GTL GPS útvonal napló (<code>com.lkovari.mobile.apps.gtl</code>)<br />Utolsó frissítés: 2026. szeptember 4.<br />Kiadó: Kővári László</p>
+
+    <section class="card">
+      <h2 data-lang="en">Summary</h2>
+      <h2 data-lang="hu">Összefoglaló</h2>
+      <p data-lang="en">GTL is a GPS track logger. It records your route, satellite status, and optional ambient temperature on this phone. There is no account. We do not operate a tracking server. The app uses the internet only for Google Maps tiles (if you set an API key) and for OpenStreetMap region file downloads that you start.</p>
+      <p data-lang="hu">A GTL GPS útvonalnapló. Az útvonalat, a műholdállapotot és — ha van szenzor — a környezeti hőmérsékletet ezen a telefonon rögzíti. Nincs fiók. Nem üzemeltetünk követőszervert. Internetre csak a Google Térkép csempéihez (ha beállítasz API-kulcsot) és az általad indított OpenStreetMap-letöltésekhez van szükség.</p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">Location and GNSS</h2>
+      <h2 data-lang="hu">Helymeghatározás és GNSS</h2>
+      <p data-lang="en">While you tap Start, GTL reads precise location and GNSS status (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC when the chipset reports them). Recording runs as a visible foreground service with a notification. Fixes are stored in SQLite on the device. They are not uploaded to our servers.</p>
+      <p data-lang="hu">Amíg az Indít gombot használod, a GTL precíz helyet és GNSS-állapotot olvas (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, ha a chipset jelenti). A rögzítés látható előtér-szolgáltatásként, értesítéssel fut. A pontok SQLite-ban maradnak a készüléken. A mi szerverünkre nem kerülnek fel.</p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">Data on the device</h2>
+      <h2 data-lang="hu">Adatok a készüléken</h2>
+      <p data-lang="en">Track sessions, GPS events, optional ambient temperature, and settings live in Room/SQLite and DataStore. Backup to your Google account is turned off in the app manifest. You can export a KML file; sharing uses Android’s system share sheet.</p>
+      <p data-lang="hu">Az útvonal-munkamenetek, GPS-események, az opcionális környezeti hőmérséklet és a beállítások Room/SQLite-ban és DataStore-ban vannak. Az alkalmazás manifestje kikapcsolja a Google-fiókos biztonsági mentést. KML-t exportálhatsz; a megosztás az Android rendszer-megosztóján megy.</p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">Google Maps</h2>
+      <h2 data-lang="hu">Google Térkép</h2>
+      <p data-lang="en">If a Maps SDK API key is configured, the Map tab loads Google map tiles. Google may process technical data such as IP address for that service. We do not send your track database to Google. Google’s policy: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a>.</p>
+      <p data-lang="hu">Ha van Maps SDK API-kulcs, a Térkép fül Google-csempéket tölt. A Google kezelhet technikai adatokat, például IP-címet. Az útvonal-adatbázist nem küldjük a Google-nak. A Google tájékoztatója: <a href="https://policies.google.com/privacy">policies.google.com/privacy</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">OpenStreetMap downloads</h2>
+      <h2 data-lang="hu">OpenStreetMap-letöltések</h2>
+      <p data-lang="en">If you download a region, the file is fetched from the Mapsforge download host over HTTPS and stored in app-private storage. That host sees your IP address and which region file you requested. The file stays on the phone for offline viewing.</p>
+      <p data-lang="hu">Ha letöltesz egy régiót, a fájl HTTPS-en a Mapsforge letöltőhelyről jön, és az app saját tárhelyére kerül. A letöltőhely látja az IP-címedet és hogy melyik régiófájlt kérted. A fájl offline nézethez a telefonon marad.</p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">What we do not do</h2>
+      <h2 data-lang="hu">Amit nem csinálunk</h2>
+      <ul data-lang="en">
+        <li>No account, login, or registration</li>
+        <li>No IMEI, SIM serial, or phone-number collection</li>
+        <li>No upload of live location to our servers</li>
+        <li>No ads or third-party analytics SDKs</li>
+        <li>No sale of personal data</li>
+      </ul>
+      <ul data-lang="hu">
+        <li>Nincs fiók, bejelentkezés vagy regisztráció</li>
+        <li>Nem gyűjtünk IMEI-t, SIM-azonosítót vagy telefonszámot</li>
+        <li>Nem töltünk fel élő helyet a szerverünkre</li>
+        <li>Nincs reklám és külső analitikai SDK</li>
+        <li>Személyes adatot nem adunk el</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">Children</h2>
+      <h2 data-lang="hu">Gyermekek</h2>
+      <p data-lang="en">GTL is a general navigation tool and is not directed at children.</p>
+      <p data-lang="hu">A GTL általános navigációs eszköz, és nem kifejezetten gyermekeknek készült.</p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">Contact</h2>
+      <h2 data-lang="hu">Kapcsolat</h2>
+      <p data-lang="en">Questions: <a href="mailto:laszlo.kovary@gmail.com">laszlo.kovary@gmail.com</a></p>
+      <p data-lang="hu">Kérdések: <a href="mailto:laszlo.kovary@gmail.com">laszlo.kovary@gmail.com</a></p>
+    </section>
+
+    <section class="card">
+      <h2 data-lang="en">Changes</h2>
+      <h2 data-lang="hu">Változások</h2>
+      <p data-lang="en">If data practices change, this page will be updated and the “Last updated” date will change.</p>
+      <p data-lang="hu">Ha az adatkezelés változik, ezt az oldalt frissítjük, és az „Utolsó frissítés” dátuma megváltozik.</p>
+    </section>
+  </main>
+  <footer>
+    <span data-lang="en">© 2013 – 2026 László Kővári</span>
+    <span data-lang="hu">© 2013 – 2026 Kővári László</span>
+  </footer>
+  <script>
+    (function () {
+      var buttons = document.querySelectorAll(".lang button");
+      function setLang(lang) {
+        document.documentElement.lang = lang;
+        buttons.forEach(function (button) {
+          button.setAttribute("aria-pressed", button.getAttribute("data-set") === lang ? "true" : "false");
+        });
+        document.querySelectorAll("[data-lang]").forEach(function (el) {
+          el.hidden = el.getAttribute("data-lang") !== lang;
+        });
+        try { localStorage.setItem("gtl-lang", lang); } catch (e) {}
+      }
+      buttons.forEach(function (button) {
+        button.addEventListener("click", function () { setLang(button.getAttribute("data-set")); });
+      });
+      var saved = null;
+      try { saved = localStorage.getItem("gtl-lang"); } catch (e) {}
+      if (saved === "hu" || saved === "en") {
+        setLang(saved);
+      } else if ((navigator.language || "").toLowerCase().indexOf("hu") === 0) {
+        setLang("hu");
+      } else {
+        setLang("en");
+      }
+    })();
+  </script>
+</body>
+</html>

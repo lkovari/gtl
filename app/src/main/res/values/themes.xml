@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="gtl_teal">#1F8A80</color>
+    <color name="gtl_paper">#F4F7F1</color>
+    <color name="gtl_splash">#000000</color>
+    <color name="gtl_brand_border">#C5DCC8</color>
+    <style name="Theme.Gtl" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/gtl_teal</item>
+        <item name="android:navigationBarColor">@color/gtl_paper</item>
+        <item name="android:windowBackground">@color/gtl_paper</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    <style name="Theme.Gtl.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/gtl_splash</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_gtl_brand_framed</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/gtl_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Gtl</item>
+    </style>
+</resources>

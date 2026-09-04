@@ -1,0 +1,177 @@
+package com.lkovari.mobile.apps.gtl.engine
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class DouglasPeuckerTest {
+    @Test
+    fun keepsEndpointsAndDropsColinearMiddle() {
+        val points = listOf(
+            GeoPoint(47.0, 19.0),
+            GeoPoint(47.00001, 19.00001),
+            GeoPoint(47.01, 19.01)
+        )
+        val simplified = DouglasPeucker.simplify(points, 50.0)
+        assertEquals(2, simplified.size)
+        assertEquals(points.first(), simplified.first())
+        assertEquals(points.last(), simplified.last())
+    }
+
+    @Test
+    fun keepsSharpCorner() {
+        val points = listOf(
+            GeoPoint(47.0, 19.0),
+            GeoPoint(47.02, 19.0),
+            GeoPoint(47.02, 19.03)
+        )
+        val simplified = DouglasPeucker.simplify(points, 20.0)
+        assertEquals(3, simplified.size)
+    }
+}
+
+class FixAcceptanceTest {
+    private val filter = FixFilter(
+        minDistanceMeters = 2.5f,
+        minTimeMillis = 500L,
+        minAccuracyMeters = 30,
+        minSatellites = 4
+    )
+
+    @Test
+    fun acceptsFirstFix() {
+        val current = sample(10_000L, 47.0, 19.0, 8f, 6)
+        assertTrue(FixAcceptance.shouldAccept(null, current, filter))
+    }
+
+    @Test
+    fun rejectsPoorAccuracy() {
+        val current = sample(10_000L, 47.0, 19.0, 80f, 8)
+        assertFalse(FixAcceptance.shouldAccept(null, current, filter))
+    }
+
+    @Test
+    fun rejectsTooFewSatellites() {
+        val current = sample(10_000L, 47.0, 19.0, 8f, 2)
+        assertFalse(FixAcceptance.shouldAccept(null, current, filter))
+    }
+
+    @Test
+    fun rejectsTooSoon() {
+        val previous = sample(10_000L, 47.0, 19.0, 8f, 6)
+        val current = sample(10_200L, 47.001, 19.001, 8f, 6)
+        assertFalse(FixAcceptance.shouldAccept(previous, current, filter))
+    }
+
+    private fun sample(
+        time: Long,
+        lat: Double,
+        lng: Double,
+        accuracy: Float,
+        sats: Int
+    ): TrackFix {
+        return TrackFix(
+            timestampMillis = time,
+            latitude = lat,
+            longitude = lng,
+            altitude = 100.0,
+            speedMps = 5f,
+            bearing = 90f,
+            accuracyMeters = accuracy,
+            satellitesInFix = sats
+        )
+    }
+}
+
+class GnssClassifierTest {
+    @Test
+    fun classifiesGpsL1AndL5() {
+        val samples = listOf(
+            SatelliteSample(GnssConstellation.GPS, 1, true, 32f, GnssClassifier.GPS_L1_HZ),
+            SatelliteSample(GnssConstellation.GPS, 2, false, 28f, GnssClassifier.GPS_L5_HZ),
+            SatelliteSample(GnssConstellation.GALILEO, 11, true, 30f, null),
+            SatelliteSample(GnssConstellation.GLONASS, 21, true, 26f, null),
+            SatelliteSample(GnssConstellation.BEIDOU, 31, false, 22f, null),
+            SatelliteSample(GnssConstellation.QZSS, 41, true, 24f, null),
+            SatelliteSample(GnssConstellation.IRNSS, 51, false, 18f, null)
+        )
+        val snapshot = GnssClassifier.snapshot(samples)
+        assertEquals(1, snapshot.gpsL1.usedInFix)
+        assertEquals(1, snapshot.gpsL5.inView)
+        assertEquals(1, snapshot.byConstellation.getValue(GnssConstellation.GALILEO).usedInFix)
+        assertEquals(1, snapshot.byConstellation.getValue(GnssConstellation.IRNSS).inView)
+        assertEquals(4, snapshot.satellitesInFix)
+        assertEquals(SignalQuality.GOOD, snapshot.signalQuality)
+    }
+
+    @Test
+    fun tunnelStrengthIsPoor() {
+        assertEquals(SignalQuality.POOR, GnssClassifier.qualityFromCn0(12.0, 3))
+        assertEquals(SignalQuality.NONE, GnssClassifier.qualityFromCn0(0.0, 0))
+        assertEquals(SignalQuality.EXCELLENT, GnssClassifier.qualityFromCn0(38.0, 8))
+    }
+
+    @Test
+    fun mapsAndroidConstellationCodes() {
+        assertEquals(GnssConstellation.GPS, GnssClassifier.constellationFromAndroid(1))
+        assertEquals(GnssConstellation.GALILEO, GnssClassifier.constellationFromAndroid(6))
+        assertEquals(GnssConstellation.IRNSS, GnssClassifier.constellationFromAndroid(7))
+    }
+}
+
+class KmlExporterTest {
+    @Test
+    fun writesLineAndPlacemarksWithoutRemoteIcons() {
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "Ride <1>",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                line = listOf(GeoPoint(47.5, 19.05, 120.0), GeoPoint(47.51, 19.06, 125.0)),
+                placemarks = listOf(
+                    KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, 120.0), "begin")
+                )
+            )
+        )
+        assertTrue(kml.contains("<LineString>"))
+        assertTrue(kml.contains("Ride &lt;1&gt;"))
+        assertFalse(kml.contains("eklsofttrade"))
+        assertFalse(kml.contains("href>http"))
+    }
+}
+
+class UsageTypeTest {
+    @Test
+    fun runnerUsesMotorbikeSpacingWithTerrainAccuracy() {
+        val bike = UsageType.TWO_WHEELERS.defaultFilter()
+        val runner = UsageType.RUNNER.defaultFilter()
+        assertEquals(bike.minDistanceMeters, runner.minDistanceMeters)
+        assertEquals(bike.minTimeMillis, runner.minTimeMillis)
+        assertEquals(bike.minSatellites, runner.minSatellites)
+        assertTrue(runner.minAccuracyMeters > bike.minAccuracyMeters)
+        assertTrue(UsageType.RUNNER.pauseSpeedMps() < UsageType.TWO_WHEELERS.pauseSpeedMps())
+    }
+
+    @Test
+    fun selectableModesIncludeRunnerAndDefaultMotorbike() {
+        assertEquals(UsageType.TWO_WHEELERS, UsageType.selectable[3])
+        assertTrue(UsageType.selectable.contains(UsageType.RUNNER))
+        assertEquals(5, UsageType.selectable.size)
+    }
+}
+
+class TrackStatsCalculatorTest {
+    @Test
+    fun computesDistanceAndTemperatureRange() {
+        val samples = listOf(
+            TrackSample(0, 47.0, 19.0, 100.0, 0f, 0f, 18.0f, EventKind.START),
+            TrackSample(10_000, 47.001, 19.0, 110.0, 8f, 0f, 21.5f, EventKind.MOVE)
+        )
+        val stats = TrackStatsCalculator.compute(samples)
+        assertTrue(stats.odometerMeters > 90.0)
+        assertEquals(18.0f, stats.temperatureRange?.minCelsius)
+        assertEquals(21.5f, stats.temperatureRange?.maxCelsius)
+        assertEquals(10_000L, stats.elapsedMillis)
+    }
+}
