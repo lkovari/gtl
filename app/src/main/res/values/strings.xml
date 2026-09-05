@@ -52,6 +52,8 @@
     <string name="settings_show_track">Show last logged route on map</string>
     <string name="settings_show_accuracy">Show accuracy marker</string>
     <string name="action_show_on_map">Show on map</string>
+    <string name="tracks_select_all">Select all</string>
+    <string name="tracks_share_selected">Share selected</string>
     <string name="settings_filters">Fix filters (defaults from the 2017 logger)</string>
     <string name="settings_min_distance">Minimum distance</string>
     <string name="settings_min_time">Minimum time</string>

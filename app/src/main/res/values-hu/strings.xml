@@ -52,6 +52,8 @@
     <string name="settings_show_track">Utolsó naplózott útvonal a térképen</string>
     <string name="settings_show_accuracy">Pontossági jelzés megjelenítése</string>
     <string name="action_show_on_map">Térképen</string>
+    <string name="tracks_select_all">Összes kijelölése</string>
+    <string name="tracks_share_selected">Kijelöltek megosztása</string>
     <string name="settings_filters">Fixszűrők (2017-es alapértékek)</string>
     <string name="settings_min_distance">Minimális távolság</string>
     <string name="settings_min_time">Minimális idő</string>

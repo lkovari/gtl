@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl.ui
 
 import android.app.Activity
+import android.content.Intent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,8 +59,10 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                         state = state,
                         viewModel = viewModel,
                         onBack = { nav.popBackStack() },
-                        onShare = {
-                            viewModel.shareLatestKml()?.let { context.startActivity(it) }
+                        onShare = { ids ->
+                            viewModel.shareSessions(ids) { intent ->
+                                context.startActivity(Intent.createChooser(intent, null))
+                            }
                         },
                         onShowOnMap = { sessionId ->
                             viewModel.showSessionOnMap(sessionId)

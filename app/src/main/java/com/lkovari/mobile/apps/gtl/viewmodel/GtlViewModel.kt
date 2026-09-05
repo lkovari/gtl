@@ -16,6 +16,7 @@ import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
+import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
 import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
@@ -45,7 +46,8 @@ data class GtlUiState(
     val sessions: List<TrackSessionEntity>,
     val mapsKeyPresent: Boolean,
     val osmFile: File?,
-    val requestedTab: Int?
+    val requestedTab: Int?,
+    val selectedSessionId: Long?
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -156,8 +158,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         live,
         activeEvents,
         sessions,
-        requestedTab
-    ) { prefs, liveState, events, sessionList, tab ->
+        combine(requestedTab, selectedSessionId, ::Pair)
+    ) { prefs, liveState, events, sessionList, tabAndSelected ->
+        val tab = tabAndSelected.first
+        val selected = tabAndSelected.second
         val samples = app.trackRepository.toSamples(events)
         val routeStats = if (liveState.logging) {
             TrackStatsCalculator.compute(samples)
@@ -170,7 +174,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             points
         }
-        val mapPoints = if (liveState.logging || prefs.showLastTrackOnMap) display else emptyList()
+        val mapPoints = if (MapTrackVisibility.visible(liveState.logging, prefs.showLastTrackOnMap, selected)) {
+            display
+        } else {
+            emptyList()
+        }
         val osm = if (prefs.selectedMapFile.isNotBlank()) {
             File(prefs.selectedMapFile).takeIf { it.exists() }
         } else {
@@ -185,7 +193,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             sessions = sessionList,
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
             osmFile = osm,
-            requestedTab = tab
+            requestedTab = tab,
+            selectedSessionId = selected
         )
     }.stateIn(
         viewModelScope,
@@ -199,7 +208,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             sessions = emptyList(),
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
             osmFile = null,
-            requestedTab = null
+            requestedTab = null,
+            selectedSessionId = null
         )
     )
 
@@ -299,20 +309,27 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun isDownloaded(region: OsmRegion): Boolean = app.osmMapStore.downloadedFile(region.id) != null
 
-    fun shareLatestKml(): Intent? {
-        val session = uiState.value.live.sessionId?.let { id ->
-            uiState.value.sessions.firstOrNull { it.id == id }
-        } ?: uiState.value.sessions.firstOrNull() ?: return null
-        val events = uiState.value.events
-        if (events.isEmpty()) {
-            return null
+    fun shareSessions(sessionIds: Collection<Long>, onReady: (Intent) -> Unit) {
+        if (sessionIds.isEmpty()) {
+            return
         }
-        val file = exporter.write(session, events)
-        val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
-        return Intent(Intent.ACTION_SEND).apply {
-            type = "application/vnd.google-earth.kmz"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        viewModelScope.launch {
+            val chosen = uiState.value.sessions.filter { it.id in sessionIds }
+            val items = chosen.map { session ->
+                session to app.trackRepository.eventsFor(session.id)
+            }.filter { it.second.isNotEmpty() }
+            if (items.isEmpty()) {
+                return@launch
+            }
+            val file = exporter.write(items)
+            val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+            onReady(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "application/vnd.google-earth.kmz"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            )
         }
     }
 }

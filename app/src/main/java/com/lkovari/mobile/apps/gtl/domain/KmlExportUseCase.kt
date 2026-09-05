@@ -9,6 +9,7 @@ import com.lkovari.mobile.apps.gtl.engine.KmlDescriptions
 import com.lkovari.mobile.apps.gtl.engine.KmlDocument
 import com.lkovari.mobile.apps.gtl.engine.KmlExporter
 import com.lkovari.mobile.apps.gtl.engine.KmlPlacemark
+import com.lkovari.mobile.apps.gtl.engine.KmlTrack
 import com.lkovari.mobile.apps.gtl.engine.KmzExporter
 import java.io.File
 import java.text.SimpleDateFormat
@@ -17,27 +18,42 @@ import java.util.Locale
 
 class KmlExportUseCase(private val context: Context) {
     fun write(session: TrackSessionEntity, events: List<GpsEventEntity>): File {
+        return write(listOf(session to events))
+    }
+
+    fun write(items: List<Pair<TrackSessionEntity, List<GpsEventEntity>>>): File {
         val dir = File(context.filesDir, "gtltracklogs")
         dir.mkdirs()
-        val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date(session.startedAt))
-        val file = File(dir, "GTL_$stamp.kmz")
-        val line = events.map { GeoPoint(it.latitude, it.longitude, it.altitude) }
-        val marks = events.filter { it.isPlacemark }.map { event ->
-            val kind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE)
-            KmlPlacemark(
-                name = kind.name,
-                kind = kind,
-                point = GeoPoint(event.latitude, event.longitude, event.altitude),
-                description = KmlDescriptions.balloon(kind, event.speed, event.ambientTemperature)
+        val stampFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+        val fileStamp = if (items.size == 1) {
+            stampFormat.format(Date(items.first().first.startedAt))
+        } else {
+            stampFormat.format(Date())
+        }
+        val file = File(dir, "GTL_$fileStamp.kmz")
+        val tracks = items.map { (session, events) ->
+            val stamp = stampFormat.format(Date(session.startedAt))
+            KmlTrack(
+                name = "GTL $stamp",
+                line = events.map { GeoPoint(it.latitude, it.longitude, it.altitude) },
+                placemarks = events.filter { it.isPlacemark }.map { event ->
+                    val kind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE)
+                    KmlPlacemark(
+                        name = kind.name,
+                        kind = kind,
+                        point = GeoPoint(event.latitude, event.longitude, event.altitude),
+                        description = KmlDescriptions.balloon(kind, event.speed, event.ambientTemperature)
+                    )
+                }
             )
         }
+        val documentName = if (tracks.size == 1) tracks.first().name else "GTL export $fileStamp"
         val kml = KmlExporter.export(
             KmlDocument(
-                name = "GTL $stamp",
+                name = documentName,
                 trackColorAabbggrr = "ff0000ff",
                 trackWidth = 6,
-                line = line,
-                placemarks = marks
+                tracks = tracks
             )
         )
         file.writeBytes(KmzExporter.pack(kml, iconFiles()))

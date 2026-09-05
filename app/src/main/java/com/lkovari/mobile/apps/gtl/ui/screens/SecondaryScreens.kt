@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -40,7 +41,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -282,30 +285,68 @@ fun TracksScreen(
     state: GtlUiState,
     viewModel: GtlViewModel,
     onBack: () -> Unit,
-    onShare: () -> Unit,
+    onShare: (Set<Long>) -> Unit,
     onShowOnMap: (Long) -> Unit
 ) {
     val format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+    val sessionIds = state.sessions.map { it.id }.toSet()
+    val visibleSelected = selectedIds.intersect(sessionIds)
+    val allSelected = sessionIds.isNotEmpty() && visibleSelected.size == sessionIds.size
     SecondaryScaffold(stringResource(R.string.tracks_title), onBack) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             item {
-                Button(onClick = onShare, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                    Text(stringResource(R.string.action_share_kml))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = allSelected,
+                        onCheckedChange = { checked ->
+                            selectedIds = if (checked) sessionIds else emptySet()
+                        },
+                        enabled = sessionIds.isNotEmpty()
+                    )
+                    Text(stringResource(R.string.tracks_select_all), style = MaterialTheme.typography.bodyLarge)
+                }
+                Button(
+                    onClick = { onShare(visibleSelected) },
+                    enabled = visibleSelected.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                ) {
+                    Text(stringResource(R.string.tracks_share_selected))
                 }
             }
             items(state.sessions) { session ->
+                val checked = session.id in visibleSelected
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.selectSession(session.id) }
                         .padding(vertical = 10.dp)
                 ) {
-                    Text(format.format(Date(session.startedAt)), style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        "${session.usageType} · ${session.measurementSystem}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = { on ->
+                                selectedIds = if (on) {
+                                    visibleSelected + session.id
+                                } else {
+                                    visibleSelected - session.id
+                                }
+                            }
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(format.format(Date(session.startedAt)), style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "${session.usageType} · ${session.measurementSystem}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.padding(start = 48.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Button(onClick = { onShowOnMap(session.id) }) {
                             Text(stringResource(R.string.action_show_on_map))
                         }

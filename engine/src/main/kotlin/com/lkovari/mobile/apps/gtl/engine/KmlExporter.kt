@@ -7,12 +7,17 @@ data class KmlPlacemark(
     val description: String
 )
 
+data class KmlTrack(
+    val name: String,
+    val line: List<GeoPoint>,
+    val placemarks: List<KmlPlacemark>
+)
+
 data class KmlDocument(
     val name: String,
     val trackColorAabbggrr: String,
     val trackWidth: Int,
-    val line: List<GeoPoint>,
-    val placemarks: List<KmlPlacemark>
+    val tracks: List<KmlTrack>
 )
 
 object KmlExporter {
@@ -23,29 +28,34 @@ object KmlExporter {
         builder.appendLine("<Document>")
         builder.appendLine("<name>${escape(document.name)}</name>")
         appendStyles(builder, document.trackColorAabbggrr, document.trackWidth)
-        if (document.line.isNotEmpty()) {
-            builder.appendLine("<Placemark>")
-            builder.appendLine("<name>${escape(document.name)}</name>")
-            builder.appendLine("<styleUrl>#track</styleUrl>")
-            builder.appendLine("<LineString>")
-            builder.appendLine("<tessellate>1</tessellate>")
-            builder.appendLine("<coordinates>")
-            document.line.forEach { point ->
-                builder.appendLine("${point.longitude},${point.latitude},${point.altitude}")
+        document.tracks.forEach { track ->
+            builder.appendLine("<Folder>")
+            builder.appendLine("<name>${escape(track.name)}</name>")
+            if (track.line.isNotEmpty()) {
+                builder.appendLine("<Placemark>")
+                builder.appendLine("<name>${escape(track.name)}</name>")
+                builder.appendLine("<styleUrl>#track</styleUrl>")
+                builder.appendLine("<LineString>")
+                builder.appendLine("<tessellate>1</tessellate>")
+                builder.appendLine("<coordinates>")
+                track.line.forEach { point ->
+                    builder.appendLine("${point.longitude},${point.latitude},${point.altitude}")
+                }
+                builder.appendLine("</coordinates>")
+                builder.appendLine("</LineString>")
+                builder.appendLine("</Placemark>")
             }
-            builder.appendLine("</coordinates>")
-            builder.appendLine("</LineString>")
-            builder.appendLine("</Placemark>")
-        }
-        document.placemarks.forEach { mark ->
-            builder.appendLine("<Placemark>")
-            builder.appendLine("<name>${escape(mark.name)}</name>")
-            builder.appendLine("<description>${escape(mark.description)}</description>")
-            builder.appendLine("<styleUrl>#${styleId(mark.kind)}</styleUrl>")
-            builder.appendLine("<Point>")
-            builder.appendLine("<coordinates>${mark.point.longitude},${mark.point.latitude},${mark.point.altitude}</coordinates>")
-            builder.appendLine("</Point>")
-            builder.appendLine("</Placemark>")
+            track.placemarks.forEach { mark ->
+                builder.appendLine("<Placemark>")
+                builder.appendLine("<name>${escape(mark.name)}</name>")
+                builder.appendLine("<description>${escape(mark.description)}</description>")
+                builder.appendLine("<styleUrl>#${styleId(mark.kind)}</styleUrl>")
+                builder.appendLine("<Point>")
+                builder.appendLine("<coordinates>${mark.point.longitude},${mark.point.latitude},${mark.point.altitude}</coordinates>")
+                builder.appendLine("</Point>")
+                builder.appendLine("</Placemark>")
+            }
+            builder.appendLine("</Folder>")
         }
         builder.appendLine("</Document>")
         builder.appendLine("</kml>")

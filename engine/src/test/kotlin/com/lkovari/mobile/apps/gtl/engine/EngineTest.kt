@@ -213,15 +213,47 @@ class KmlExporterTest {
         assertEquals("doc.kml", names.first())
     }
 
+    @Test
+    fun exportsEachSelectedTrackInItsOwnFolder() {
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "GTL export",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(
+                    KmlTrack(
+                        name = "Morning",
+                        line = listOf(GeoPoint(47.5, 19.05, 120.0), GeoPoint(47.51, 19.06, 125.0)),
+                        placemarks = emptyList()
+                    ),
+                    KmlTrack(
+                        name = "Evening",
+                        line = listOf(GeoPoint(47.6, 19.1, 130.0), GeoPoint(47.61, 19.11, 135.0)),
+                        placemarks = emptyList()
+                    )
+                )
+            )
+        )
+        assertEquals(2, "<LineString>".toRegex().findAll(kml).count())
+        assertTrue(kml.contains("<name>Morning</name>"))
+        assertTrue(kml.contains("<name>Evening</name>"))
+        assertTrue(kml.contains("<Folder>"))
+    }
+
     private fun sampleKml(): String {
         return KmlExporter.export(
             KmlDocument(
                 name = "Ride <1>",
                 trackColorAabbggrr = "ff0000ff",
                 trackWidth = 6,
-                line = listOf(GeoPoint(47.5, 19.05, 120.0), GeoPoint(47.51, 19.06, 125.0)),
-                placemarks = listOf(
-                    KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, 120.0), "begin")
+                tracks = listOf(
+                    KmlTrack(
+                        name = "Ride <1>",
+                        line = listOf(GeoPoint(47.5, 19.05, 120.0), GeoPoint(47.51, 19.06, 125.0)),
+                        placemarks = listOf(
+                            KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, 120.0), "begin")
+                        )
+                    )
                 )
             )
         )
@@ -251,6 +283,28 @@ class UsageTypeTest {
         assertEquals(UsageType.TWO_WHEELERS, UsageType.selectable[3])
         assertTrue(UsageType.selectable.contains(UsageType.RUNNER))
         assertEquals(5, UsageType.selectable.size)
+    }
+}
+
+class MapTrackVisibilityTest {
+    @Test
+    fun liveLoggingAlwaysDraws() {
+        assertTrue(MapTrackVisibility.visible(logging = true, showLastTrackOnMap = false, selectedSessionId = null))
+    }
+
+    @Test
+    fun explicitSelectionDrawsEvenWhenLastTrackHidden() {
+        assertTrue(MapTrackVisibility.visible(logging = false, showLastTrackOnMap = false, selectedSessionId = 12L))
+    }
+
+    @Test
+    fun lastTrackSettingDrawsWithoutSelection() {
+        assertTrue(MapTrackVisibility.visible(logging = false, showLastTrackOnMap = true, selectedSessionId = null))
+    }
+
+    @Test
+    fun idleWithoutSelectionHidesTrack() {
+        assertFalse(MapTrackVisibility.visible(logging = false, showLastTrackOnMap = false, selectedSessionId = null))
     }
 }
 
