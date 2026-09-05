@@ -79,6 +79,36 @@
     <string name="help_kml_body">Menu → Share KMZ sends the current track as a KMZ file (KML plus play, pause, and stop icons). Open it with an external app such as Google Earth. If Google Earth is not installed, get it from Play Store, then open the shared file. Tap the play, pause, or stop icons on the map to see that point’s details.</string>
     <string name="help_privacy_policy">Privacy policy</string>
     <string name="help_privacy_url" translatable="false">https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html</string>
+    <string name="help_trackpoint_title">A stored trackpoint</string>
+    <string name="help_trackpoint_intro">One GPS fix in SQLite (gps_events).</string>
+    <string-array name="help_trackpoint_fields" translatable="false">
+        <item>id</item>
+        <item>sessionId</item>
+        <item>timestamp</item>
+        <item>latitude / longitude / altitude</item>
+        <item>speed</item>
+        <item>bearing</item>
+        <item>accuracy</item>
+        <item>satellitesInFix</item>
+        <item>ambientTemperature</item>
+        <item>accelX / accelY / accelZ</item>
+        <item>isPlacemark</item>
+        <item>eventKind</item>
+    </string-array>
+    <string-array name="help_trackpoint_meanings">
+        <item>primary key</item>
+        <item>which track</item>
+        <item>time (epoch ms)</item>
+        <item>location</item>
+        <item>m/s</item>
+        <item>heading °</item>
+        <item>GPS accuracy m</item>
+        <item>satellites</item>
+        <item>°C if a sensor exists</item>
+        <item>acceleration</item>
+        <item>true = START / PAUSE / STOP icon in the KMZ</item>
+        <item>START, MOVE, PAUSE, STOP</item>
+    </string-array>
     <string name="gps_snr">Signal SNR</string>
     <string name="snr_excellent">Excellent</string>
     <string name="snr_good">Good</string>

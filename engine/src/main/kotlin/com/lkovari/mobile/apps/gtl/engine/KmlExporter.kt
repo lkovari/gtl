@@ -7,9 +7,15 @@ data class KmlPlacemark(
     val description: String
 )
 
+data class KmlVertex(
+    val point: GeoPoint,
+    val timestampMillis: Long,
+    val speedMps: Float
+)
+
 data class KmlTrack(
     val name: String,
-    val line: List<GeoPoint>,
+    val points: List<KmlVertex>,
     val placemarks: List<KmlPlacemark>
 )
 
@@ -24,25 +30,37 @@ object KmlExporter {
     fun export(document: KmlDocument): String {
         val builder = StringBuilder()
         builder.appendLine("""<?xml version="1.0" encoding="UTF-8"?>""")
-        builder.appendLine("""<kml xmlns="http://www.opengis.net/kml/2.2">""")
+        builder.appendLine("""<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">""")
         builder.appendLine("<Document>")
         builder.appendLine("<name>${escape(document.name)}</name>")
         appendStyles(builder, document.trackColorAabbggrr, document.trackWidth)
+        appendSpeedSchema(builder)
         document.tracks.forEach { track ->
             builder.appendLine("<Folder>")
             builder.appendLine("<name>${escape(track.name)}</name>")
-            if (track.line.isNotEmpty()) {
+            if (track.points.isNotEmpty()) {
                 builder.appendLine("<Placemark>")
                 builder.appendLine("<name>${escape(track.name)}</name>")
                 builder.appendLine("<styleUrl>#track</styleUrl>")
-                builder.appendLine("<LineString>")
-                builder.appendLine("<tessellate>1</tessellate>")
-                builder.appendLine("<coordinates>")
-                track.line.forEach { point ->
-                    builder.appendLine("${point.longitude},${point.latitude},${point.altitude}")
+                builder.appendLine("<gx:Track>")
+                builder.appendLine("<altitudeMode>absolute</altitudeMode>")
+                track.points.forEach { vertex ->
+                    builder.appendLine("<when>${utcWhen(vertex.timestampMillis)}</when>")
                 }
-                builder.appendLine("</coordinates>")
-                builder.appendLine("</LineString>")
+                track.points.forEach { vertex ->
+                    val p = vertex.point
+                    builder.appendLine("<gx:coord>${p.longitude} ${p.latitude} ${p.altitude}</gx:coord>")
+                }
+                builder.appendLine("<ExtendedData>")
+                builder.appendLine("<SchemaData schemaUrl=\"#trackSpeed\">")
+                builder.appendLine("<gx:SimpleArrayData name=\"speed\">")
+                track.points.forEach { vertex ->
+                    builder.appendLine("<gx:value>${vertex.speedMps}</gx:value>")
+                }
+                builder.appendLine("</gx:SimpleArrayData>")
+                builder.appendLine("</SchemaData>")
+                builder.appendLine("</ExtendedData>")
+                builder.appendLine("</gx:Track>")
                 builder.appendLine("</Placemark>")
             }
             track.placemarks.forEach { mark ->
@@ -68,6 +86,14 @@ object KmlExporter {
         appendIconStyle(builder, "pause", "icons/pause.png")
         appendIconStyle(builder, "stop", "icons/stop.png")
         builder.appendLine("""<Style id="move"><LabelStyle><scale>0</scale></LabelStyle></Style>""")
+    }
+
+    private fun appendSpeedSchema(builder: StringBuilder) {
+        builder.appendLine("""<Schema id="trackSpeed"><gx:SimpleArrayField name="speed" type="float"><displayName>Speed (m/s)</displayName></gx:SimpleArrayField></Schema>""")
+    }
+
+    private fun utcWhen(timestampMillis: Long): String {
+        return java.time.Instant.ofEpochMilli(timestampMillis).toString()
     }
 
     private fun appendIconStyle(builder: StringBuilder, id: String, href: String) {

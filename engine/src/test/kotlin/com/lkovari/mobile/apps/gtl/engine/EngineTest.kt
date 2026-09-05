@@ -168,13 +168,29 @@ class GnssClassifierTest {
 }
 
 class KmlExporterTest {
+    companion object {
+        private const val SAMPLE_TIME = 1_725_500_000_000L
+    }
+
     @Test
     fun writesLineAndPlacemarksWithoutRemoteIcons() {
         val kml = sampleKml()
-        assertTrue(kml.contains("<LineString>"))
+        assertTrue(kml.contains("<gx:Track>"))
+        assertTrue(kml.contains("<when>"))
+        assertTrue(kml.contains("<gx:coord>"))
         assertTrue(kml.contains("Ride &lt;1&gt;"))
         assertFalse(kml.contains("eklsofttrade"))
         assertFalse(kml.contains("<href>http"))
+    }
+
+    @Test
+    fun writesTimeLatLonAndSpeedOnEveryTrackPoint() {
+        val kml = sampleKml()
+        assertTrue(kml.contains("xmlns:gx="))
+        assertTrue(kml.contains("<when>2024-09-05T01:33:20Z</when>"))
+        assertTrue(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
+        assertTrue(kml.contains("<gx:SimpleArrayData name=\"speed\">"))
+        assertTrue(kml.contains("<gx:value>5.5</gx:value>"))
     }
 
     @Test
@@ -189,10 +205,57 @@ class KmlExporterTest {
 
     @Test
     fun pauseAndStopBalloonsForceZeroSpeed() {
-        assertEquals("speed=0 temp=-", KmlDescriptions.balloon(EventKind.PAUSE, 1.1117642f, null))
-        assertEquals("speed=0 temp=18.5", KmlDescriptions.balloon(EventKind.STOP, 4.1f, 18.5f))
-        assertEquals("speed=5.5 temp=-", KmlDescriptions.balloon(EventKind.START, 5.5f, null))
-        assertEquals("speed=8.3 temp=-", KmlDescriptions.balloon(EventKind.MOVE, 8.3f, null))
+        val pause = KmlDescriptions.balloon(
+            kind = EventKind.PAUSE,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 1.1117642f,
+            tempCelsius = null
+        )
+        val stop = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 4.1f,
+            tempCelsius = 18.5f,
+            maxSpeedMps = 12.0f,
+            averageSpeedMps = 6.0f
+        )
+        assertTrue(pause.contains("speed=0.0 km/h"))
+        assertFalse(pause.contains("maxSpeed="))
+        assertTrue(stop.contains("speed=0.0 km/h"))
+        assertTrue(stop.contains("maxSpeed=43.2 km/h"))
+        assertTrue(stop.contains("avgSpeed=21.6 km/h"))
+        assertTrue(stop.contains("temp=18.5"))
+    }
+
+    @Test
+    fun balloonsIncludeTimeLatLonAndMovingSpeed() {
+        val start = KmlDescriptions.balloon(
+            kind = EventKind.START,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 5.5f,
+            tempCelsius = null
+        )
+        assertTrue(start.contains("time=2024-09-05 01:33:20 UTC"))
+        assertTrue(start.contains("lat=47.500000"))
+        assertTrue(start.contains("lon=19.050000"))
+        assertTrue(start.contains("speed=19.8 km/h"))
+        val move = KmlDescriptions.balloon(
+            kind = EventKind.MOVE,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.51,
+            longitude = 19.06,
+            speedMps = 8.3f,
+            tempCelsius = null
+        )
+        assertTrue(move.contains("speed=29.9 km/h"))
+        assertTrue(move.contains("lat=47.510000"))
+        assertTrue(move.contains("lon=19.060000"))
     }
 
     @Test
@@ -223,18 +286,24 @@ class KmlExporterTest {
                 tracks = listOf(
                     KmlTrack(
                         name = "Morning",
-                        line = listOf(GeoPoint(47.5, 19.05, 120.0), GeoPoint(47.51, 19.06, 125.0)),
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 5.5f),
+                            KmlVertex(GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000, 6.0f)
+                        ),
                         placemarks = emptyList()
                     ),
                     KmlTrack(
                         name = "Evening",
-                        line = listOf(GeoPoint(47.6, 19.1, 130.0), GeoPoint(47.61, 19.11, 135.0)),
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.6, 19.1, 130.0), SAMPLE_TIME, 4.0f),
+                            KmlVertex(GeoPoint(47.61, 19.11, 135.0), SAMPLE_TIME + 1000, 4.2f)
+                        ),
                         placemarks = emptyList()
                     )
                 )
             )
         )
-        assertEquals(2, "<LineString>".toRegex().findAll(kml).count())
+        assertEquals(2, "<gx:Track>".toRegex().findAll(kml).count())
         assertTrue(kml.contains("<name>Morning</name>"))
         assertTrue(kml.contains("<name>Evening</name>"))
         assertTrue(kml.contains("<Folder>"))
@@ -249,7 +318,10 @@ class KmlExporterTest {
                 tracks = listOf(
                     KmlTrack(
                         name = "Ride <1>",
-                        line = listOf(GeoPoint(47.5, 19.05, 120.0), GeoPoint(47.51, 19.06, 125.0)),
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 5.5f),
+                            KmlVertex(GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000, 6.0f)
+                        ),
                         placemarks = listOf(
                             KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, 120.0), "begin")
                         )

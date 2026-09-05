@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,12 +30,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -48,14 +51,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.ui.theme.CockpitPanel
+import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
+import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
+import com.lkovari.mobile.apps.gtl.ui.theme.NightMuted
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
@@ -398,6 +407,53 @@ fun HelpScreen(onBack: () -> Unit) {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl)))
                 }
             )
+            Text(stringResource(R.string.help_trackpoint_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = stringResource(R.string.help_trackpoint_intro),
+                style = MaterialTheme.typography.bodyMedium,
+                color = NightMuted
+            )
+            StoredTrackpointTable()
+        }
+    }
+}
+
+@Composable
+private fun StoredTrackpointTable() {
+    val fields = stringArrayResource(R.array.help_trackpoint_fields)
+    val meanings = stringArrayResource(R.array.help_trackpoint_meanings)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = CockpitPanel,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
+            fields.forEachIndexed { index, field ->
+                if (index > 0) {
+                    HorizontalDivider(color = NightMuted.copy(alpha = 0.28f))
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = field,
+                        modifier = Modifier.weight(0.46f),
+                        color = HudCyan,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = meanings.getOrElse(index) { "" },
+                        modifier = Modifier.weight(0.54f),
+                        color = MoonCream,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
         }
     }
 }

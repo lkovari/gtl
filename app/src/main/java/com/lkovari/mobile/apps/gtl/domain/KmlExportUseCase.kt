@@ -10,7 +10,11 @@ import com.lkovari.mobile.apps.gtl.engine.KmlDocument
 import com.lkovari.mobile.apps.gtl.engine.KmlExporter
 import com.lkovari.mobile.apps.gtl.engine.KmlPlacemark
 import com.lkovari.mobile.apps.gtl.engine.KmlTrack
+import com.lkovari.mobile.apps.gtl.engine.KmlVertex
 import com.lkovari.mobile.apps.gtl.engine.KmzExporter
+import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.TrackSample
+import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,16 +37,46 @@ class KmlExportUseCase(private val context: Context) {
         val file = File(dir, "GTL_$fileStamp.kmz")
         val tracks = items.map { (session, events) ->
             val stamp = stampFormat.format(Date(session.startedAt))
+            val system = runCatching { MeasurementSystem.valueOf(session.measurementSystem) }
+                .getOrDefault(MeasurementSystem.METRIC)
+            val stats = TrackStatsCalculator.compute(events.map { event ->
+                TrackSample(
+                    timestampMillis = event.timestamp,
+                    latitude = event.latitude,
+                    longitude = event.longitude,
+                    altitude = event.altitude,
+                    speedMps = event.speed,
+                    bearing = event.bearing,
+                    ambientTemperature = event.ambientTemperature,
+                    eventKind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE)
+                )
+            })
             KmlTrack(
                 name = "GTL $stamp",
-                line = events.map { GeoPoint(it.latitude, it.longitude, it.altitude) },
+                points = events.map { event ->
+                    KmlVertex(
+                        point = GeoPoint(event.latitude, event.longitude, event.altitude),
+                        timestampMillis = event.timestamp,
+                        speedMps = event.speed
+                    )
+                },
                 placemarks = events.filter { it.isPlacemark }.map { event ->
                     val kind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE)
                     KmlPlacemark(
                         name = kind.name,
                         kind = kind,
                         point = GeoPoint(event.latitude, event.longitude, event.altitude),
-                        description = KmlDescriptions.balloon(kind, event.speed, event.ambientTemperature)
+                        description = KmlDescriptions.balloon(
+                            kind = kind,
+                            timestampMillis = event.timestamp,
+                            latitude = event.latitude,
+                            longitude = event.longitude,
+                            speedMps = event.speed,
+                            tempCelsius = event.ambientTemperature,
+                            maxSpeedMps = if (kind == EventKind.STOP) stats.maxSpeedMps else null,
+                            averageSpeedMps = if (kind == EventKind.STOP) stats.averageSpeedMps else null,
+                            system = system
+                        )
                     )
                 }
             )

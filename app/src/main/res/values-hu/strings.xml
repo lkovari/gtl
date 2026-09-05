@@ -78,6 +78,22 @@
     <string name="help_kml_title">KMZ megtekintése</string>
     <string name="help_kml_body">Menü → KMZ megosztása elküldi az aktuális nyomvonalat KMZ-fájlként (KML plusz indítás, szünet és stop ikonok). Nyisd meg külső alkalmazással, például Google Earth-tel. Ha nincs telepítve, töltsd le a Play Áruházból, majd nyisd meg a megosztott fájlt. A térképen a play, szünet és stop ikonokra koppintva megjelennek az adott pont adatai.</string>
     <string name="help_privacy_policy">Adatvédelmi tájékoztató</string>
+    <string name="help_trackpoint_title">Egy letárolt trackpont</string>
+    <string name="help_trackpoint_intro">Egy GPS-pont a SQLite gps_events táblában.</string>
+    <string-array name="help_trackpoint_meanings">
+        <item>saját kulcs</item>
+        <item>melyik track</item>
+        <item>idő (epoch ms)</item>
+        <item>hely</item>
+        <item>m/s</item>
+        <item>irány °</item>
+        <item>GPS pontosság m</item>
+        <item>műholdak</item>
+        <item>°C, ha van szenzor</item>
+        <item>gyorsulás</item>
+        <item>true = START / PAUSE / STOP ikon a KMZ-ben</item>
+        <item>START, MOVE, PAUSE, STOP</item>
+    </string-array>
     <string name="gps_snr">Jel SNR</string>
     <string name="snr_excellent">Kiváló</string>
     <string name="snr_good">Jó</string>

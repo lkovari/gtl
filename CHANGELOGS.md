@@ -3,22 +3,27 @@
 All notable changes to **GTL GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.0** / `versionCode` **18** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.2** / `versionCode` **20** (minSdk 24, targetSdk 36).
 
-## [Unreleased] — 2026-09-05
+## [Unreleased]
 
-Offline OSM map and saved-track sharing (working tree; not yet committed).
+## [2.0.2] — 2026-09-05
 
-### Fixed
-
-- Live track no longer missing on a downloaded OSM map: Mapsforge now draws the red polyline (and start/end dots) the same way Google Maps already did.
-- **Show on map** from Saved tracks now displays that session on OSM as well as Google Maps.
-- Explicitly chosen sessions still appear when **Show last logged route on map** is off.
+Play production track **20 (2.0.2)** (signed AAB). `versionCode` 19 was already used on Play, so this release is 20. Play Console what’s-new: `docs/play-console/whatsnew.txt`.
 
 ### Added
 
 - Checkboxes on Saved tracks, **Select all**, and **Share selected**.
 - One selected session exports one KMZ; several selected sessions export one KMZ with a folder per track.
+- KMZ `gx:Track` for every stored point (`when`, lon/lat/alt, speed).
+- START / PAUSE / STOP balloons: UTC time, lat, lon, speed, temperature; STOP also max and average speed.
+- Help: stored-trackpoint table of `gps_events` fields (EN/HU).
+
+### Fixed
+
+- Live track no longer missing on a downloaded OSM map: Mapsforge draws the red polyline (and start/end dots) the same way Google Maps already did.
+- **Show on map** from Saved tracks now displays that session on OSM as well as Google Maps.
+- Explicitly chosen sessions still appear when **Show last logged route on map** is off.
 
 ## [2.0.0] — 2026-09-04
 

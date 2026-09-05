@@ -4,7 +4,7 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.0 (versionCode 18)  
+**Version:** 2.0.2 (versionCode 20)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
@@ -57,9 +57,10 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 ### KMZ export
 
 - Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0).
-- Pause and stop balloons report `speed=0` (GPS jitter is not treated as motion).
+- Every stored GPS point is on a `gx:Track` (`when`, lon/lat/alt, speed).
+- START / PAUSE / STOP balloons: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`. Pause and stop force `speed=0`. STOP also `maxSpeed=` / `avgSpeed=`.
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
-- Help screen documents this flow (EN/HU).
+- Help documents this flow (EN/HU) and lists SQLite `gps_events` fields.
 
 ### Settings
 
@@ -72,7 +73,7 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 - First-run safe-driving disclaimer.
 - Download OSM map (Mapsforge v5 regions: Europe, selected Asia / Americas / Australia).
 - Location settings (opens the system GPS panel).
-- Help (tabs + KMZ in Google Earth) and About.
+- Help (tabs, KMZ in Google Earth, stored-trackpoint field table) and About.
 - Privacy-policy link.
 
 ---
@@ -131,9 +132,11 @@ Restrict the key to `com.lkovari.mobile.apps.gtl` and the EKL keystore SHA-1. Un
 ./gradlew :engine:test
 ./gradlew assembleDebug
 ./gradlew assembleRelease    # needs keystore.properties
+./gradlew bundleRelease      # signed AAB for Play
 ```
 
-Release APK: `app/build/outputs/apk/release/app-release.apk`
+Release APK: `app/build/outputs/apk/release/app-release.apk`  
+Release AAB: `app/build/outputs/bundle/release/app-release.aab` (Play App Signing; upload key = EKL release keystore)
 
 ### Stack
 
@@ -145,7 +148,8 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 | Document | What it is |
 |---|---|
-| [CHANGELOGS.md](CHANGELOGS.md) | Version history (2.0.0 rewrite and later fixes) |
+| [CHANGELOGS.md](CHANGELOGS.md) | Version history (2.0.0 rewrite through 2.0.2) |
+| [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt) | Play Console release name and EN/HU what’s-new text |
 | [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md) | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page) |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic |
