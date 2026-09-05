@@ -10,6 +10,8 @@ val HudTeal = Color(0xFF1F8A80)
 val DeepTeal = Color(0xFF0F5C58)
 val AmberFix = Color(0xFFD39A2A)
 val CarmineTrack = Color(0xFFC13B2E)
+val AccuracyMarkerFill = Color(0xFF6666FF)
+val AccuracyMarkerBorder = Color(0xFF1414FC)
 val TitleMagenta = Color(0xFFC2185B)
 val GnssLime = Color(0xFF6FAF4E)
 

@@ -29,17 +29,15 @@ object FixAcceptance {
         if (previous == null) {
             return true
         }
-        val elapsed = current.timestampMillis - previous.timestampMillis
-        if (elapsed < filter.minTimeMillis) {
-            return false
-        }
+        val inCurve = SpeedAdaptiveSpacing.isInCurve(previous.bearing, current.bearing)
+        val needed = SpeedAdaptiveSpacing.spacingMeters(current.speedMps, inCurve)
         val distance = haversineMeters(
             previous.latitude,
             previous.longitude,
             current.latitude,
             current.longitude
         )
-        return distance >= filter.minDistanceMeters
+        return distance >= needed
     }
 
     fun haversineMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {

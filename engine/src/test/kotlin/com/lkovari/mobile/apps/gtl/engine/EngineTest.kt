@@ -31,6 +31,40 @@ class DouglasPeuckerTest {
     }
 }
 
+class SpeedAdaptiveSpacingTest {
+    @Test
+    fun standingUsesTwoMeters() {
+        assertEquals(2f, SpeedAdaptiveSpacing.spacingMeters(0f, false))
+    }
+
+    @Test
+    fun walkingUsesFourMeters() {
+        assertEquals(4f, SpeedAdaptiveSpacing.spacingMeters(1.2f, false))
+    }
+
+    @Test
+    fun cityDrivingUsesThirtySixMeters() {
+        assertEquals(36f, SpeedAdaptiveSpacing.spacingMeters(8.3f, false))
+    }
+
+    @Test
+    fun highwayUsesSeventyMeters() {
+        assertEquals(70f, SpeedAdaptiveSpacing.spacingMeters(27.0f, false))
+    }
+
+    @Test
+    fun curveHalvesSpacing() {
+        assertEquals(18f, SpeedAdaptiveSpacing.spacingMeters(8.3f, true))
+    }
+
+    @Test
+    fun headingChangeOverFifteenDegreesIsACurve() {
+        assertTrue(SpeedAdaptiveSpacing.isInCurve(90f, 110f))
+        assertFalse(SpeedAdaptiveSpacing.isInCurve(90f, 100f))
+        assertFalse(SpeedAdaptiveSpacing.isInCurve(0f, 40f))
+    }
+}
+
 class FixAcceptanceTest {
     private val filter = FixFilter(
         minDistanceMeters = 2.5f,
@@ -58,10 +92,21 @@ class FixAcceptanceTest {
     }
 
     @Test
-    fun rejectsTooSoon() {
-        val previous = sample(10_000L, 47.0, 19.0, 8f, 6)
-        val current = sample(10_200L, 47.001, 19.001, 8f, 6)
-        assertFalse(FixAcceptance.shouldAccept(previous, current, filter))
+    fun rejectsUntilSpeedBandDistanceIsTravelled() {
+        val previous = sample(10_000L, 47.0, 19.0, 8f, 6, speedMps = 8.3f, bearing = 90f)
+        val nearby = sample(10_500L, 47.00005, 19.0, 8f, 6, speedMps = 8.3f, bearing = 90f)
+        assertFalse(FixAcceptance.shouldAccept(previous, nearby, filter))
+        val farther = sample(12_000L, 47.00040, 19.0, 8f, 6, speedMps = 8.3f, bearing = 90f)
+        assertTrue(FixAcceptance.shouldAccept(previous, farther, filter))
+    }
+
+    @Test
+    fun curveAcceptsSoonerThanStraight() {
+        val previous = sample(10_000L, 47.0, 19.0, 8f, 6, speedMps = 8.3f, bearing = 90f)
+        val turned = sample(11_000L, 47.00020, 19.0, 8f, 6, speedMps = 8.3f, bearing = 120f)
+        assertTrue(FixAcceptance.shouldAccept(previous, turned, filter))
+        val straight = sample(11_000L, 47.00020, 19.0, 8f, 6, speedMps = 8.3f, bearing = 90f)
+        assertFalse(FixAcceptance.shouldAccept(previous, straight, filter))
     }
 
     private fun sample(
@@ -69,15 +114,17 @@ class FixAcceptanceTest {
         lat: Double,
         lng: Double,
         accuracy: Float,
-        sats: Int
+        sats: Int,
+        speedMps: Float = 5f,
+        bearing: Float = 90f
     ): TrackFix {
         return TrackFix(
             timestampMillis = time,
             latitude = lat,
             longitude = lng,
             altitude = 100.0,
-            speedMps = 5f,
-            bearing = 90f,
+            speedMps = speedMps,
+            bearing = bearing,
             accuracyMeters = accuracy,
             satellitesInFix = sats
         )

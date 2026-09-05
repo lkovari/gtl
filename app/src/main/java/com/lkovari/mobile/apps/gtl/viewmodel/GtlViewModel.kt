@@ -76,7 +76,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             trackThickness = 8,
             optimizationTolerance = 19.5,
             optimizationActive = true,
-            showLastTrackOnMap = true
+            showLastTrackOnMap = true,
+            showAccuracyMarker = true
         )
     )
 
@@ -272,6 +273,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowLastTrackOnMap(value: Boolean) {
         viewModelScope.launch { app.preferences.setShowLastTrackOnMap(value) }
+    }
+
+    fun setShowAccuracyMarker(value: Boolean) {
+        viewModelScope.launch { app.preferences.setShowAccuracyMarker(value) }
     }
 
     fun downloadRegion(region: OsmRegion) {

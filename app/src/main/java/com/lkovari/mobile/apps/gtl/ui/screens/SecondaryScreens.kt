@@ -154,6 +154,9 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             SettingSwitch(stringResource(R.string.settings_show_track), state.settings.showLastTrackOnMap) {
                 viewModel.setShowLastTrackOnMap(it)
             }
+            SettingSwitch(stringResource(R.string.settings_show_accuracy), state.settings.showAccuracyMarker) {
+                viewModel.setShowAccuracyMarker(it)
+            }
             Text(stringResource(R.string.settings_filters), style = MaterialTheme.typography.bodyMedium)
             Text("${stringResource(R.string.settings_min_distance)}: ${state.settings.minDistanceMeters} m")
             Text("${stringResource(R.string.settings_min_time)}: ${state.settings.minTimeMillis} ms")

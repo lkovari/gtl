@@ -50,6 +50,7 @@
     <string name="settings_offline">Use downloaded OSM map</string>
     <string name="settings_optimize">Simplify track on map</string>
     <string name="settings_show_track">Show last logged route on map</string>
+    <string name="settings_show_accuracy">Show accuracy marker</string>
     <string name="action_show_on_map">Show on map</string>
     <string name="settings_filters">Fix filters (defaults from the 2017 logger)</string>
     <string name="settings_min_distance">Minimum distance</string>
@@ -65,11 +66,11 @@
     <string name="help_title">Help</string>
     <string name="help_body">Allow location when asked. GPS and Compass update as soon as the app is open. Tap Start to record a route into SQLite on this phone, draw it on the Map, and fill the Route totals. Tap Stop to end the session. Menu → Saved tracks to delete a route or show it on the map. Settings picks usage (motorbike is the default), units, and whether the last track stays on the map. Download an OSM region for offline maps. Nothing is uploaded to our servers.</string>
     <string name="help_gps_title">GPS</string>
-    <string name="help_gps_body">Live satellite counts (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC), SNR quality, latitude, longitude, accuracy, provider, altitude, ambient temperature, and logging status. Temperature is the hardware sensor value, or 0 if this phone has no ambient sensor.</string>
+    <string name="help_gps_body">Live satellite counts (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC), SNR quality, latitude, longitude, accuracy, provider, altitude, ambient temperature, and logging status. Temperature is the hardware sensor value, or 0 if this phone has no ambient sensor. While logging, GTL stores points more often when you move slowly or turn, and more rarely at high speed — same speed bands as the 2014 logger.</string>
     <string name="help_route_title">Route</string>
     <string name="help_route_body">Session totals after Start: elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, and temperature range when the sensor exists.</string>
     <string name="help_map_title">Map</string>
-    <string name="help_map_body">Centers on your current location when you open the tab. After Start it follows you and draws the recorded track. With “Show last logged route on map” a saved track stays visible. Saved tracks → Show on map opens that session here.</string>
+    <string name="help_map_body">Centers on your current location when you open the tab. After Start it follows you and draws the recorded track. A light purple circle around you is the GPS accuracy (radius equals the accuracy in metres). Turn it off in Settings. With “Show last logged route on map” a saved track stays visible. Saved tracks → Show on map opens that session here.</string>
     <string name="help_compass_title">Compass</string>
     <string name="help_compass_body">Magnetic heading in degrees and a live compass dial. Works without Start, using the phone rotation sensor.</string>
     <string name="help_privacy_policy">Privacy policy</string>

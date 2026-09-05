@@ -29,7 +29,8 @@ data class GtlSettings(
     val trackThickness: Int,
     val optimizationTolerance: Double,
     val optimizationActive: Boolean,
-    val showLastTrackOnMap: Boolean
+    val showLastTrackOnMap: Boolean,
+    val showAccuracyMarker: Boolean
 ) {
     fun toFilter(): FixFilter {
         return FixFilter(
@@ -65,7 +66,8 @@ class GtlPreferences(context: Context) {
             trackThickness = prefs[Keys.trackWidth] ?: 8,
             optimizationTolerance = (prefs[Keys.tolerance] ?: 19.5f).toDouble(),
             optimizationActive = prefs[Keys.optimize] ?: true,
-            showLastTrackOnMap = prefs[Keys.showTrack] ?: true
+            showLastTrackOnMap = prefs[Keys.showTrack] ?: true,
+            showAccuracyMarker = prefs[Keys.showAccuracy] ?: true
         )
     }
 
@@ -120,6 +122,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.showTrack] = value }
     }
 
+    suspend fun setShowAccuracyMarker(value: Boolean) {
+        dataStore.edit { it[Keys.showAccuracy] = value }
+    }
+
     private object Keys {
         val disclaimer = booleanPreferencesKey("disclaimer")
         val usage = stringPreferencesKey("usage")
@@ -135,5 +141,6 @@ class GtlPreferences(context: Context) {
         val tolerance = floatPreferencesKey("tolerance")
         val optimize = booleanPreferencesKey("optimize")
         val showTrack = booleanPreferencesKey("show_last_track")
+        val showAccuracy = booleanPreferencesKey("show_accuracy_marker")
     }
 }
