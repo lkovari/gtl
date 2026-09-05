@@ -179,6 +179,13 @@ Engine entry points worth reading:
 
 ---
 
+## Next to do
+
+- Implement GPX export. GPX (GPS Exchange Format) is the most common GPS tracklog interchange format.
+- Store both barometric and GPS altitude on each tracklog point when usage is aircraft and the measurement system is ICAO.
+
+---
+
 ## Not in this app
 
 Intentionally not ported from 2014 (policy or dead APIs): IMEI / `READ_PHONE_STATE`, live lat/lng upload, follow-me web page, remote unlock, Google Directions, app-driven GPS/Wi-Fi toggles, boot auto-start. See [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md).
