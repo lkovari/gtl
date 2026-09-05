@@ -154,6 +154,9 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page) |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic |
 | [docs/screenshots/](docs/screenshots/) | Play listing screenshots (GPS, route, map/tracking, compass, settings, help, about, Google Earth KMZ) |
+| [docs/DBSTRUCT-en.md](docs/DBSTRUCT-en.md) | SQLite schema (`gtl.db`) mermaid |
+| [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) | GPS listen → filter → Room → UI / KMZ (EN) |
+| [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md) | GPS figyelés → szűrés → Room → UI / KMZ (HU) |
 
 Engine entry points worth reading:
 
@@ -183,6 +186,9 @@ Engine entry points worth reading:
 
 - Implement GPX export. GPX (GPS Exchange Format) is the most common GPS tracklog interchange format.
 - Store both barometric and GPS altitude on each tracklog point when usage is aircraft and the measurement system is ICAO.
+- Add Internationalization
+- Add light and dark themes
+- Add diration in mins to the end of the route stop details when the user after finish logging press to stop icon.
 
 ---
 
