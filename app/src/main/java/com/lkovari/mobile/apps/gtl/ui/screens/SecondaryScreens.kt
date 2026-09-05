@@ -343,6 +343,8 @@ fun HelpScreen(onBack: () -> Unit) {
             Text(stringResource(R.string.help_map_body), style = MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.help_compass_title), style = MaterialTheme.typography.titleLarge)
             Text(stringResource(R.string.help_compass_body), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.help_kml_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.help_kml_body), style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = stringResource(R.string.help_privacy_policy),
                 style = MaterialTheme.typography.titleLarge

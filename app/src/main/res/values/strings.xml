@@ -8,7 +8,7 @@
     <string name="action_stop">Stop</string>
     <string name="action_back">Back</string>
     <string name="action_delete">Delete</string>
-    <string name="action_share_kml">Share KML</string>
+    <string name="action_share_kml">Share KMZ</string>
     <string name="action_location_settings">Location settings</string>
     <string name="menu">Menu</string>
     <string name="tab_gps">GPS</string>
@@ -73,6 +73,8 @@
     <string name="help_map_body">Centers on your current location when you open the tab. After Start it follows you and draws the recorded track. A light purple circle around you is the GPS accuracy (radius equals the accuracy in metres). Turn it off in Settings. With “Show last logged route on map” a saved track stays visible. Saved tracks → Show on map opens that session here.</string>
     <string name="help_compass_title">Compass</string>
     <string name="help_compass_body">Magnetic heading in degrees and a live compass dial. Works without Start, using the phone rotation sensor.</string>
+    <string name="help_kml_title">Viewing KMZ</string>
+    <string name="help_kml_body">Menu → Share KMZ sends the current track as a KMZ file (KML plus play, pause, and stop icons). Open it with an external app such as Google Earth. If Google Earth is not installed, get it from Play Store, then open the shared file. Tap the play, pause, or stop icons on the map to see that point’s details.</string>
     <string name="help_privacy_policy">Privacy policy</string>
     <string name="help_privacy_url" translatable="false">https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html</string>
     <string name="gps_snr">Signal SNR</string>

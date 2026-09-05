@@ -170,7 +170,51 @@ class GnssClassifierTest {
 class KmlExporterTest {
     @Test
     fun writesLineAndPlacemarksWithoutRemoteIcons() {
-        val kml = KmlExporter.export(
+        val kml = sampleKml()
+        assertTrue(kml.contains("<LineString>"))
+        assertTrue(kml.contains("Ride &lt;1&gt;"))
+        assertFalse(kml.contains("eklsofttrade"))
+        assertFalse(kml.contains("<href>http"))
+    }
+
+    @Test
+    fun usesLocalPlayPauseStopIconsAndHidesLabels() {
+        val kml = sampleKml()
+        assertTrue(kml.contains("<href>icons/play.png</href>"))
+        assertTrue(kml.contains("<href>icons/pause.png</href>"))
+        assertTrue(kml.contains("<href>icons/stop.png</href>"))
+        assertTrue(kml.contains("<LabelStyle><scale>0</scale></LabelStyle>"))
+        assertFalse(kml.contains("<href>http"))
+    }
+
+    @Test
+    fun pauseAndStopBalloonsForceZeroSpeed() {
+        assertEquals("speed=0 temp=-", KmlDescriptions.balloon(EventKind.PAUSE, 1.1117642f, null))
+        assertEquals("speed=0 temp=18.5", KmlDescriptions.balloon(EventKind.STOP, 4.1f, 18.5f))
+        assertEquals("speed=5.5 temp=-", KmlDescriptions.balloon(EventKind.START, 5.5f, null))
+        assertEquals("speed=8.3 temp=-", KmlDescriptions.balloon(EventKind.MOVE, 8.3f, null))
+    }
+
+    @Test
+    fun kmzBundlesDocKmlAndIcons() {
+        val packed = KmzExporter.pack(
+            sampleKml(),
+            mapOf(
+                "icons/play.png" to byteArrayOf(0x89.toByte(), 0x50),
+                "icons/pause.png" to byteArrayOf(0x89.toByte(), 0x50),
+                "icons/stop.png" to byteArrayOf(0x89.toByte(), 0x50)
+            )
+        )
+        val names = zipNames(packed)
+        assertTrue(names.contains("doc.kml"))
+        assertTrue(names.contains("icons/play.png"))
+        assertTrue(names.contains("icons/pause.png"))
+        assertTrue(names.contains("icons/stop.png"))
+        assertEquals("doc.kml", names.first())
+    }
+
+    private fun sampleKml(): String {
+        return KmlExporter.export(
             KmlDocument(
                 name = "Ride <1>",
                 trackColorAabbggrr = "ff0000ff",
@@ -181,10 +225,12 @@ class KmlExporterTest {
                 )
             )
         )
-        assertTrue(kml.contains("<LineString>"))
-        assertTrue(kml.contains("Ride &lt;1&gt;"))
-        assertFalse(kml.contains("eklsofttrade"))
-        assertFalse(kml.contains("href>http"))
+    }
+
+    private fun zipNames(bytes: ByteArray): List<String> {
+        java.util.zip.ZipInputStream(bytes.inputStream()).use { zip ->
+            return generateSequence { zip.nextEntry }.map { it.name }.toList()
+        }
     }
 }
 

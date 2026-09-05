@@ -310,7 +310,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         val file = exporter.write(session, events)
         val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
         return Intent(Intent.ACTION_SEND).apply {
-            type = "application/vnd.google-earth.kml+xml"
+            type = "application/vnd.google-earth.kmz"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

@@ -54,10 +54,16 @@ object KmlExporter {
 
     private fun appendStyles(builder: StringBuilder, color: String, width: Int) {
         builder.appendLine("""<Style id="track"><LineStyle><color>$color</color><width>$width</width></LineStyle></Style>""")
-        builder.appendLine("""<Style id="start"><LabelStyle><color>ff33cc66</color></LabelStyle></Style>""")
-        builder.appendLine("""<Style id="pause"><LabelStyle><color>ff33ccff</color></LabelStyle></Style>""")
-        builder.appendLine("""<Style id="stop"><LabelStyle><color>ff3333cc</color></LabelStyle></Style>""")
-        builder.appendLine("""<Style id="move"><LabelStyle><color>ffffaa33</color></LabelStyle></Style>""")
+        appendIconStyle(builder, "start", "icons/play.png")
+        appendIconStyle(builder, "pause", "icons/pause.png")
+        appendIconStyle(builder, "stop", "icons/stop.png")
+        builder.appendLine("""<Style id="move"><LabelStyle><scale>0</scale></LabelStyle></Style>""")
+    }
+
+    private fun appendIconStyle(builder: StringBuilder, id: String, href: String) {
+        builder.appendLine(
+            """<Style id="$id"><IconStyle><scale>0.6</scale><Icon><href>$href</href></Icon><hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>"""
+        )
     }
 
     private fun styleId(kind: EventKind): String {
