@@ -48,7 +48,7 @@ flowchart TD
     Observe --> VM2["GtlViewModel"]
     VM2 --> Stats["TrackStatsCalculator"]
     VM2 --> Display{"Térképvonal egyszerűsítés<br/>és több mint 4 pont?"}
-    Display -->|"igen"| Simpl["Douglas-Peucker<br/>19,5 m, csak térkép"]
+    Display -->|"igen"| Simpl["Douglas-Peucker<br/>Settings küszöb 1-40 m<br/>csak térkép"]
     Display -->|"nem"| RawPts["Room pontok változatlanul"]
     Simpl --> Vis{"MapTrackVisibility"}
     RawPts --> Vis
@@ -105,7 +105,7 @@ Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 
 **Cél.** Kevesebb csúcspont a Map fülön, hogy egy hosszú track olcsón rajzolható maradjon. Az SQLite, a Route összesítők és a KMZ minden eltárolt pontot megtart.
 
-**Mikor.** Beállítás: **Simplify track on map** (alapból bekapcsolva), és több mint 4 pont. Tolerancia 19,5 m, a Settings UI-n nem állítható. `GtlViewModel` → `DouglasPeucker.simplify`.
+**Mikor.** Beállítás: **Simplify track on map** / **Útvonal egyszerűsítése a térképen** (alapból bekapcsolva), és több mint 4 pont. A küszöb a Settings csúszka (**1,0–40,0 m**, **0,5 m** lépés, alap **19,5 m**, megjegyzett). A kapcsoló ki a csúszkát elrejti, a tárolt értéket megtartja. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`.
 
 **Hogyan.** A szakasz első és utolsó pontja mindig megmarad. A köztes pontok közül azt választjuk, amelynek a merőleges távolsága (méterben, helyi `111_320` m/fok vetület) a két végpontot összekötő húrhoz a legnagyobb. Ha ez a távolság a tolerancia fölött van, a pontot megtartjuk, és mindkét oldalon rekurzívan folytatjuk; különben minden köztes pontot eldobunk.
 

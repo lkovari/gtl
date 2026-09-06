@@ -1,6 +1,15 @@
 package com.lkovari.mobile.apps.gtl.engine
 
 object DouglasPeucker {
+    const val MinToleranceMeters = 1.0
+    const val MaxToleranceMeters = 40.0
+    const val DefaultToleranceMeters = 19.5
+
+    fun clampTolerance(value: Double): Double {
+        val clamped = value.coerceIn(MinToleranceMeters, MaxToleranceMeters)
+        return kotlin.math.round(clamped * 2.0) / 2.0
+    }
+
     fun simplify(points: List<GeoPoint>, toleranceMeters: Double): List<GeoPoint> {
         if (points.size < 3) {
             return points

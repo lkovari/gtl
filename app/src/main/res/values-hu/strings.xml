@@ -51,6 +51,7 @@
     <string name="settings_optimize">Útvonal egyszerűsítése a térképen</string>
     <string name="settings_show_track">Utolsó naplózott útvonal a térképen</string>
     <string name="settings_show_accuracy">Pontossági jelzés megjelenítése</string>
+    <string name="settings_optimize_tolerance">Egyszerűsítési küszöb: %1$s m</string>
     <string name="action_show_on_map">Térképen</string>
     <string name="tracks_select_all">Összes kijelölése</string>
     <string name="tracks_share_selected">Kijelöltek megosztása</string>
@@ -67,6 +68,10 @@
     <string name="tracks_title">Mentett útvonalak</string>
     <string name="help_title">Súgó</string>
     <string name="help_body">A helyhozzáférést az első kérdésnél engedélyezd. A GPS és az iránytű azonnal él. Az Indít gomb SQLite-ba rögzíti az útvonalat ezen a telefonon, kirajzolja a Térképen, és kitölti az Útvonal összesítőket. A Leállít bezárja a munkamenetet. Menü → Mentett útvonalak: törlés vagy megjelenítés a térképen. A Beállításokban a használat (alapból motor), a mértékegység és hogy maradjon-e az utolsó track a térképen. Offline térképhez tölts le OSM-régiót. A mi szerverünkre semmi nem kerül fel.</string>
+    <string name="help_usage_toggles">A Beállításokban négy kapcsoló van.\n\nLetöltött OSM térkép használata: bekapcsolva a Térkép a letöltött Mapsforge fájlt használja. Kikapcsolva a Google Térképet.\n\nÚtvonal egyszerűsítése a térképen: bekapcsolva csak a Térképen kirajzolt vonal egyszerűsödik. A letárolt útvonal és a megosztott KMZ minden elfogadott pontot megtart.\n\nUtolsó naplózott útvonal a térképen: Leállítás után az utolsó (vagy a kiválasztott) track a Térképen marad.\n\nPontossági jelzés megjelenítése: világos lila kör körülötted; a sugár a GPS pontossága méterben.</string>
+    <string name="help_usage_simplify">Az útvonal egyszerűsítése a Douglas–Peucker algoritmussal dolgozik. Eldob egy pontot, ha a szomszédos megtartott pontok közti egyenestől mért távolsága a küszöb alatt van (1–40 m, alap 19,5 m). Alacsonyabb küszöb (kb. 2–8 m) megtartja a keskeny hurkot, például egy kétirányú út mindkét szélét (kb. 6–8 m). Magasabb küszöb (19,5–40 m) simítja a GPS-zajt, de a két szél egy vonallá eshet. A küszöb ezen a telefonon megmarad.</string>
+    <string name="help_usage_spacing">A pontok letárolása független az egyszerűsítéstől. A telefon gyakran kaphat GPS-frissítést; a GTL csak akkor ír pontot, ha elég messzire mozdultál. Állva: 2 m-enként. Gyalog 5 km/h-ig: 4 m. 10 km/h-ig: 10 m. Városi haladás: kb. 36 m. Autópálya: kb. 70 m, majd a sebességgel tovább nő. Kanyarban (irányszög-változás 15° fölött) a távolság feleződik (legalább 1 m). Gyalog a GPS irányjelzése gyakran hiányzik, ezért a sűrűbb kanyar-tárolás nem mindig él.</string>
+    <string name="help_logging_title">Útvonalnaplózás</string>
     <string name="help_gps_title">GPS</string>
     <string name="help_gps_body">Élő műholdszámok (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC), SNR minőség, szélesség, hosszúság, pontosság, forrás, magasság, környezeti hőmérséklet és naplózási állapot. A hőmérséklet a hardverszenzor értéke, vagy 0, ha nincs ilyen szenzor. Naplózáskor lassú mozgásnál és kanyarban sűrűbben, nagy sebességnél ritkábban tárol pontot — ugyanazok a sávok, mint a 2014-es naplóban.</string>
     <string name="help_route_title">Útvonal</string>
@@ -75,7 +80,7 @@
     <string name="help_map_body">A fül megnyitásakor a jelenlegi helyre centrál. Indítás után követ, és kirajzolja a rögzített nyomvonalat. A világos lila kör a GPS pontossága (a sugár méterben a pontosság). Beállításokban kikapcsolható. Az „Utolsó naplózott útvonal a térképen” bekapcsolva a mentett track látszik. Mentett útvonalak → Térképen ezt a munkamenetet nyitja.</string>
     <string name="help_compass_title">Iránytű</string>
     <string name="help_compass_body">Mágneses irány fokban és élő iránytű. Indítás nélkül is működik, a telefon forgásérzékelőjével.</string>
-    <string name="help_kml_title">KMZ megtekintése</string>
+    <string name="help_kml_title">KMZ/KML megtekintése</string>
     <string name="help_kml_body">Menü → KMZ megosztása elküldi az aktuális nyomvonalat KMZ-fájlként (KML plusz indítás, szünet és stop ikonok). Nyisd meg külső alkalmazással, például Google Earth-tel. Ha nincs telepítve, töltsd le a Play Áruházból, majd nyisd meg a megosztott fájlt. A térképen a play, szünet és stop ikonokra koppintva megjelennek az adott pont adatai.</string>
     <string name="help_privacy_policy">Adatvédelmi tájékoztató</string>
     <string name="help_trackpoint_title">Egy letárolt trackpont</string>

@@ -7,11 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +22,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Button
@@ -37,15 +37,19 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
+import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.ui.theme.CockpitPanel
@@ -70,6 +75,7 @@ import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,10 +113,16 @@ fun SecondaryScaffold(pageTitle: String, onBack: () -> Unit, content: @Composabl
 
 @Composable
 fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Unit) {
+    val storedTolerance = state.settings.optimizationTolerance.toFloat()
+    var sliderValue by remember { mutableFloatStateOf(storedTolerance) }
+    LaunchedEffect(storedTolerance) {
+        sliderValue = storedTolerance
+    }
     SecondaryScaffold(stringResource(R.string.settings_title), onBack) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -162,6 +174,28 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             }
             SettingSwitch(stringResource(R.string.settings_optimize), state.settings.optimizationActive) {
                 viewModel.setOptimization(it)
+            }
+            if (state.settings.optimizationActive) {
+                val label = String.format(Locale.US, "%.1f", sliderValue)
+                Text(
+                    text = stringResource(R.string.settings_optimize_tolerance, label),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Slider(
+                    value = sliderValue,
+                    onValueChange = { value ->
+                        sliderValue = DouglasPeucker.clampTolerance(value.toDouble()).toFloat()
+                    },
+                    onValueChangeFinished = {
+                        viewModel.setOptimizationTolerance(sliderValue.toDouble())
+                    },
+                    valueRange = DouglasPeucker.MinToleranceMeters.toFloat()..
+                        DouglasPeucker.MaxToleranceMeters.toFloat(),
+                    steps = (
+                        (DouglasPeucker.MaxToleranceMeters - DouglasPeucker.MinToleranceMeters) / 0.5
+                        ).toInt() - 1,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             SettingSwitch(stringResource(R.string.settings_show_track), state.settings.showLastTrackOnMap) {
                 viewModel.setShowLastTrackOnMap(it)
@@ -373,47 +407,176 @@ fun TracksScreen(
 fun HelpScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val privacyUrl = stringResource(R.string.help_privacy_url)
+    var expandedId by rememberSaveable { mutableStateOf(HelpSectionUsage) }
     SecondaryScaffold(stringResource(R.string.help_title), onBack) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.help_body),
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(stringResource(R.string.help_gps_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.help_gps_body), style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.help_route_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.help_route_body), style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.help_map_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.help_map_body), style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.help_compass_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.help_compass_body), style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.help_kml_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.help_kml_body), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = stringResource(R.string.help_privacy_policy),
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = privacyUrl,
-                color = TitleMagenta,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.clickable {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl)))
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.settings_usage),
+                    expanded = expandedId == HelpSectionUsage,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionUsage) }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.help_body), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.help_usage_toggles), style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
-            )
-            Text(stringResource(R.string.help_trackpoint_title), style = MaterialTheme.typography.titleLarge)
-            Text(
-                text = stringResource(R.string.help_trackpoint_intro),
-                style = MaterialTheme.typography.bodyMedium,
-                color = NightMuted
-            )
-            StoredTrackpointTable()
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_logging_title),
+                    expanded = expandedId == HelpSectionLogging,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionLogging) }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.help_usage_simplify), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.help_usage_spacing), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_gps_title),
+                    expanded = expandedId == HelpSectionGps,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionGps) }
+                ) {
+                    Text(stringResource(R.string.help_gps_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_route_title),
+                    expanded = expandedId == HelpSectionRoute,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionRoute) }
+                ) {
+                    Text(stringResource(R.string.help_route_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_map_title),
+                    expanded = expandedId == HelpSectionMap,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionMap) }
+                ) {
+                    Text(stringResource(R.string.help_map_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_compass_title),
+                    expanded = expandedId == HelpSectionCompass,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionCompass) }
+                ) {
+                    Text(stringResource(R.string.help_compass_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_kml_title),
+                    expanded = expandedId == HelpSectionKmz,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionKmz) }
+                ) {
+                    Text(stringResource(R.string.help_kml_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_privacy_policy),
+                    expanded = expandedId == HelpSectionPrivacy,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionPrivacy) }
+                ) {
+                    Text(
+                        text = privacyUrl,
+                        color = TitleMagenta,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.clickable {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl)))
+                        }
+                    )
+                }
+            }
+            item {
+                HelpAccordionSection(
+                    title = stringResource(R.string.help_trackpoint_title),
+                    expanded = expandedId == HelpSectionTrackpoint,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionTrackpoint) }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = stringResource(R.string.help_trackpoint_intro),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        StoredTrackpointTable()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val HelpSectionUsage = "usage"
+private const val HelpSectionLogging = "logging"
+private const val HelpSectionGps = "gps"
+private const val HelpSectionRoute = "route"
+private const val HelpSectionMap = "map"
+private const val HelpSectionCompass = "compass"
+private const val HelpSectionKmz = "kmz"
+private const val HelpSectionPrivacy = "privacy"
+private const val HelpSectionTrackpoint = "trackpoint"
+
+private fun toggleHelpSection(expandedId: String, sectionId: String): String {
+    return if (expandedId == sectionId) "" else sectionId
+}
+
+@Composable
+private fun HelpAccordionSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = title
+                )
+            }
+            if (expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                ) {
+                    content()
+                }
+            }
         }
     }
 }

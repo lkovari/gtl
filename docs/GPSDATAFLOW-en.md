@@ -48,7 +48,7 @@ flowchart TD
     Observe --> VM2["GtlViewModel"]
     VM2 --> Stats["TrackStatsCalculator"]
     VM2 --> Display{"Simplify track on map<br/>and more than 4 points?"}
-    Display -->|"yes"| Simpl["Douglas-Peucker<br/>19.5 m, map only"]
+    Display -->|"yes"| Simpl["Douglas-Peucker<br/>Settings tolerance 1-40 m<br/>map only"]
     Display -->|"no"| RawPts["Room points as-is"]
     Simpl --> Vis{"MapTrackVisibility"}
     RawPts --> Vis
@@ -105,7 +105,7 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
 **Purpose.** Fewer vertices on the Map tab so a long track stays cheap to draw. SQLite, Route stats, and KMZ keep every stored point.
 
-**When.** Settings **Simplify track on map** (on by default) and more than 4 points. Tolerance 19.5 m, not in the Settings UI. `GtlViewModel` → `DouglasPeucker.simplify`.
+**When.** Settings **Simplify track on map** (on by default) and more than 4 points. Tolerance is the Settings slider (**1.0–40.0 m**, **0.5 m** steps, default **19.5 m**, remembered). Hidden when the switch is off; the stored value is kept. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`.
 
 **How.** Keep the segment’s first and last points. Find the intermediate point with the largest perpendicular distance (metres, local `111_320` m/deg projection) to the chord between them. If that distance is above the tolerance, keep the point and recurse on both sides; otherwise drop every intermediate point.
 

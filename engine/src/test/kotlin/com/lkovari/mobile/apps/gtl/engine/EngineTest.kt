@@ -29,6 +29,29 @@ class DouglasPeuckerTest {
         val simplified = DouglasPeucker.simplify(points, 20.0)
         assertEquals(3, simplified.size)
     }
+
+    @Test
+    fun clampKeepsDefaultTolerance() {
+        assertEquals(19.5, DouglasPeucker.clampTolerance(19.5), 0.0)
+    }
+
+    @Test
+    fun clampRaisesBelowMinimum() {
+        assertEquals(1.0, DouglasPeucker.clampTolerance(0.0), 0.0)
+        assertEquals(1.0, DouglasPeucker.clampTolerance(-5.0), 0.0)
+    }
+
+    @Test
+    fun clampLowersAboveMaximum() {
+        assertEquals(40.0, DouglasPeucker.clampTolerance(40.5), 0.0)
+        assertEquals(40.0, DouglasPeucker.clampTolerance(100.0), 0.0)
+    }
+
+    @Test
+    fun clampSnapsToHalfMetres() {
+        assertEquals(19.5, DouglasPeucker.clampTolerance(19.3), 0.0)
+        assertEquals(19.0, DouglasPeucker.clampTolerance(19.1), 0.0)
+    }
 }
 
 class SpeedAdaptiveSpacingTest {

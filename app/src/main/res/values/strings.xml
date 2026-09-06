@@ -51,6 +51,7 @@
     <string name="settings_optimize">Simplify track on map</string>
     <string name="settings_show_track">Show last logged route on map</string>
     <string name="settings_show_accuracy">Show accuracy marker</string>
+    <string name="settings_optimize_tolerance">Simplification tolerance: %1$s m</string>
     <string name="action_show_on_map">Show on map</string>
     <string name="tracks_select_all">Select all</string>
     <string name="tracks_share_selected">Share selected</string>
@@ -67,6 +68,10 @@
     <string name="tracks_title">Saved tracks</string>
     <string name="help_title">Help</string>
     <string name="help_body">Allow location when asked. GPS and Compass update as soon as the app is open. Tap Start to record a route into SQLite on this phone, draw it on the Map, and fill the Route totals. Tap Stop to end the session. Menu → Saved tracks to delete a route or show it on the map. Settings picks usage (motorbike is the default), units, and whether the last track stays on the map. Download an OSM region for offline maps. Nothing is uploaded to our servers.</string>
+    <string name="help_usage_toggles">Settings has four switches.\n\nUse downloaded OSM map: when on, Map uses a Mapsforge file you downloaded. When off, it uses Google Maps.\n\nSimplify track on map: when on, only the line drawn on Map is simplified. The stored route and the shared KMZ keep every accepted point.\n\nShow last logged route on map: after Stop, the last (or a selected) track stays on Map.\n\nShow accuracy marker: a light purple circle around you; its radius is the GPS accuracy in metres.</string>
+    <string name="help_usage_simplify">Simplify track on map uses the Douglas–Peucker algorithm. It drops a point when its distance from the straight line between neighbouring kept points is below the threshold (1–40 m, default 19.5 m). A lower threshold (about 2–8 m) keeps a narrow loop, such as both edges of a two-way road (about 6–8 m wide). A higher threshold (19.5–40 m) smooths GPS jitter, but those two edges can collapse into one line. The threshold is remembered on this phone.</string>
+    <string name="help_usage_spacing">Storing points is separate from Simplify. The phone may receive GPS updates often; GTL writes a point only after you have moved far enough. Standing: every 2 m. Walking up to 5 km/h: 4 m. Up to 10 km/h: 10 m. City driving: about 36 m. Highway: about 70 m, then more as speed rises. In a curve (heading change over 15°) the distance is halved (at least 1 m). At walking speed the GPS heading is often missing, so that tighter curve spacing may not apply.</string>
+    <string name="help_logging_title">Track logging</string>
     <string name="help_gps_title">GPS</string>
     <string name="help_gps_body">Live satellite counts (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC), SNR quality, latitude, longitude, accuracy, provider, altitude, ambient temperature, and logging status. Temperature is the hardware sensor value, or 0 if this phone has no ambient sensor. While logging, GTL stores points more often when you move slowly or turn, and more rarely at high speed — same speed bands as the 2014 logger.</string>
     <string name="help_route_title">Route</string>
@@ -75,7 +80,7 @@
     <string name="help_map_body">Centers on your current location when you open the tab. After Start it follows you and draws the recorded track. A light purple circle around you is the GPS accuracy (radius equals the accuracy in metres). Turn it off in Settings. With “Show last logged route on map” a saved track stays visible. Saved tracks → Show on map opens that session here.</string>
     <string name="help_compass_title">Compass</string>
     <string name="help_compass_body">Magnetic heading in degrees and a live compass dial. Works without Start, using the phone rotation sensor.</string>
-    <string name="help_kml_title">Viewing KMZ</string>
+    <string name="help_kml_title">Viewing KMZ/KML</string>
     <string name="help_kml_body">Menu → Share KMZ sends the current track as a KMZ file (KML plus play, pause, and stop icons). Open it with an external app such as Google Earth. If Google Earth is not installed, get it from Play Store, then open the shared file. Tap the play, pause, or stop icons on the map to see that point’s details.</string>
     <string name="help_privacy_policy">Privacy policy</string>
     <string name="help_privacy_url" translatable="false">https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html</string>

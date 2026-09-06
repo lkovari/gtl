@@ -76,7 +76,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             selectedMapFile = "",
             trackColorArgb = 0xFFE53935L,
             trackThickness = 8,
-            optimizationTolerance = 19.5,
+            optimizationTolerance = DouglasPeucker.DefaultToleranceMeters,
             optimizationActive = true,
             showLastTrackOnMap = true,
             showAccuracyMarker = true
@@ -170,7 +170,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
         val points = events.map { GeoPoint(it.latitude, it.longitude, it.altitude) }
         val display = if (prefs.optimizationActive && points.size > 4) {
-            DouglasPeucker.simplify(points, prefs.optimizationTolerance)
+            DouglasPeucker.simplify(points, DouglasPeucker.clampTolerance(prefs.optimizationTolerance))
         } else {
             points
         }
@@ -279,6 +279,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setOptimization(value: Boolean) {
         viewModelScope.launch { app.preferences.setOptimizationActive(value) }
+    }
+
+    fun setOptimizationTolerance(value: Double) {
+        viewModelScope.launch { app.preferences.setOptimizationTolerance(value) }
     }
 
     fun setShowLastTrackOnMap(value: Boolean) {

@@ -7,6 +7,11 @@ Versioning matches `versionName` **2.0.2** / `versionCode` **20** (minSdk 24, ta
 
 ## [Unreleased]
 
+### Added
+
+- Settings: simplification tolerance slider when **Simplify track on map** is on (1–40 m, remembered).
+- Help: expandable sections (one open at a time). Usage covers the four Settings switches, Douglas–Peucker, and speed/curve logging.
+
 ## [2.0.2] — 2026-09-05
 
 Play production track **20 (2.0.2)** (signed AAB). `versionCode` 19 was already used on Play, so this release is 20. Play Console what’s-new: `docs/play-console/whatsnew.txt`.

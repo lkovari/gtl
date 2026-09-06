@@ -66,6 +66,7 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 
 - Usage and metric/imperial units.
 - Use downloaded OSM map, simplify track, show last logged route, show accuracy marker.
+- When **Simplify track on map** is on, a slider sets the Douglas–Peucker tolerance (**1.0–40.0 m**, **0.5 m** steps, default **19.5 m**). The value is remembered; turning the switch off hides the slider but keeps the stored threshold.
 - Fix filters (defaults from the 2017 logger): minimum distance, time, accuracy, satellites in fix.
 
 ### Other screens
@@ -73,7 +74,7 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 - First-run safe-driving disclaimer.
 - Download OSM map (Mapsforge v5 regions: Europe, selected Asia / Americas / Australia).
 - Location settings (opens the system GPS panel).
-- Help (tabs, KMZ in Google Earth, stored-trackpoint field table) and About.
+- Help: accordion (one section open at a time). Usage (start/stop and the four Settings switches), Track logging (Douglas–Peucker and speed/curve spacing), GPS, Route, Map, Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
 - Privacy-policy link.
 
 ---
@@ -105,7 +106,7 @@ docs/    Privacy policy, Play assets, renewal notes
 1. `TrackingForegroundService` receives fused location.
 2. `FixAcceptance` + `SpeedAdaptiveSpacing` decide whether to store the fix.
 3. Kind is `START` / `PAUSE` / `MOVE`; Stop writes a `STOP` placemark.
-4. `GtlViewModel` observes Room, computes `TrackStats`, and feeds `displayPoints` to Map (Google `Polyline` or Mapsforge overlay). If **Simplify track on map** is on and the polyline has more than 4 points, those display points are Douglas–Peucker-simplified first.
+4. `GtlViewModel` observes Room, computes `TrackStats`, and feeds `displayPoints` to Map (Google `Polyline` or Mapsforge overlay). If **Simplify track on map** is on and the polyline has more than 4 points, those display points are Douglas–Peucker-simplified at the Settings tolerance.
 
 ### Douglas–Peucker (map simplify)
 
@@ -113,7 +114,7 @@ docs/    Privacy policy, Play assets, renewal notes
 
 This is **display-only**. `gps_events`, Route odometer / speeds, and KMZ export always use the raw Room rows. Douglas–Peucker does not smooth GPS noise: remaining corners stay sharp. It only discards points that are close enough to a chord.
 
-**When it runs.** Settings → **Simplify track on map** (`optimizationActive`, on by default). `GtlViewModel` calls `DouglasPeucker.simplify(points, optimizationTolerance)` when that switch is on and `points.size > 4`. Tolerance is **19.5 m** and is not exposed in Settings.
+**When it runs.** Settings → **Simplify track on map** (`optimizationActive`, on by default). `GtlViewModel` calls `DouglasPeucker.simplify(points, clampTolerance(optimizationTolerance))` when that switch is on and `points.size > 4`. Tolerance is **1.0–40.0 m** in **0.5 m** steps (default **19.5 m**), stored in DataStore `tolerance`. `DouglasPeucker.clampTolerance` snaps and clamps on read and write.
 
 **How it works.** Classic Ramer–Douglas–Peucker, with distances in metres on a local tangent plane (`111_320` m per degree of latitude; longitude scaled by `cos(lat)`):
 
@@ -122,7 +123,7 @@ This is **display-only**. `gps_events`, Route odometer / speeds, and KMZ export 
 3. Take the farthest point. If that distance is **greater than** the tolerance, keep it — it is a real bend — and recurse on the two sub-segments (start→farthest, farthest→end).
 4. If the farthest point is **within** the tolerance, drop every intermediate point: they all lie close enough to the chord.
 
-So a nearly colinear stretch collapses to two endpoints, while a corner that sticks out more than 19.5 m is kept. Implementation: `engine/.../DouglasPeucker.kt`. Pipeline context: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
+So a nearly colinear stretch collapses to two endpoints, while a corner that sticks out more than the threshold is kept. A two-way road loop (~6–8 m wide) needs a low threshold (about 2–8 m) or it collapses to a single line at 19.5 m. Implementation: `engine/.../DouglasPeucker.kt`. Pipeline context: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
 
 ### Permissions
 

@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.FixFilter
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
@@ -64,7 +65,9 @@ class GtlPreferences(context: Context) {
             selectedMapFile = prefs[Keys.mapFile] ?: "",
             trackColorArgb = (prefs[Keys.trackColor] ?: 0xFFE53935.toInt()).toLong() and 0xFFFFFFFFL,
             trackThickness = prefs[Keys.trackWidth] ?: 8,
-            optimizationTolerance = (prefs[Keys.tolerance] ?: 19.5f).toDouble(),
+            optimizationTolerance = DouglasPeucker.clampTolerance(
+                (prefs[Keys.tolerance] ?: DouglasPeucker.DefaultToleranceMeters.toFloat()).toDouble()
+            ),
             optimizationActive = prefs[Keys.optimize] ?: true,
             showLastTrackOnMap = prefs[Keys.showTrack] ?: true,
             showAccuracyMarker = prefs[Keys.showAccuracy] ?: true
@@ -116,6 +119,11 @@ class GtlPreferences(context: Context) {
 
     suspend fun setOptimizationActive(value: Boolean) {
         dataStore.edit { it[Keys.optimize] = value }
+    }
+
+    suspend fun setOptimizationTolerance(value: Double) {
+        val clamped = DouglasPeucker.clampTolerance(value)
+        dataStore.edit { it[Keys.tolerance] = clamped.toFloat() }
     }
 
     suspend fun setShowLastTrackOnMap(value: Boolean) {
