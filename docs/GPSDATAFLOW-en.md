@@ -47,8 +47,11 @@ flowchart TD
     DBevt --> Observe["observeEvents Flow"]
     Observe --> VM2["GtlViewModel"]
     VM2 --> Stats["TrackStatsCalculator"]
-    VM2 --> Simpl["Douglas-Peucker if enabled"]
-    VM2 --> Vis{"MapTrackVisibility"}
+    VM2 --> Display{"Simplify track on map<br/>and more than 4 points?"}
+    Display -->|"yes"| Simpl["Douglas-Peucker<br/>19.5 m, map only"]
+    Display -->|"no"| RawPts["Room points as-is"]
+    Simpl --> Vis{"MapTrackVisibility"}
+    RawPts --> Vis
     Vis --> Map["Map tab polyline<br/>Google Maps or OSM"]
     Stats --> Route["Route tab"]
     Observe --> GPSUI["GPS tab live fields"]
@@ -92,8 +95,18 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 
 `GtlViewModel` observes `gps_events` for the live session, a Saved-tracks selection, or the last session if **Show last logged route on map** is on.
 
-- **Route** totals from `TrackStatsCalculator` while logging.
-- **Map** polyline from Room; optional Douglas–Peucker; hidden unless logging, last-track, or a selected session (`MapTrackVisibility`).
-- **Share** builds KMZ (`gx:Track` + balloons) from the same rows.
+- **Route** totals from `TrackStatsCalculator` while logging (raw Room samples).
+- **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`).
+- **Share** builds KMZ (`gx:Track` + balloons) from the same Room rows. KMZ is never simplified.
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
+
+## Map polyline: Douglas–Peucker
+
+**Purpose.** Fewer vertices on the Map tab so a long track stays cheap to draw. SQLite, Route stats, and KMZ keep every stored point.
+
+**When.** Settings **Simplify track on map** (on by default) and more than 4 points. Tolerance 19.5 m, not in the Settings UI. `GtlViewModel` → `DouglasPeucker.simplify`.
+
+**How.** Keep the segment’s first and last points. Find the intermediate point with the largest perpendicular distance (metres, local `111_320` m/deg projection) to the chord between them. If that distance is above the tolerance, keep the point and recurse on both sides; otherwise drop every intermediate point.
+
+This discards near-colinear jitter. It does not smooth GPS noise — leftover corners stay sharp. Full write-up: [README.md](../README.md#douglaspeucker-map-simplify).

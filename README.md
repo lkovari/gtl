@@ -39,7 +39,7 @@ Session totals after Start: elapsed time, odometer, time moving, time waiting, s
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM.
 - Light purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings.
-- Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on.
+- Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on (see below). SQLite, Route totals, and KMZ are never simplified.
 
 ### Compass tab
 
@@ -105,7 +105,24 @@ docs/    Privacy policy, Play assets, renewal notes
 1. `TrackingForegroundService` receives fused location.
 2. `FixAcceptance` + `SpeedAdaptiveSpacing` decide whether to store the fix.
 3. Kind is `START` / `PAUSE` / `MOVE`; Stop writes a `STOP` placemark.
-4. `GtlViewModel` observes Room, computes `TrackStats`, and feeds `displayPoints` to Map (Google `Polyline` or Mapsforge overlay).
+4. `GtlViewModel` observes Room, computes `TrackStats`, and feeds `displayPoints` to Map (Google `Polyline` or Mapsforge overlay). If **Simplify track on map** is on and the polyline has more than 4 points, those display points are Douglas–Peucker-simplified first.
+
+### Douglas–Peucker (map simplify)
+
+**Purpose.** Reduce how many vertices the Map tab has to draw. A long session can have thousands of stored fixes; most of them sit almost on a straight line. Dropping those intermediates keeps the map responsive without changing what was recorded.
+
+This is **display-only**. `gps_events`, Route odometer / speeds, and KMZ export always use the raw Room rows. Douglas–Peucker does not smooth GPS noise: remaining corners stay sharp. It only discards points that are close enough to a chord.
+
+**When it runs.** Settings → **Simplify track on map** (`optimizationActive`, on by default). `GtlViewModel` calls `DouglasPeucker.simplify(points, optimizationTolerance)` when that switch is on and `points.size > 4`. Tolerance is **19.5 m** and is not exposed in Settings.
+
+**How it works.** Classic Ramer–Douglas–Peucker, with distances in metres on a local tangent plane (`111_320` m per degree of latitude; longitude scaled by `cos(lat)`):
+
+1. Always keep the first and last points of the current segment.
+2. For every point between them, measure the perpendicular distance to the straight line (chord) from start to end.
+3. Take the farthest point. If that distance is **greater than** the tolerance, keep it — it is a real bend — and recurse on the two sub-segments (start→farthest, farthest→end).
+4. If the farthest point is **within** the tolerance, drop every intermediate point: they all lie close enough to the chord.
+
+So a nearly colinear stretch collapses to two endpoints, while a corner that sticks out more than 19.5 m is kept. Implementation: `engine/.../DouglasPeucker.kt`. Pipeline context: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
 
 ### Permissions
 
@@ -162,6 +179,7 @@ Engine entry points worth reading:
 
 - `engine/.../FixAcceptance.kt` — accuracy / sats / time / distance gate
 - `engine/.../SpeedAdaptiveSpacing.kt` — metres between points by km/h and curves
+- `engine/.../DouglasPeucker.kt` — map-only polyline simplify (metres, local projection)
 - `engine/.../TrackStats.kt` — odometer, moving vs waiting
 - `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ with local icons
 - `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR
