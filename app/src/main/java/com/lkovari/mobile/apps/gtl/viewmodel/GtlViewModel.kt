@@ -64,23 +64,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<GtlSettings> = app.preferences.settings.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
-        GtlSettings(
-            disclaimerAccepted = false,
-            usageType = UsageType.TWO_WHEELERS,
-            measurementSystem = MeasurementSystem.METRIC,
-            minDistanceMeters = 2.5f,
-            minTimeMillis = 500L,
-            minAccuracyMeters = 30,
-            minSatellites = 4,
-            useOfflineMap = false,
-            selectedMapFile = "",
-            trackColorArgb = 0xFFE53935L,
-            trackThickness = 8,
-            optimizationTolerance = DouglasPeucker.DefaultToleranceMeters,
-            optimizationActive = true,
-            showLastTrackOnMap = true,
-            showAccuracyMarker = true
-        )
+        GtlSettings.placeholder()
     )
 
     val live: StateFlow<LiveTrackingState> = app.trackingState.state
@@ -291,6 +275,22 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowAccuracyMarker(value: Boolean) {
         viewModelScope.launch { app.preferences.setShowAccuracyMarker(value) }
+    }
+
+    fun setTrackSmoothing(value: Boolean) {
+        viewModelScope.launch { app.preferences.setTrackSmoothingEnabled(value) }
+    }
+
+    fun setSmoothingStrength(value: Float) {
+        viewModelScope.launch { app.preferences.setSmoothingStrength(value) }
+    }
+
+    fun setStationaryLock(value: Boolean) {
+        viewModelScope.launch { app.preferences.setStationaryLockEnabled(value) }
+    }
+
+    fun setRecordingDensity(value: Float) {
+        viewModelScope.launch { app.preferences.setRecordingDensity(value) }
     }
 
     fun downloadRegion(region: OsmRegion) {

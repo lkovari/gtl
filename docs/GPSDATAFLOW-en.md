@@ -23,12 +23,17 @@ flowchart TD
 
     LiveLoc --> Fix["TrackFix<br/>lat lon alt speed bearing accuracy sats"]
     LiveGnss --> Fix
-    Fix --> Gate{"FixAcceptance.shouldAccept"}
+    Fix --> AccGate{"accuracy / sats"}
+    AccGate -->|"too poor or too few sats"| Drop["Discard fix"]
+    AccGate -->|ok| Smooth{"Smooth recorded track?"}
+    Smooth -->|yes| KF["KalmanTrackFilter.observe"]
+    Smooth -->|no| RawFix["TrackFix as-is"]
+    KF --> Gate{"FixAcceptance.shouldAccept"}
+    RawFix --> Gate
 
-    Gate -->|"accuracy too poor<br/>or too few satellites"| Drop["Discard fix"]
     Gate -->|"first fix of session"| KindStart["eventKind START"]
-    Gate -->|"distance >= SpeedAdaptiveSpacing"| KindMove{"speed vs pause threshold"}
-    Gate -->|"too close, not a curve"| Drop
+    Gate -->|"SMART: distance >= spacing<br/>EVERY_FIX: min time or curve"| KindMove{"speed vs pause threshold"}
+    Gate -->|"too close / too soon"| Drop
 
     KindMove -->|"below pause speed"| KindPause["PAUSE"]
     KindMove -->|"moving"| KindGo["MOVE"]
@@ -48,7 +53,7 @@ flowchart TD
     Observe --> VM2["GtlViewModel"]
     VM2 --> Stats["TrackStatsCalculator"]
     VM2 --> Display{"Simplify track on map<br/>and more than 4 points?"}
-    Display -->|"yes"| Simpl["Douglas-Peucker<br/>Settings tolerance 1-40 m<br/>map only"]
+    Display -->|"yes"| Simpl["Douglas-Peucker<br/>usage-scaled metres<br/>map only"]
     Display -->|"no"| RawPts["Room points as-is"]
     Simpl --> Vis{"MapTrackVisibility"}
     RawPts --> Vis
@@ -72,11 +77,16 @@ All of this runs under a **visible** location foreground notification. There is 
 
 ## Gate: `FixAcceptance`
 
-A fix is stored only if:
+A poor-accuracy or low-satellite fix never enters the Kalman filter. The HUD `lastLocation` still updates.
 
-1. `accuracy` ≤ settings minimum accuracy (m).
-2. `satellitesInFix` ≥ settings minimum (default 4).
-3. It is the first point of the session, **or** haversine distance from the last **stored** point is at least `SpeedAdaptiveSpacing` (speed bands; half spacing if heading change &gt; 15°).
+A remaining fix is stored only if:
+
+1. `accuracy` ≤ settings minimum accuracy (m) and `satellitesInFix` ≥ settings minimum (default 4) — already checked before Kalman.
+2. It is the first point of the session, **or**
+   - **Smart density:** haversine distance from the last **stored** point is at least `SpeedAdaptiveSpacing` (speed bands; half spacing if heading change &gt; 15°; runner SMART uses half of that band).
+   - **Every good fix:** elapsed time ≥ `minTimeMillis` **or** heading curve, and distance ≥ 1 m.
+
+Optional **KalmanTrackFilter** (constant-velocity, position-only) runs after the accuracy/sat gate and before spacing. Stationary lock holds the stored point when slower than the usage pause speed. Jump (innovation larger than `max(50 m, 8 × accuracy)`) re-initializes; it does not interpolate across a gap.
 
 Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 
@@ -105,7 +115,7 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
 **Purpose.** Fewer vertices on the Map tab so a long track stays cheap to draw. SQLite, Route stats, and KMZ keep every stored point.
 
-**When.** Settings **Simplify track on map** (on by default) and more than 4 points. Tolerance is the Settings slider (**1.0–40.0 m**, **0.5 m** steps, default **19.5 m**, remembered). Hidden when the switch is off; the stored value is kept. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`.
+**When.** Settings **Simplify track on map** (on by default for vehicles, off for runner) and more than 4 points. Tolerance is a **1–20 m** slider (1 m steps), chosen by usage (motorbike 6 m, car 8 m, aircraft 15 m, runner 2 m if turned on). Hidden when the switch is off; the stored value is kept. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. Kalman, not Douglas–Peucker, is the noise filter.
 
 **How.** Keep the segment’s first and last points. Find the intermediate point with the largest perpendicular distance (metres, local `111_320` m/deg projection) to the chord between them. If that distance is above the tolerance, keep the point and recurse on both sides; otherwise drop every intermediate point.
 

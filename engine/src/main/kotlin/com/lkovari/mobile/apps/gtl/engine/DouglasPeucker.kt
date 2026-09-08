@@ -2,12 +2,12 @@ package com.lkovari.mobile.apps.gtl.engine
 
 object DouglasPeucker {
     const val MinToleranceMeters = 1.0
-    const val MaxToleranceMeters = 40.0
+    const val MaxToleranceMeters = 20.0
     const val DefaultToleranceMeters = 19.5
 
     fun clampTolerance(value: Double): Double {
         val clamped = value.coerceIn(MinToleranceMeters, MaxToleranceMeters)
-        return kotlin.math.round(clamped * 2.0) / 2.0
+        return kotlin.math.round(clamped)
     }
 
     fun simplify(points: List<GeoPoint>, toleranceMeters: Double): List<GeoPoint> {
@@ -55,22 +55,20 @@ object DouglasPeucker {
         val dy = endXY.second - startY
         val lengthSquared = dx * dx + dy * dy
         if (lengthSquared == 0.0) {
-            return hypot(pointXY.first, pointXY.second)
+            return GeoProjection.hypot(pointXY.first, pointXY.second)
         }
         val t = ((pointXY.first - startX) * dx + (pointXY.second - startY) * dy) / lengthSquared
         val projX = startX + t * dx
         val projY = startY + t * dy
-        return hypot(pointXY.first - projX, pointXY.second - projY)
+        return GeoProjection.hypot(pointXY.first - projX, pointXY.second - projY)
     }
 
     private fun projectMeters(origin: GeoPoint, point: GeoPoint): Pair<Double, Double> {
-        val latRad = Math.toRadians(origin.latitude)
-        val metersPerDegLat = 111_320.0
-        val metersPerDegLng = 111_320.0 * kotlin.math.cos(latRad)
-        val x = (point.longitude - origin.longitude) * metersPerDegLng
-        val y = (point.latitude - origin.latitude) * metersPerDegLat
-        return x to y
+        return GeoProjection.eastNorth(
+            origin.latitude,
+            origin.longitude,
+            point.latitude,
+            point.longitude
+        )
     }
-
-    private fun hypot(x: Double, y: Double): Double = kotlin.math.sqrt(x * x + y * y)
 }

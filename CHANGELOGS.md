@@ -3,14 +3,38 @@
 All notable changes to **GTL GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.2** / `versionCode` **20** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.3** / `versionCode` **21** (minSdk 24, targetSdk 36).
+
+Bilingual release note for this version: [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt).
 
 ## [Unreleased]
 
+## [2.0.3] — 2026-09-08
+
+Play production track **21 (2.0.3)** (signed AAB). Kalman smoothing on stored points, Settings sliders, aircraft ICAO units.
+
 ### Added
 
-- Settings: simplification tolerance slider when **Simplify track on map** is on (1–40 m, remembered).
-- Help: expandable sections (one open at a time). Usage covers the four Settings switches, Douglas–Peucker, and speed/curve logging.
+- Constant-velocity **Kalman** smoother in `:engine` (`KalmanTrackFilter`), applied before SQLite so Route, Map, and KMZ share the same path. HUD accuracy circle stays on the raw fused fix.
+- Settings: **Smooth recorded track**, **Smoothing strength** (Low–High slider), **Hold still when stopped**, **Recording density** (Smart–Every good slider). English and Hungarian.
+- Usage presets write smoothing, density, map-simplify, and units in one DataStore edit (runner: Low + every good + DP off; motorbike: Medium + Smart + 6 m DP; aircraft: High + 15 m DP + ICAO).
+- Help **Settings** section: presets, sliders, and ICAO for aircraft.
+- Engine tests for highway RMSE, roundabout, figure-8, zigzag, stationary lock, jump re-init, usage defaults, and slider interpolation.
+
+### Changed
+
+- **Simplify track on map** tolerance is a 1–20 m slider (1 m steps), not chips. Defaults follow usage (not a global 19.5 m). Old 19.5 m sentinel migrates once when Kalman keys are first written. Display-only: KMZ and odometer keep every stored point.
+- Smooth recorded track and recording density use continuous sliders (Low–High and Smart–Every good). Usage presets set the slider positions.
+- Aircraft usage defaults to ICAO units (knots, NM, feet); other usages default to metric.
+- Smart density: runner uses half of the 2014 speed bands (still half again in a curve, min 1 m). Vehicles keep the existing bands. Intermediate density mixes Smart spacing with Every good.
+- Standing min-distance preset is 2 m (same as the Smart standing band). 1 m stays the Every-good duplicate drop.
+- Settings layout fits the safe drawing area without a vertical scrollbar. The read-only Fix filters row is removed; accuracy and satellite gates still run.
+- README and GPS data-flow docs: Kalman box before `FixAcceptance`. README documents Kalman behaviour and how each setting affects the stored tracklog.
+
+### Fixed
+
+- Standing GPS wander is pinned when stationary lock is on (no 10 m scribble).
+- Poor-accuracy / low-satellite fixes never enter the Kalman filter.
 
 ## [2.0.2] — 2026-09-05
 

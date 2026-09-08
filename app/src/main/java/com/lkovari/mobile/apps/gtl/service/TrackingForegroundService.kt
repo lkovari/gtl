@@ -22,6 +22,7 @@ import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
+import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
 import com.lkovari.mobile.apps.gtl.engine.TrackFix
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
@@ -31,7 +32,10 @@ import kotlinx.coroutines.launch
 class TrackingForegroundService : LifecycleService() {
     private var locationJob: Job? = null
     private var lastAccepted: TrackFix? = null
+    private var lastFiltered: TrackFix? = null
     private var lastKind: EventKind = EventKind.START
+    private var kalman = KalmanTrackFilter()
+    private var smoothingEnabled = false
 
     override fun onCreate() {
         super.onCreate()
@@ -75,6 +79,14 @@ class TrackingForegroundService : LifecycleService() {
                     satellitesInFix = event.satellitesInFix
                 )
             }
+            kalman = KalmanTrackFilter()
+            lastFiltered = null
+            smoothingEnabled = settings.trackSmoothingEnabled
+            val accepted = lastAccepted
+            if (accepted != null) {
+                kalman.seedFrom(accepted)
+                lastFiltered = accepted
+            }
             lastKind = if (lastAccepted == null) EventKind.START else EventKind.MOVE
             launch { collectLocation(app, sessionId, settings) }
             launch {
@@ -117,24 +129,50 @@ class TrackingForegroundService : LifecycleService() {
             app.trackingState.update {
                 it.copy(lastLocation = location, provider = location.provider)
             }
-            if (FixAcceptance.shouldAccept(lastAccepted, fix, settings.toFilter())) {
+            val filter = settings.toFilter()
+            if (fix.accuracyMeters > filter.minAccuracyMeters) {
+                return@collect
+            }
+            if (fix.satellitesInFix < filter.minSatellites) {
+                return@collect
+            }
+            val forStore = if (settings.trackSmoothingEnabled) {
+                val filtered = kalman.observe(
+                    fix,
+                    settings.usageType,
+                    settings.smoothingStrengthValue,
+                    settings.stationaryLockEnabled
+                )
+                lastFiltered = filtered
+                filtered
+            } else {
+                fix
+            }
+            if (FixAcceptance.shouldAccept(
+                    lastAccepted,
+                    forStore,
+                    filter,
+                    settings.recordingDensityValue,
+                    settings.usageType
+                )
+            ) {
                 val kind = when {
                     lastAccepted == null -> EventKind.START
-                    location.speed < settings.usageType.pauseSpeedMps() -> EventKind.PAUSE
+                    forStore.speedMps < settings.usageType.pauseSpeedMps() -> EventKind.PAUSE
                     else -> EventKind.MOVE
                 }
                 val live = app.trackingState.state.value
                 app.trackRepository.insertEvent(
                     GpsEventEntity(
                         sessionId = sessionId,
-                        timestamp = fix.timestampMillis,
-                        latitude = fix.latitude,
-                        longitude = fix.longitude,
-                        altitude = fix.altitude,
-                        speed = fix.speedMps,
-                        bearing = fix.bearing,
-                        accuracy = fix.accuracyMeters,
-                        satellitesInFix = fix.satellitesInFix,
+                        timestamp = forStore.timestampMillis,
+                        latitude = forStore.latitude,
+                        longitude = forStore.longitude,
+                        altitude = forStore.altitude,
+                        speed = forStore.speedMps,
+                        bearing = forStore.bearing,
+                        accuracy = forStore.accuracyMeters,
+                        satellitesInFix = forStore.satellitesInFix,
                         ambientTemperature = live.temperatureCelsius,
                         accelX = live.accel?.getOrNull(0),
                         accelY = live.accel?.getOrNull(1),
@@ -143,7 +181,7 @@ class TrackingForegroundService : LifecycleService() {
                         eventKind = kind.name
                     )
                 )
-                lastAccepted = fix
+                lastAccepted = forStore
                 lastKind = kind
             }
         }
@@ -158,7 +196,28 @@ class TrackingForegroundService : LifecycleService() {
             if (sessionId != null) {
                 val live = app.trackingState.state.value
                 val last = live.lastLocation
-                if (last != null) {
+                val filtered = lastFiltered
+                if (smoothingEnabled && filtered != null) {
+                    app.trackRepository.insertEvent(
+                        GpsEventEntity(
+                            sessionId = sessionId,
+                            timestamp = System.currentTimeMillis(),
+                            latitude = filtered.latitude,
+                            longitude = filtered.longitude,
+                            altitude = filtered.altitude,
+                            speed = filtered.speedMps,
+                            bearing = filtered.bearing,
+                            accuracy = filtered.accuracyMeters,
+                            satellitesInFix = live.gnss?.satellitesInFix ?: 0,
+                            ambientTemperature = live.temperatureCelsius,
+                            accelX = live.accel?.getOrNull(0),
+                            accelY = live.accel?.getOrNull(1),
+                            accelZ = live.accel?.getOrNull(2),
+                            isPlacemark = true,
+                            eventKind = EventKind.STOP.name
+                        )
+                    )
+                } else if (last != null) {
                     app.trackRepository.insertEvent(
                         GpsEventEntity(
                             sessionId = sessionId,

@@ -30,6 +30,14 @@ object SpeedAdaptiveSpacing {
         return if (inCurve) (base / 2f).coerceAtLeast(1f) else base
     }
 
+    fun spacingMeters(speedMps: Float, inCurve: Boolean, usage: UsageType?): Float {
+        val spaced = spacingMeters(speedMps, inCurve)
+        if (usage == null || !usage.isPedestrianMode()) {
+            return spaced
+        }
+        return (spaced / 2f).coerceAtLeast(1f)
+    }
+
     fun isInCurve(previousBearing: Float, currentBearing: Float): Boolean {
         if (previousBearing == 0f || currentBearing == 0f) {
             return false

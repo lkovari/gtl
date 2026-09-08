@@ -1,0 +1,24 @@
+Release name (Play, not shown to users):
+2.0.3 (21)
+
+What's new — max 500 characters per language.
+
+<en-US>
+Smoother stored tracks. HUD GPS ring stays on the raw fix.
+
+• Optional Kalman filter on recorded points
+• Sliders: map simplify 1–20 m, smoothing Low–High, density Smart–Every good
+• Usage presets (runner keeps figure-8; aircraft uses ICAO: knots, NM, feet)
+• Standing lock stops GPS scribble while you wait
+• English and Hungarian
+</en-US>
+
+<hu-HU>
+Simább letárolt nyomvonal. A HUD pontossági köre a nyers GPS-fixen marad.
+
+• Opcionális Kalman-szűrő a rögzített pontokon
+• Csúszkák: térkép-egyszerűsítés 1–20 m, simítás Alacsony–Magas, sűrűség Okos–Minden jó
+• Usage előbeállítások (futónál megmarad a nyolcas; repülőnél ICAO: csomó, NM, láb)
+• Álláskor nem kóborol a pont
+• Magyar és angol felület
+</hu-HU>

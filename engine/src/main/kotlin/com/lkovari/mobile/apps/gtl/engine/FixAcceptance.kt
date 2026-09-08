@@ -19,7 +19,23 @@ data class FixFilter(
 )
 
 object FixAcceptance {
-    fun shouldAccept(previous: TrackFix?, current: TrackFix, filter: FixFilter): Boolean {
+    fun shouldAccept(
+        previous: TrackFix?,
+        current: TrackFix,
+        filter: FixFilter,
+        density: RecordingDensity = RecordingDensity.SMART,
+        usage: UsageType? = null
+    ): Boolean {
+        return shouldAccept(previous, current, filter, density.sliderValue(), usage)
+    }
+
+    fun shouldAccept(
+        previous: TrackFix?,
+        current: TrackFix,
+        filter: FixFilter,
+        densityMix: Float,
+        usage: UsageType? = null
+    ): Boolean {
         if (current.accuracyMeters > filter.minAccuracyMeters) {
             return false
         }
@@ -29,15 +45,34 @@ object FixAcceptance {
         if (previous == null) {
             return true
         }
-        val inCurve = SpeedAdaptiveSpacing.isInCurve(previous.bearing, current.bearing)
-        val needed = SpeedAdaptiveSpacing.spacingMeters(current.speedMps, inCurve)
         val distance = haversineMeters(
             previous.latitude,
             previous.longitude,
             current.latitude,
             current.longitude
         )
-        return distance >= needed
+        val inCurve = SpeedAdaptiveSpacing.isInCurve(previous.bearing, current.bearing)
+        val t = densityMix.coerceIn(0f, 1f)
+        val smartNeeded = SpeedAdaptiveSpacing.spacingMeters(current.speedMps, inCurve, usage)
+        if (t <= 0.001f) {
+            return distance >= smartNeeded
+        }
+        if (t >= 0.999f) {
+            if (distance < EveryFixMinDistanceMeters) {
+                return false
+            }
+            val elapsed = current.timestampMillis - previous.timestampMillis
+            return elapsed >= filter.minTimeMillis || inCurve
+        }
+        val needed = smartNeeded * (1f - t) + EveryFixMinDistanceMeters.toFloat() * t
+        if (distance >= needed) {
+            return true
+        }
+        if (distance >= EveryFixMinDistanceMeters) {
+            val elapsed = current.timestampMillis - previous.timestampMillis
+            return elapsed >= filter.minTimeMillis || inCurve
+        }
+        return false
     }
 
     fun haversineMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
@@ -51,4 +86,6 @@ object FixAcceptance {
         val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
         return earthRadius * c
     }
+
+    private const val EveryFixMinDistanceMeters = 1.0
 }

@@ -7,16 +7,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -35,7 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -75,12 +78,12 @@ import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import java.text.DateFormat
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SecondaryScaffold(pageTitle: String, onBack: () -> Unit, content: @Composable () -> Unit) {
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = {
@@ -111,22 +114,35 @@ fun SecondaryScaffold(pageTitle: String, onBack: () -> Unit, content: @Composabl
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Unit) {
-    val storedTolerance = state.settings.optimizationTolerance.toFloat()
-    var sliderValue by remember { mutableFloatStateOf(storedTolerance) }
-    LaunchedEffect(storedTolerance) {
-        sliderValue = storedTolerance
+    var dpValue by remember {
+        mutableFloatStateOf(state.settings.optimizationTolerance.toFloat())
+    }
+    var strengthValue by remember {
+        mutableFloatStateOf(state.settings.smoothingStrengthValue)
+    }
+    var densityValue by remember {
+        mutableFloatStateOf(state.settings.recordingDensityValue)
+    }
+    LaunchedEffect(state.settings.optimizationTolerance) {
+        dpValue = state.settings.optimizationTolerance.toFloat()
+    }
+    LaunchedEffect(state.settings.smoothingStrengthValue) {
+        strengthValue = state.settings.smoothingStrengthValue
+    }
+    LaunchedEffect(state.settings.recordingDensityValue) {
+        densityValue = state.settings.recordingDensityValue
     }
     SecondaryScaffold(stringResource(R.string.settings_title), onBack) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.Top
         ) {
-            Text(stringResource(R.string.settings_usage), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.settings_usage), style = MaterialTheme.typography.titleMedium)
             Row(
                 modifier = Modifier.fillMaxWidth().selectableGroup(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -142,25 +158,29 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                 onClick = { viewModel.setUsage(type) },
                                 role = Role.RadioButton
                             )
-                            .padding(vertical = 2.dp),
+                            .padding(vertical = 1.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        RadioButton(selected = selected, onClick = { viewModel.setUsage(type) })
                         Icon(
                             imageVector = usageIcon(type),
                             contentDescription = stringResource(usageLabel(type)),
+                            modifier = Modifier.size(26.dp),
                             tint = if (selected) TitleMagenta else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = stringResource(usageLabel(type)),
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             maxLines = 1
                         )
                     }
                 }
             }
-            Text(stringResource(R.string.settings_units), style = MaterialTheme.typography.titleLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(stringResource(R.string.settings_units), style = MaterialTheme.typography.titleMedium)
                 MeasurementSystem.entries.forEach { system ->
                     FilterChip(
                         selected = state.settings.measurementSystem == system,
@@ -176,25 +196,23 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                 viewModel.setOptimization(it)
             }
             if (state.settings.optimizationActive) {
-                val label = String.format(Locale.US, "%.1f", sliderValue)
-                Text(
-                    text = stringResource(R.string.settings_optimize_tolerance, label),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Slider(
-                    value = sliderValue,
-                    onValueChange = { value ->
-                        sliderValue = DouglasPeucker.clampTolerance(value.toDouble()).toFloat()
-                    },
+                EndpointSlider(
+                    value = dpValue,
+                    onValueChange = { dpValue = it },
                     onValueChangeFinished = {
-                        viewModel.setOptimizationTolerance(sliderValue.toDouble())
+                        viewModel.setOptimizationTolerance(dpValue.toDouble())
                     },
                     valueRange = DouglasPeucker.MinToleranceMeters.toFloat()..
                         DouglasPeucker.MaxToleranceMeters.toFloat(),
-                    steps = (
-                        (DouglasPeucker.MaxToleranceMeters - DouglasPeucker.MinToleranceMeters) / 0.5
-                        ).toInt() - 1,
-                    modifier = Modifier.fillMaxWidth()
+                    steps = 18,
+                    startLabel = stringResource(
+                        R.string.settings_meters,
+                        DouglasPeucker.MinToleranceMeters.toInt()
+                    ),
+                    endLabel = stringResource(
+                        R.string.settings_meters,
+                        DouglasPeucker.MaxToleranceMeters.toInt()
+                    )
                 )
             }
             SettingSwitch(stringResource(R.string.settings_show_track), state.settings.showLastTrackOnMap) {
@@ -203,12 +221,75 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             SettingSwitch(stringResource(R.string.settings_show_accuracy), state.settings.showAccuracyMarker) {
                 viewModel.setShowAccuracyMarker(it)
             }
-            Text(stringResource(R.string.settings_filters), style = MaterialTheme.typography.bodyMedium)
-            Text("${stringResource(R.string.settings_min_distance)}: ${state.settings.minDistanceMeters} m")
-            Text("${stringResource(R.string.settings_min_time)}: ${state.settings.minTimeMillis} ms")
-            Text("${stringResource(R.string.settings_min_accuracy)}: ${state.settings.minAccuracyMeters} m")
-            Text("${stringResource(R.string.settings_min_sats)}: ${state.settings.minSatellites}")
+            SettingSwitch(stringResource(R.string.settings_track_smoothing), state.settings.trackSmoothingEnabled) {
+                viewModel.setTrackSmoothing(it)
+            }
+            if (state.settings.trackSmoothingEnabled) {
+                EndpointSlider(
+                    value = strengthValue,
+                    onValueChange = { strengthValue = it },
+                    onValueChangeFinished = { viewModel.setSmoothingStrength(strengthValue) },
+                    valueRange = 0f..1f,
+                    steps = 0,
+                    startLabel = stringResource(R.string.settings_smoothing_low),
+                    endLabel = stringResource(R.string.settings_smoothing_high)
+                )
+            }
+            SettingSwitch(stringResource(R.string.settings_stationary_lock), state.settings.stationaryLockEnabled) {
+                viewModel.setStationaryLock(it)
+            }
+            Text(
+                text = stringResource(R.string.settings_recording_density),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            EndpointSlider(
+                value = densityValue,
+                onValueChange = { densityValue = it },
+                onValueChangeFinished = { viewModel.setRecordingDensity(densityValue) },
+                valueRange = 0f..1f,
+                steps = 0,
+                startLabel = stringResource(R.string.settings_density_smart),
+                endLabel = stringResource(R.string.settings_density_every_fix)
+            )
         }
+    }
+}
+
+@Composable
+private fun EndpointSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    startLabel: String,
+    endLabel: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = startLabel,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            modifier = Modifier.widthIn(min = 36.dp)
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange,
+            steps = steps,
+            modifier = Modifier.weight(1f).height(28.dp)
+        )
+        Text(
+            text = endLabel,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            modifier = Modifier.widthIn(min = 36.dp)
+        )
     }
 }
 
@@ -261,11 +342,18 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
 @Composable
 private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 36.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2
+        )
         Switch(checked = checked, onCheckedChange = onChange)
     }
 }
@@ -429,6 +517,18 @@ fun HelpScreen(onBack: () -> Unit) {
             }
             item {
                 HelpAccordionSection(
+                    title = stringResource(R.string.settings_title),
+                    expanded = expandedId == HelpSectionSettings,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionSettings) }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.help_settings_presets), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.help_settings_controls), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+            item {
+                HelpAccordionSection(
                     title = stringResource(R.string.help_logging_title),
                     expanded = expandedId == HelpSectionLogging,
                     onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionLogging) }
@@ -521,6 +621,7 @@ fun HelpScreen(onBack: () -> Unit) {
 }
 
 private const val HelpSectionUsage = "usage"
+private const val HelpSectionSettings = "settings"
 private const val HelpSectionLogging = "logging"
 private const val HelpSectionGps = "gps"
 private const val HelpSectionRoute = "route"
