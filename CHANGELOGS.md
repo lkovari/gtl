@@ -3,11 +3,15 @@
 All notable changes to **GTL GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.3** / `versionCode` **21** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.4** / `versionCode` **22** (minSdk 24, targetSdk 36).
 
-Bilingual release note for this version: [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README.md — How logging works](README.md#how-logging-works).
+Bilingual release note for this version: [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README.md — How logging works](README.md#how-logging-works).
 
 ## [Unreleased]
+
+## [2.0.4] — 2026-09-09
+
+Play production track **22 (2.0.4)** (signed AAB). GNSS-only option, runner sports-watch logging, 0.5 m pedestrian store floor.
 
 ### Added
 

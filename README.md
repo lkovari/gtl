@@ -4,7 +4,7 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.3 (versionCode 21)  
+**Version:** 2.0.4 (versionCode 22)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
@@ -304,7 +304,8 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 | Document | What it is |
 |---|---|
-| [CHANGELOGS.md](CHANGELOGS.md) | Version history (2.0.0 rewrite through 2.0.3) |
+| [CHANGELOGS.md](CHANGELOGS.md) | Version history (2.0.0 rewrite through 2.0.4) |
+| [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md) | 2.0.4 release notes (English and Hungarian) |
 | [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md) | 2.0.3 release notes (English and Hungarian) |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt) | Play Console release name and EN/HU what’s-new text |
 | [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md) | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups |

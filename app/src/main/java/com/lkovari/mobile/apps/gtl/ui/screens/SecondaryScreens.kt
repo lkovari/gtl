@@ -734,7 +734,7 @@ fun AboutScreen(onBack: () -> Unit) {
     val deviceName = remember { DeviceIdentity.displayName(context) }
     SecondaryScaffold(stringResource(R.string.about_title), onBack) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("2.0.0  ·  com.lkovari.mobile.apps.gtl")
+            Text("${com.lkovari.mobile.apps.gtl.BuildConfig.VERSION_NAME}  ·  com.lkovari.mobile.apps.gtl")
             Text("${stringResource(R.string.about_device)}: $deviceName")
             Text(stringResource(R.string.about_author))
             Text(stringResource(R.string.about_body))
