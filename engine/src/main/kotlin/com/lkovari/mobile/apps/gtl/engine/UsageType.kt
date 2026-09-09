@@ -27,7 +27,7 @@ enum class UsageType {
     }
 
     fun defaultMeasurementSystem(): MeasurementSystem {
-        return if (this == AIRCRAFT) {
+        return if (this == AIRCRAFT || this == WATERCRAFT) {
             MeasurementSystem.ICAO
         } else {
             MeasurementSystem.METRIC

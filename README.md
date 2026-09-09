@@ -20,7 +20,7 @@ Privacy policy: https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-pol
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
 - Usage modes: aircraft, watercraft, car, motorbike (default), runner. Choosing a usage writes a full preset (filters, smoothing, density, map simplify). Runner uses a looser accuracy filter and a lower pause threshold.
-- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`) and accelerometer samples on each stored point.
+- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
 
 ### GPS tab
 
@@ -30,11 +30,11 @@ Privacy policy: https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-pol
 
 ### Route tab
 
-Session totals after Start: elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, temperature range when a sensor exists.
+Session totals after Start: elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists.
 
 ### Map tab
 
-- Centers on current location; follows while logging.
+- Centers on current location; follows while logging. **Keep whole track on the screen** fits the whole route after each GPS refresh (pan and zoom stay allowed until the next fix).
 - Red polyline from Room (live session, last saved track, or a track chosen in Saved tracks).
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM.
@@ -70,16 +70,18 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 |---|---|---|---|---|---|---|---|
 | Runner | Metric | on | Low | on | Every good | off | 2 m |
 | Motorbike (default) | Metric | on | Medium | on | Smart | on | 6 m |
-| Car / watercraft | Metric | on | Medium | on | Smart | on | 8 m |
+| Car | Metric | on | Medium | on | Smart | on | 8 m |
+| Watercraft | ICAO | on | Medium | on | Smart | on | 8 m |
 | Aircraft | ICAO | on | High | on | Smart | on | 15 m |
 
 **What each control does**
 
-- **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner 45 m, others 30 m). Aircraft also switches units to ICAO; other usages switch to metric.
+- **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
 - **Use downloaded OSM map** — Mapsforge file versus Google Maps.
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map.
+- **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
 - **Show accuracy marker** — purple circle; radius is GPS accuracy. HUD stays on the raw fused fix.
 - **Smooth recorded track**, **Smoothing strength**, **Hold still when stopped**, **Recording density** — these change what is **written into the tracklog**. Details below.
 
@@ -162,7 +164,7 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | **Recording density** (Smart–Every good slider) | Yes | **Smart:** write when distance from the last **stored** point reaches the 2014 speed band (half in a curve; runner Smart half again, min 1 m). Highway stores fewer points; walking stores more. **Every good:** write about once per `minTime` (500 ms) or sooner in a curve, and still drop stacks closer than **1 m**. Positions between the ends mix the two rules. |
 | **Simplify track on map** (1–20 m slider) | **No** | Fewer vertices on the Map tab only. Stored points, odometer, and KMZ are unchanged. |
 | **Show accuracy marker** | **No** | Purple circle on the **raw** GPS fix, even when Kalman is on. |
-| **Units** | Labels only | Metric / Imperial / ICAO format Route and KMZ balloons. Coordinates stay WGS-84. Aircraft preset selects ICAO. |
+| **Units** | Labels only | Metric / Imperial / ICAO format Route and KMZ balloons. Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO. |
 | Accuracy / satellite gates | Yes (rejection) | Fixes worse than 30 m (runner 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders. |
 
 **Practical result.** Motorbike default: smoothed street track, Smart spacing, Map line thinned at 6 m. Runner default: light smoothing, almost every good fix stored, Map shows every stored vertex so a small figure-8 stays visible. Aircraft default: stronger smoothing, Smart spacing, 15 m Map thinning, speed/distance in knots and nautical miles.
@@ -265,8 +267,13 @@ Engine entry points worth reading:
 - `route.png` — Route totals
 - `map.png`, `tracking.png` — Map while recording
 - `googleearth.png` — shared KMZ in Google Earth
-- `compass.png`, `settings.png`, `help.png`, `about.png`
+- `compass.png`, `about.png`
+- `settings.png` — Settings with simplify / smoothing sliders (2.0.3)
+- `settings-density.png` — Settings with recording density at Every good (2.0.3)
+- `help.png` — Help topics (2.0.3)
 - `app-icon.png`
+
+Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Upload `settings.png`, `settings-density.png`, and `help.png` with this release.
 
 ---
 

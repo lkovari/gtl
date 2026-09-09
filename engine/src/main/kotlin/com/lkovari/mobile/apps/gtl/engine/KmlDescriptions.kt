@@ -17,7 +17,8 @@ object KmlDescriptions {
         tempCelsius: Float?,
         maxSpeedMps: Float? = null,
         averageSpeedMps: Float? = null,
-        system: MeasurementSystem = MeasurementSystem.METRIC
+        system: MeasurementSystem = MeasurementSystem.METRIC,
+        leanAngle: Float? = null
     ): String {
         val speed = if (kind == EventKind.PAUSE || kind == EventKind.STOP) {
             formatSpeed(0f, system)
@@ -32,6 +33,9 @@ object KmlDescriptions {
             "speed=$speed",
             "temp=$temp"
         )
+        if (leanAngle != null) {
+            lines.add("lean=${String.format(Locale.US, "%.1f", leanAngle)}")
+        }
         if (kind == EventKind.STOP) {
             lines.add("maxSpeed=${formatSpeed(maxSpeedMps ?: 0f, system)}")
             lines.add("avgSpeed=${formatSpeed(averageSpeedMps ?: 0f, system)}")

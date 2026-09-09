@@ -14,6 +14,7 @@ data class LiveTrackingState(
     val temperatureCelsius: Float? = null,
     val temperatureAvailable: Boolean = false,
     val accel: FloatArray? = null,
+    val leanAngle: Float? = null,
     val azimuthDegrees: Float? = null,
     val provider: String? = null
 )

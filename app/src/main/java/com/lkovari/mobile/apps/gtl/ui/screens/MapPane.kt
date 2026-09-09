@@ -22,6 +22,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
@@ -31,12 +33,17 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
+import com.lkovari.mobile.apps.gtl.engine.LatLonBounds
+import com.lkovari.mobile.apps.gtl.engine.TrackCameraBounds
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerBorder
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerFill
 import com.lkovari.mobile.apps.gtl.ui.theme.CarmineTrack
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import org.mapsforge.core.graphics.Style
+import org.mapsforge.core.model.BoundingBox
 import org.mapsforge.core.model.LatLong
+import org.mapsforge.core.model.MapPosition
+import org.mapsforge.core.util.LatLongUtils
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import org.mapsforge.map.android.util.AndroidUtil
 import org.mapsforge.map.android.view.MapView
@@ -58,7 +65,8 @@ fun MapPane(state: GtlUiState) {
             points = points,
             location = state.live.lastLocation,
             showAccuracyMarker = state.settings.showAccuracyMarker,
-            follow = state.live.logging
+            logging = state.live.logging,
+            keepWholeTrack = state.settings.keepWholeTrackOnScreen
         )
         return
     }
@@ -100,8 +108,30 @@ fun MapPane(state: GtlUiState) {
         }
     }
     var centeredOnce by remember { mutableStateOf(false) }
-    LaunchedEffect(live?.latitude, live?.longitude, latLngs.size, state.live.logging) {
-        if (state.live.logging && latLngs.isNotEmpty()) {
+    val keepWhole = state.settings.keepWholeTrackOnScreen
+    val liveLat = if (keepWhole && !state.live.logging) null else live?.latitude
+    val liveLon = if (keepWhole && !state.live.logging) null else live?.longitude
+    LaunchedEffect(
+        liveLat,
+        liveLon,
+        latLngs.size,
+        latLngs.firstOrNull(),
+        latLngs.lastOrNull(),
+        state.live.logging,
+        keepWhole
+    ) {
+        if (keepWhole) {
+            val extra = if (state.live.logging) {
+                state.live.lastLocation?.let { GeoPoint(it.latitude, it.longitude) }
+            } else {
+                null
+            }
+            val bounds = TrackCameraBounds.of(points, extra)
+            if (bounds != null) {
+                animateToTrackBounds(camera, bounds)
+                centeredOnce = true
+            }
+        } else if (state.live.logging && latLngs.isNotEmpty()) {
             val last = latLngs.last()
             camera.animate(CameraUpdateFactory.newLatLngZoom(last, 16f))
             centeredOnce = true
@@ -116,6 +146,20 @@ fun MapPane(state: GtlUiState) {
     }
 }
 
+private suspend fun animateToTrackBounds(camera: CameraPositionState, bounds: LatLonBounds) {
+    val southWest = LatLng(bounds.minLatitude, bounds.minLongitude)
+    if (bounds.isDegenerate) {
+        camera.animate(CameraUpdateFactory.newLatLngZoom(southWest, 16f))
+        return
+    }
+    val latLngBounds = LatLngBounds(southWest, LatLng(bounds.maxLatitude, bounds.maxLongitude))
+    try {
+        camera.animate(CameraUpdateFactory.newLatLngBounds(latLngBounds, 80))
+    } catch (_: IllegalStateException) {
+        camera.animate(CameraUpdateFactory.newLatLngZoom(latLngBounds.center, 16f))
+    }
+}
+
 private class OsmMapOverlays {
     var polyline: ForgePolyline? = null
     var start: ForgeCircle? = null
@@ -123,6 +167,7 @@ private class OsmMapOverlays {
     var accuracy: ForgeCircle? = null
     var center: ForgeCircle? = null
     var didInitialCenter = false
+    var lastFitKey: String? = null
 }
 
 @Composable
@@ -131,7 +176,8 @@ private fun OsmMapView(
     points: List<GeoPoint>,
     location: Location?,
     showAccuracyMarker: Boolean,
-    follow: Boolean
+    logging: Boolean,
+    keepWholeTrack: Boolean
 ) {
     val overlays = remember(filePath) { OsmMapOverlays() }
     key(filePath) {
@@ -169,7 +215,22 @@ private fun OsmMapView(
                 mapView
             },
             update = { mapView ->
-                if (follow && points.isNotEmpty()) {
+                if (keepWholeTrack) {
+                    val extra = if (logging) {
+                        location?.let { GeoPoint(it.latitude, it.longitude) }
+                    } else {
+                        null
+                    }
+                    val fitKey = osmFitKey(keepWholeTrack, logging, points, location)
+                    if (fitKey != overlays.lastFitKey) {
+                        val bounds = TrackCameraBounds.of(points, extra)
+                        if (bounds != null) {
+                            fitOsmToBounds(mapView, bounds)
+                            overlays.lastFitKey = fitKey
+                            overlays.didInitialCenter = true
+                        }
+                    }
+                } else if (logging && points.isNotEmpty()) {
                     val last = points.last()
                     mapView.model.mapViewPosition.center = LatLong(last.latitude, last.longitude)
                     overlays.didInitialCenter = true
@@ -191,6 +252,46 @@ private fun OsmMapView(
     DisposableEffect(filePath) {
         onDispose { }
     }
+}
+
+private fun osmFitKey(
+    keepWholeTrack: Boolean,
+    logging: Boolean,
+    points: List<GeoPoint>,
+    location: Location?
+): String {
+    val first = points.firstOrNull()
+    val last = points.lastOrNull()
+    return if (keepWholeTrack && logging) {
+        "${points.size}:${last?.latitude}:${last?.longitude}:${location?.latitude}:${location?.longitude}"
+    } else {
+        "${points.size}:${first?.latitude}:${first?.longitude}:${last?.latitude}:${last?.longitude}"
+    }
+}
+
+private fun fitOsmToBounds(mapView: MapView, bounds: LatLonBounds) {
+    val center = LatLong(
+        (bounds.minLatitude + bounds.maxLatitude) / 2.0,
+        (bounds.minLongitude + bounds.maxLongitude) / 2.0
+    )
+    if (bounds.isDegenerate) {
+        mapView.model.mapViewPosition.center = center
+        mapView.model.mapViewPosition.setZoomLevel(16.toByte())
+        return
+    }
+    val box = BoundingBox(
+        bounds.minLatitude,
+        bounds.minLongitude,
+        bounds.maxLatitude,
+        bounds.maxLongitude
+    )
+    val dimension = mapView.model.mapViewDimension.dimension
+    val zoom = if (dimension.width > 0 && dimension.height > 0) {
+        LatLongUtils.zoomForBounds(dimension, box, mapView.model.displayModel.tileSize)
+    } else {
+        14.toByte()
+    }
+    mapView.model.mapViewPosition.mapPosition = MapPosition(center, zoom)
 }
 
 private fun updateOsmTrack(mapView: MapView, overlays: OsmMapOverlays, points: List<GeoPoint>) {

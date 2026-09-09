@@ -20,6 +20,7 @@ import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.data.sensor.AccelerometerSource
 import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
+import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
@@ -105,6 +106,13 @@ class TrackingForegroundService : LifecycleService() {
                 }
             }
             launch {
+                app.gravitySource.gravity().collectLatest { value ->
+                    app.trackingState.update {
+                        it.copy(leanAngle = BikeLeanAngle.fromGravity(value[0], value[1], value[2]))
+                    }
+                }
+            }
+            launch {
                 app.compassSource.azimuthDegrees().collectLatest { value ->
                     app.trackingState.update { it.copy(azimuthDegrees = value) }
                 }
@@ -177,6 +185,7 @@ class TrackingForegroundService : LifecycleService() {
                         accelX = live.accel?.getOrNull(0),
                         accelY = live.accel?.getOrNull(1),
                         accelZ = live.accel?.getOrNull(2),
+                        leanAngle = live.leanAngle,
                         isPlacemark = kind != EventKind.MOVE,
                         eventKind = kind.name
                     )
@@ -213,6 +222,7 @@ class TrackingForegroundService : LifecycleService() {
                             accelX = live.accel?.getOrNull(0),
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
+                            leanAngle = live.leanAngle,
                             isPlacemark = true,
                             eventKind = EventKind.STOP.name
                         )
@@ -233,6 +243,7 @@ class TrackingForegroundService : LifecycleService() {
                             accelX = live.accel?.getOrNull(0),
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
+                            leanAngle = live.leanAngle,
                             isPlacemark = true,
                             eventKind = EventKind.STOP.name
                         )

@@ -14,6 +14,7 @@ import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
+import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
@@ -60,6 +61,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private var locationJob: Job? = null
     private var compassJob: Job? = null
     private var temperatureJob: Job? = null
+    private var gravityJob: Job? = null
 
     val settings: StateFlow<GtlSettings> = app.preferences.settings.stateIn(
         viewModelScope,
@@ -78,6 +80,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         listenLocation()
         listenCompass()
         listenTemperature()
+        listenGravity()
     }
 
     private fun listenGnss() {
@@ -106,6 +109,17 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         compassJob = viewModelScope.launch {
             app.compassSource.azimuthDegrees().collectLatest { value ->
                 app.trackingState.update { it.copy(azimuthDegrees = value) }
+            }
+        }
+    }
+
+    private fun listenGravity() {
+        gravityJob?.cancel()
+        gravityJob = viewModelScope.launch {
+            app.gravitySource.gravity().collectLatest { value ->
+                app.trackingState.update {
+                    it.copy(leanAngle = BikeLeanAngle.fromGravity(value[0], value[1], value[2]))
+                }
             }
         }
     }
@@ -271,6 +285,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowLastTrackOnMap(value: Boolean) {
         viewModelScope.launch { app.preferences.setShowLastTrackOnMap(value) }
+    }
+
+    fun setKeepWholeTrackOnScreen(value: Boolean) {
+        viewModelScope.launch { app.preferences.setKeepWholeTrackOnScreen(value) }
     }
 
     fun setShowAccuracyMarker(value: Boolean) {

@@ -13,12 +13,14 @@ flowchart TD
     FGS --> Gnss["GnssStatusSource"]
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
+    FGS --> Grav["GravitySource"]
     FGS --> Comp["CompassSource"]
 
     Loc --> LiveLoc["LiveTrackingState.lastLocation"]
     Gnss --> LiveGnss["LiveTrackingState.gnss"]
     Temp --> LiveTemp["temperatureCelsius"]
     Acc --> LiveAcc["accel"]
+    Grav --> LiveLean["leanAngle"]
     Comp --> LiveAz["azimuthDegrees HUD only"]
 
     LiveLoc --> Fix["TrackFix<br/>lat lon alt speed bearing accuracy sats"]
@@ -38,7 +40,7 @@ flowchart TD
     KindMove -->|"below pause speed"| KindPause["PAUSE"]
     KindMove -->|"moving"| KindGo["MOVE"]
 
-    KindStart --> Row["GpsEventEntity<br/>+ live temp and accel"]
+    KindStart --> Row["GpsEventEntity<br/>+ live temp, accel, lean"]
     KindPause --> Row
     KindGo --> Row
 
@@ -71,6 +73,7 @@ flowchart TD
 | `GnssStatusSource` | Satellite counts and SNR for the GPS tab; `satellitesInFix` on each stored row. |
 | `AmbientTemperatureSource` | Optional; copied onto the row if the sensor exists. |
 | `AccelerometerSource` | Optional; last XYZ on the row. |
+| `GravitySource` | Optional; `TYPE_GRAVITY` (else accelerometer) → lean angle on the row and Route HUD. |
 | `CompassSource` | HUD / Compass tab only; **not** written to SQLite. |
 
 All of this runs under a **visible** location foreground notification. There is no `ACCESS_BACKGROUND_LOCATION`.

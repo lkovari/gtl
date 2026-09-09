@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SatelliteAlt
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -51,7 +52,9 @@ import com.lkovari.mobile.apps.gtl.ui.components.CompassDial
 import com.lkovari.mobile.apps.gtl.ui.components.ConstellationStrip
 import com.lkovari.mobile.apps.gtl.ui.components.HudMetric
 import com.lkovari.mobile.apps.gtl.ui.components.SnrMeter
+import com.lkovari.mobile.apps.gtl.ui.theme.StartBlue
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
+import com.lkovari.mobile.apps.gtl.ui.theme.TrackingOrange
 import com.lkovari.mobile.apps.gtl.ui.theme.gtlWash
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
@@ -123,31 +126,42 @@ fun MainTrackerScreen(
                     )
                 },
                 actions = {
-                    if (state.live.logging) {
-                        OutlinedButton(onClick = { viewModel.stopLogging() }) {
-                            Text(stringResource(R.string.action_stop))
-                        }
-                    } else {
-                        Button(onClick = {
-                            val fine = ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.ACCESS_FINE_LOCATION
-                            ) == PackageManager.PERMISSION_GRANTED
-                            if (fine) {
-                                viewModel.startLogging()
+                    val logging = state.live.logging
+                    Button(
+                        onClick = {
+                            if (logging) {
+                                viewModel.stopLogging()
                             } else {
-                                val needed = buildList {
-                                    add(Manifest.permission.ACCESS_FINE_LOCATION)
-                                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                                    if (Build.VERSION.SDK_INT >= 33) {
-                                        add(Manifest.permission.POST_NOTIFICATIONS)
+                                val fine = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (fine) {
+                                    viewModel.startLogging()
+                                } else {
+                                    val needed = buildList {
+                                        add(Manifest.permission.ACCESS_FINE_LOCATION)
+                                        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                                        if (Build.VERSION.SDK_INT >= 33) {
+                                            add(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
                                     }
+                                    startLauncher.launch(needed.toTypedArray())
                                 }
-                                startLauncher.launch(needed.toTypedArray())
                             }
-                        }) {
-                            Text(stringResource(R.string.action_start))
-                        }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (logging) TrackingOrange else StartBlue,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            if (logging) {
+                                stringResource(R.string.action_stop)
+                            } else {
+                                stringResource(R.string.action_start)
+                            }
+                        )
                     }
                     IconButton(onClick = { menu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu))
@@ -330,6 +344,10 @@ private fun RoutePane(state: GtlUiState) {
                 Modifier.weight(1f)
             )
         }
+        HudMetric(
+            stringResource(R.string.route_lean),
+            state.live.leanAngle?.let { String.format(Locale.US, "%.0f°", it) } ?: "—"
+        )
         stats.temperatureRange?.let { range ->
             HudMetric(
                 stringResource(R.string.route_temp_range),

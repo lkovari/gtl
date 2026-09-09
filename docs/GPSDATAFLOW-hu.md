@@ -13,12 +13,14 @@ flowchart TD
     FGS --> Gnss["GnssStatusSource"]
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
+    FGS --> Grav["GravitySource"]
     FGS --> Comp["CompassSource"]
 
     Loc --> LiveLoc["LiveTrackingState.lastLocation"]
     Gnss --> LiveGnss["LiveTrackingState.gnss"]
     Temp --> LiveTemp["temperatureCelsius"]
     Acc --> LiveAcc["accel"]
+    Grav --> LiveLean["leanAngle"]
     Comp --> LiveAz["azimuthDegrees csak HUD"]
 
     LiveLoc --> Fix["TrackFix<br/>lat lon mag. seb. irany pontossag muhold"]
@@ -38,7 +40,7 @@ flowchart TD
     KindMove -->|"pauza kuszob alatt"| KindPause["PAUSE"]
     KindMove -->|"mozog"| KindGo["MOVE"]
 
-    KindStart --> Row["GpsEventEntity<br/>+ elerheto homerseklet es gyorsulas"]
+    KindStart --> Row["GpsEventEntity<br/>+ homerseklet, gyorsulas, doles"]
     KindPause --> Row
     KindGo --> Row
 
@@ -71,6 +73,7 @@ flowchart TD
 | `GnssStatusSource` | Műholdszám és SNR a GPS fülre; `satellitesInFix` a letárolt soron. |
 | `AmbientTemperatureSource` | Opcionális; a sorra másolódik, ha van szenzor. |
 | `AccelerometerSource` | Opcionális; utolsó XYZ a soron. |
+| `GravitySource` | Opcionális; `TYPE_GRAVITY` (különben gyorsulásmérő) → dőlésszög a soron és a Route HUD-on. |
 | `CompassSource` | Csak HUD / Compass fül; **nem** kerül SQLite-ba. |
 
 Mindez **látható** location foreground értesítéssel fut. Nincs `ACCESS_BACKGROUND_LOCATION`.

@@ -63,6 +63,34 @@ class AccelerometerSource(context: Context) {
     }
 }
 
+class GravitySource(context: Context) {
+    private val sensorManager =
+        context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val sensor: Sensor? =
+        sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
+            ?: sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+    fun gravity(): Flow<FloatArray> = callbackFlow {
+        val current = sensor
+        if (current == null) {
+            close()
+            return@callbackFlow
+        }
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                if (event.values.size >= 3) {
+                    trySend(floatArrayOf(event.values[0], event.values[1], event.values[2]))
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+            }
+        }
+        sensorManager.registerListener(listener, current, SensorManager.SENSOR_DELAY_UI)
+        awaitClose { sensorManager.unregisterListener(listener) }
+    }
+}
+
 class CompassSource(context: Context) {
     private val sensorManager =
         context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager

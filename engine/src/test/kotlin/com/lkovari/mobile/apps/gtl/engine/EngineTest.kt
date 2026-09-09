@@ -368,6 +368,7 @@ class KmlExporterTest {
         assertTrue(stop.contains("maxSpeed=43.2 km/h"))
         assertTrue(stop.contains("avgSpeed=21.6 km/h"))
         assertTrue(stop.contains("temp=18.5"))
+        assertFalse(stop.contains("lean="))
     }
 
     @Test
@@ -395,6 +396,20 @@ class KmlExporterTest {
         assertTrue(move.contains("speed=29.9 km/h"))
         assertTrue(move.contains("lat=47.510000"))
         assertTrue(move.contains("lon=19.060000"))
+    }
+
+    @Test
+    fun balloonsIncludeLeanWhenPresent() {
+        val start = KmlDescriptions.balloon(
+            kind = EventKind.START,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 5.5f,
+            tempCelsius = null,
+            leanAngle = 12.4f
+        )
+        assertTrue(start.contains("lean=12.4"))
     }
 
     @Test
@@ -532,6 +547,7 @@ class UsageTypeTest {
         assertEquals(15.0, air.optimizationToleranceMeters, 0.0)
         assertEquals(SmoothingStrength.HIGH, air.smoothingStrength)
         assertEquals(MeasurementSystem.ICAO, UsageType.AIRCRAFT.defaultMeasurementSystem())
+        assertEquals(MeasurementSystem.ICAO, UsageType.WATERCRAFT.defaultMeasurementSystem())
         assertEquals(MeasurementSystem.METRIC, UsageType.TWO_WHEELERS.defaultMeasurementSystem())
         assertEquals(MeasurementSystem.METRIC, UsageType.FOUR_WHEELERS.defaultMeasurementSystem())
         assertEquals(MeasurementSystem.METRIC, UsageType.RUNNER.defaultMeasurementSystem())
@@ -565,6 +581,68 @@ class MapTrackVisibilityTest {
     @Test
     fun idleWithoutSelectionHidesTrack() {
         assertFalse(MapTrackVisibility.visible(logging = false, showLastTrackOnMap = false, selectedSessionId = null))
+    }
+}
+
+class TrackCameraBoundsTest {
+    @Test
+    fun emptyWithoutExtraIsNull() {
+        assertEquals(null, TrackCameraBounds.of(emptyList(), extra = null))
+    }
+
+    @Test
+    fun extraAloneBecomesDegenerateBounds() {
+        val extra = GeoPoint(47.5, 19.05)
+        val bounds = TrackCameraBounds.of(emptyList(), extra)
+        assertEquals(47.5, bounds!!.minLatitude, 0.0)
+        assertEquals(19.05, bounds.minLongitude, 0.0)
+        assertEquals(47.5, bounds.maxLatitude, 0.0)
+        assertEquals(19.05, bounds.maxLongitude, 0.0)
+        assertTrue(bounds.isDegenerate)
+    }
+
+    @Test
+    fun singlePointIsDegenerate() {
+        val bounds = TrackCameraBounds.of(listOf(GeoPoint(47.0, 19.0)), extra = null)
+        assertTrue(bounds!!.isDegenerate)
+        assertEquals(47.0, bounds.minLatitude, 0.0)
+        assertEquals(19.0, bounds.minLongitude, 0.0)
+    }
+
+    @Test
+    fun multiplePointsSpanMinMaxAndIncludeExtra() {
+        val bounds = TrackCameraBounds.of(
+            listOf(
+                GeoPoint(47.0, 19.0),
+                GeoPoint(47.2, 18.8),
+                GeoPoint(46.9, 19.1)
+            ),
+            extra = GeoPoint(47.3, 18.7)
+        )
+        assertFalse(bounds!!.isDegenerate)
+        assertEquals(46.9, bounds.minLatitude, 0.0)
+        assertEquals(18.7, bounds.minLongitude, 0.0)
+        assertEquals(47.3, bounds.maxLatitude, 0.0)
+        assertEquals(19.1, bounds.maxLongitude, 0.0)
+    }
+}
+
+class BikeLeanAngleTest {
+    @Test
+    fun uprightIsZero() {
+        assertEquals(0f, BikeLeanAngle.fromGravity(0f, 0f, 9.81f), 0.01f)
+    }
+
+    @Test
+    fun fortyFiveDegreesRight() {
+        val component = (9.81 / kotlin.math.sqrt(2.0)).toFloat()
+        assertEquals(45f, BikeLeanAngle.fromGravity(-component, 0f, component), 0.5f)
+    }
+
+    @Test
+    fun fortyFiveDegreesLeft() {
+        val component = (9.81 / kotlin.math.sqrt(2.0)).toFloat()
+        assertEquals(-45f, BikeLeanAngle.fromGravity(component, 0f, component), 0.5f)
     }
 }
 

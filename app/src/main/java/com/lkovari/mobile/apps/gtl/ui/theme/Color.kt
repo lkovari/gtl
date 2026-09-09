@@ -12,6 +12,8 @@ val AmberFix = Color(0xFFD39A2A)
 val CarmineTrack = Color(0xFFC13B2E)
 val AccuracyMarkerFill = Color(0xFF6666FF)
 val AccuracyMarkerBorder = Color(0xFF1414FC)
+val StartBlue = Color(0xFF1565C0)
+val TrackingOrange = Color(0xFFEF6C00)
 val TitleMagenta = Color(0xFFC2185B)
 val GnssLime = Color(0xFF6FAF4E)
 

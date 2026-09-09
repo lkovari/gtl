@@ -1,6 +1,6 @@
 # SQLite database structure
 
-File: `gtl.db` (Room, schema version **1**).  
+File: `gtl.db` (Room, schema version **2**).  
 Package: `com.lkovari.mobile.apps.gtl.data.db`.
 
 Two tables. A session is one logging run. Each stored GPS fix is one row in `gps_events`. Deleting a session **cascade-deletes** its points.
@@ -32,6 +32,7 @@ erDiagram
         REAL accelX "nullable"
         REAL accelY "nullable"
         REAL accelZ "nullable"
+        REAL leanAngle "degrees, nullable"
         INTEGER isPlacemark "1 = START PAUSE STOP"
         TEXT eventKind "START MOVE PAUSE STOP"
     }
@@ -65,6 +66,7 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `satellitesInFix` | GNSS snapshot at insert |
 | `ambientTemperature` | °C if `TYPE_AMBIENT_TEMPERATURE` exists |
 | `accelX` / `accelY` / `accelZ` | last accelerometer sample |
+| `leanAngle` | motorbike lean degrees (gravity, tank mount); nullable |
 | `isPlacemark` | `true` for START / PAUSE / STOP (KMZ icons) |
 | `eventKind` | `START`, `MOVE`, `PAUSE`, `STOP` |
 
