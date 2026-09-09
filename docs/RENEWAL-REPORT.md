@@ -56,6 +56,11 @@ These were **not** ported:
 4. **OSM file URLs** — catalog uses `https://download.mapsforge.org/maps/v5/...`. If a region 404s, the download row shows failure; pick another region or update `OsmCatalog`.
 5. **Hardware** — L5, NavIC, and ambient temperature depend on the chipset. Missing constellations show `0/0`, not an error.
 
+## Later (not in the 2.0.0 rewrite session)
+
+- **2.0.3** — Kalman on stored points, Settings sliders, usage presets, map-simplify 1–20 m. Notes: [CHANGELOGS.md](../CHANGELOGS.md), [CHANGELOG-2026-09-08.md](CHANGELOG-2026-09-08.md).
+- **Unreleased after 2.0.3** — **Use GNSS only**, runner smoothing off, 0.5 m pedestrian duplicate floor, heading from consecutive positions when GPS bearing is 0. How the map line is the stored log: [README.md — How logging works](../README.md#how-logging-works).
+
 ## Not rebuilt (by plan)
 
 - Turn-by-turn Google Directions

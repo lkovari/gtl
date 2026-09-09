@@ -122,7 +122,7 @@ class TrackingForegroundService : LifecycleService() {
 
     private suspend fun collectLocation(app: GtlApplication, sessionId: Long, settings: GtlSettings) {
         val client = LocationClient(this)
-        client.locations(settings.minTimeMillis.coerceAtLeast(500L), 0f).collect { location ->
+        client.locations(settings.minTimeMillis.coerceAtLeast(500L), 0f, settings.gnssOnly).collect { location ->
             val gnss = app.trackingState.state.value.gnss
             val fix = TrackFix(
                 timestampMillis = location.time,

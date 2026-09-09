@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -95,10 +96,12 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private fun listenLocation() {
         locationJob?.cancel()
         locationJob = viewModelScope.launch {
-            val client = com.lkovari.mobile.apps.gtl.data.location.LocationClient(app)
-            client.locations(1000L, 0f).collectLatest { location ->
-                app.trackingState.update {
-                    it.copy(lastLocation = location, provider = location.provider)
+            settings.map { it.gnssOnly }.distinctUntilChanged().collectLatest { gnssOnly ->
+                val client = com.lkovari.mobile.apps.gtl.data.location.LocationClient(app)
+                client.locations(1000L, 0f, gnssOnly).collect { location ->
+                    app.trackingState.update {
+                        it.copy(lastLocation = location, provider = location.provider)
+                    }
                 }
             }
         }
@@ -309,6 +312,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setRecordingDensity(value: Float) {
         viewModelScope.launch { app.preferences.setRecordingDensity(value) }
+    }
+
+    fun setGnssOnly(value: Boolean) {
+        viewModelScope.launch { app.preferences.setGnssOnly(value) }
     }
 
     fun downloadRegion(region: OsmRegion) {

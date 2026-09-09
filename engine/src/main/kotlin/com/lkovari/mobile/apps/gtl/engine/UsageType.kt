@@ -67,12 +67,13 @@ enum class UsageType {
     fun defaultSmoothing(): UsageSmoothingDefaults {
         return when (this) {
             RUNNER, WALKING_HIKE, PEDESTRIAN -> UsageSmoothingDefaults(
-                trackSmoothingEnabled = true,
+                trackSmoothingEnabled = false,
                 smoothingStrength = SmoothingStrength.LOW,
                 stationaryLockEnabled = true,
                 recordingDensity = RecordingDensity.EVERY_FIX,
                 optimizationActive = false,
-                optimizationToleranceMeters = 2.0
+                optimizationToleranceMeters = 2.0,
+                gnssOnly = true
             )
             TWO_WHEELERS -> UsageSmoothingDefaults(
                 trackSmoothingEnabled = true,
@@ -80,7 +81,8 @@ enum class UsageType {
                 stationaryLockEnabled = true,
                 recordingDensity = RecordingDensity.SMART,
                 optimizationActive = true,
-                optimizationToleranceMeters = 6.0
+                optimizationToleranceMeters = 6.0,
+                gnssOnly = false
             )
             FOUR_WHEELERS, WATERCRAFT -> UsageSmoothingDefaults(
                 trackSmoothingEnabled = true,
@@ -88,7 +90,8 @@ enum class UsageType {
                 stationaryLockEnabled = true,
                 recordingDensity = RecordingDensity.SMART,
                 optimizationActive = true,
-                optimizationToleranceMeters = 8.0
+                optimizationToleranceMeters = 8.0,
+                gnssOnly = false
             )
             AIRCRAFT -> UsageSmoothingDefaults(
                 trackSmoothingEnabled = true,
@@ -96,7 +99,8 @@ enum class UsageType {
                 stationaryLockEnabled = true,
                 recordingDensity = RecordingDensity.SMART,
                 optimizationActive = true,
-                optimizationToleranceMeters = 15.0
+                optimizationToleranceMeters = 15.0,
+                gnssOnly = false
             )
         }
     }

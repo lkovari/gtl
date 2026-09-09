@@ -1,6 +1,6 @@
 # GPS eseményfigyelés és adatút
 
-Hogyan lesz a fused location frissítésből SQLite sor, majd térkép, Route HUD és KMZ.
+Hogyan lesz a helyfrissítésből SQLite sor, majd térkép, Route HUD és KMZ. A Map polyline ezek a Room koordináták — nincs külön vázlat. Miért néz ki a vonal úgy, ahogy mentél: [README.md — How logging works](../README.md#how-logging-works).
 
 ```mermaid
 flowchart TD
@@ -9,7 +9,7 @@ flowchart TD
     FGS --> Sess["TrackRepository<br/>nyitott session vagy új"]
     Sess --> DBSess[("gtl.db<br/>track_sessions")]
 
-    FGS --> Loc["LocationClient<br/>FusedLocationProvider<br/>HIGH_ACCURACY min. 500 ms"]
+    FGS --> Loc["LocationClient<br/>fused HIGH_ACCURACY<br/>vagy GPS_PROVIDER, ha csak GNSS"]
     FGS --> Gnss["GnssStatusSource"]
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
@@ -69,7 +69,7 @@ flowchart TD
 
 | Forrás | Mit táplál |
 |---|---|
-| `LocationClient` | Play Services fused location, `PRIORITY_HIGH_ACCURACY`. Intervallum a beállításból, legalább 500 ms. A kérés `minDistance` értéke `0`; a sűrűséget később szűrjük. |
+| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, vagy `GPS_PROVIDER`, ha a **Csak GNSS** be van. Intervallum a beállításból, legalább 500 ms. A kérés `minDistance` értéke `0`; a sűrűséget később szűrjük. Ha a GPS-szolgáltató ki van kapcsolva, fused-et használ. Amíg az app nyitva van és nem logol, a `GtlViewModel` kb. másodpercenként figyel a GPS/Map HUD-hoz. Start után csak a foreground service ír SQLite-ot. |
 | `GnssStatusSource` | Műholdszám és SNR a GPS fülre; `satellitesInFix` a letárolt soron. |
 | `AmbientTemperatureSource` | Opcionális; a sorra másolódik, ha van szenzor. |
 | `AccelerometerSource` | Opcionális; utolsó XYZ a soron. |
@@ -87,9 +87,9 @@ Egy maradék fix csak akkor tárolódik, ha:
 1. `accuracy` ≤ a beállítás szerinti minimális pontosság (m) és `satellitesInFix` ≥ a minimum (alapból 4) — ez a Kalman előtt már lefut.
 2. Ez a session első pontja, **vagy**
    - **Okos sűrűség:** a haversine-távolság az utolsó **eltárolt** ponttól legalább a `SpeedAdaptiveSpacing` (sebesség-sávok; fél távolság, ha az irányszög változása &gt; 15°; futó SMART felezi a sávot).
-   - **Minden jó fix:** eltelt idő ≥ `minTimeMillis` **vagy** kanyar, és távolság ≥ 1 m.
+   - **Minden jó fix:** eltelt idő ≥ `minTimeMillis` **vagy** kanyar, és távolság ≥ 1 m (jármű) vagy 0,5 m (futó). Ha a GPS irány 0, az irányszög jöhet a szomszédos pontokból.
 
-Opcionális **KalmanTrackFilter** (konstans sebesség, csak pozíció) a pontosság/műhold kapu után és a távolságszűrés előtt fut. Álló zár: a pauza-küszöb alatt a letárolt pont nem vándorol. Ugrás (innováció &gt; `max(50 m, 8 × pontosság)`) újrainicializál; a hézagot nem interpolálja.
+Opcionális **KalmanTrackFilter** (konstans sebesség, csak pozíció) a pontosság/műhold kapu után és a távolságszűrés előtt fut. A kimeneti szélesség/hosszúság a szűrő állapota; az időbélyeg, magasság, pontosság és műholdszám a GPS-fixé marad. A sebesség és az irányszög a szűrő sebességéből jön, ha az legalább 0,3 m/s. Mérési σ = max(GPS pontosság, 2 m). Gyalogos usage extra helyzet-zajjal dolgozik, hogy egy 5 m-es kört ne húzzon az utcára. Álló zár: a pauza-küszöb alatt a letárolt pont nem vándorol. Ugrás (innováció &gt; `max(50 m, 8 × pontosság)`) újrainicializál; a hézagot nem interpolálja.
 
 Az elutasított frissítések is frissítik a `lastLocation`-t a GPS/Map HUD-hoz.
 
@@ -106,13 +106,26 @@ Az elutasított frissítések is frissítik a `lastLocation`-t a GPS/Map HUD-hoz
 
 ## SQLite után
 
-A `GtlViewModel` a `gps_events`-et figyeli: élő session, Saved tracks választás, vagy az utolsó session, ha a **Show last logged route on map** be van kapcsolva.
+A `GtlViewModel` a `gps_events`-et figyeli: élő session, Saved tracks választás, vagy az utolsó session, ha a **Show last logged route on map** be van kapcsolva. A Map polyline **ezek** a Room koordináták. Nincs külön vázlat a memóriában, ezért a térképen azt a logot látod, ami el lett tárolva (Douglas–Peucker csak a rajzolást ritkíthatja).
 
 - **Route** összesítők: `TrackStatsCalculator`, logolás közben (nyers Room minták).
 - **Map** polyline Room-ból; opcionális Douglas–Peucker (lent); csak logoláskor, last-track-nél vagy kijelölt sessionnél (`MapTrackVisibility`).
 - **Megosztás** ugyanebből a KMZ-t építi (`gx:Track` + balloonok). A KMZ soha nem egyszerűsített.
 
 Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
+
+## Miért egyezik a térkép a letárolt loggal
+
+| Réteg | Feladat |
+|---|---|
+| GNSS chip vs fused | Futó alapból `GPS_PROVIDER`, hogy egy utcai méretű kört ne lapítson el a fused Wi-Fi/cella. Járművek fused-en maradnak. |
+| Pontosság / műhold | Rossz fix nem megy Kalmanba és Roomba. |
+| Kalman (opcionális) | Mozgatja a letárolt szélességet/hosszúságot; járműveknél be, futónál ki. A HUD lila köre a nyers fixen marad. |
+| Sűrűség | Okos (sebesség-sávok) vagy Minden jó (~500 ms, futónál 0,5 m padló). |
+| Room | Egy forrás a Map, Route és KMZ számára. |
+| Douglas–Peucker | Csak megjelenítés. Futó alapból ki, ezért minden letárolt csúcs kirajzolódik. |
+
+Részletes leírás: [README.md — How logging works](../README.md#how-logging-works).
 
 ## Térképvonal: Douglas–Peucker
 

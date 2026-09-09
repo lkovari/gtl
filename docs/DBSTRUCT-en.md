@@ -3,7 +3,7 @@
 File: `gtl.db` (Room, schema version **2**).  
 Package: `com.lkovari.mobile.apps.gtl.data.db`.
 
-Two tables. A session is one logging run. Each stored GPS fix is one row in `gps_events`. Deleting a session **cascade-deletes** its points.
+Two tables. A session is one logging run. Each stored GPS fix is one row in `gps_events`. Deleting a session **cascade-deletes** its points. Map, Route, and KMZ all read `gps_events` — the red polyline is this table.
 
 ```mermaid
 erDiagram
@@ -52,17 +52,18 @@ Queries: list by `startedAt` descending; find the open session (`stoppedAt IS NU
 
 ## `gps_events`
 
-One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help table, and KMZ all read this table.
+One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help table, and KMZ all read this table. The Map tab draws these coordinates (optional Douglas–Peucker on display only), so the red line is the stored log.
 
 | Column | Unit / notes |
 |---|---|
 | `id` | Primary key |
 | `sessionId` | Parent session |
 | `timestamp` | Fix time |
-| `latitude` / `longitude` / `altitude` | WGS84; altitude from fused GPS |
-| `speed` | metres per second |
-| `bearing` | heading degrees |
-| `accuracy` | horizontal accuracy metres |
+| `latitude` / `longitude` | WGS84. Source is `GPS_PROVIDER` when **Use GNSS only** is on, otherwise fused HIGH_ACCURACY. If **Smooth recorded track** is on, these are the Kalman output, not the raw HUD fix. |
+| `altitude` | metres, from the same `Location` object (GPS altitude) |
+| `speed` | metres per second (Kalman velocity when smoothing is on and speed ≥ 0.3 m/s) |
+| `bearing` | heading degrees (same Kalman rule as speed) |
+| `accuracy` | horizontal accuracy metres (raw GPS, even when Kalman moved lat/lon) |
 | `satellitesInFix` | GNSS snapshot at insert |
 | `ambientTemperature` | °C if `TYPE_AMBIENT_TEMPERATURE` exists |
 | `accelX` / `accelY` / `accelZ` | last accelerometer sample |
@@ -76,7 +77,8 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 
 - Barometric pressure / baro altitude (planned: aircraft + ICAO).
 - Raw GNSS constellation mix (HUD only, in memory).
-- Map / OSM settings (DataStore, not SQLite).
+- Map / OSM settings, Kalman / density / GNSS-only switches (DataStore, not SQLite).
+- The raw HUD fix when Kalman is on (only the filter output is stored).
 
 ## Access
 

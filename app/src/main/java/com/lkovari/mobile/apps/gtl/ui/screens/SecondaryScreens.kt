@@ -18,11 +18,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -141,7 +139,6 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 2.dp),
             verticalArrangement = Arrangement.Top
         ) {
@@ -226,6 +223,9 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             }
             SettingSwitch(stringResource(R.string.settings_show_accuracy), state.settings.showAccuracyMarker) {
                 viewModel.setShowAccuracyMarker(it)
+            }
+            SettingSwitch(stringResource(R.string.settings_gnss_only), state.settings.gnssOnly) {
+                viewModel.setGnssOnly(it)
             }
             SettingSwitch(stringResource(R.string.settings_track_smoothing), state.settings.trackSmoothingEnabled) {
                 viewModel.setTrackSmoothing(it)

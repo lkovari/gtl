@@ -131,6 +131,22 @@ class SpeedAdaptiveSpacingTest {
     }
 
     @Test
+    fun displacementHeadingDetectsCurveWhenBearingsAreZero() {
+        val originLat = 47.0
+        val originLon = 19.0
+        val a = GeoProjection.latLon(originLat, originLon, 0.0, 0.0)
+        val b = GeoProjection.latLon(originLat, originLon, 10.0, 0.0)
+        val c = GeoProjection.latLon(originLat, originLon, 10.0, 5.0)
+        val first = TrackFix(10_000L, a.first, a.second, 100.0, 3f, 0f, 5f, 8)
+        val second = TrackFix(10_500L, b.first, b.second, 100.0, 3f, 0f, 5f, 8)
+        val third = TrackFix(11_000L, c.first, c.second, 100.0, 3f, 0f, 5f, 8)
+        assertTrue(SpeedAdaptiveSpacing.isInCurve(first, second, third))
+        val straight = GeoProjection.latLon(originLat, originLon, 20.0, 0.0)
+        val onward = TrackFix(11_500L, straight.first, straight.second, 100.0, 3f, 0f, 5f, 8)
+        assertFalse(SpeedAdaptiveSpacing.isInCurve(first, second, onward))
+    }
+
+    @Test
     fun runnerSmartUsesHalfOfWalkingBand() {
         assertEquals(2f, SpeedAdaptiveSpacing.spacingMeters(1.2f, false, UsageType.RUNNER))
         assertEquals(1f, SpeedAdaptiveSpacing.spacingMeters(1.2f, true, UsageType.RUNNER))
@@ -211,6 +227,49 @@ class FixAcceptanceTest {
                 tooSoon,
                 filter,
                 RecordingDensity.EVERY_FIX
+            )
+        )
+    }
+
+    @Test
+    fun pedestrianEveryFixAcceptsSixtyCentimetresVehicleDropsThem() {
+        val previous = sample(10_000L, 47.0, 19.0, 8f, 6, speedMps = 3f, bearing = 90f)
+        val sixtyCm = GeoProjection.latLon(47.0, 19.0, 0.6, 0.0)
+        val moved = sample(
+            10_600L,
+            sixtyCm.first,
+            sixtyCm.second,
+            8f,
+            6,
+            speedMps = 3f,
+            bearing = 90f
+        )
+        assertFalse(
+            FixAcceptance.shouldAccept(
+                previous,
+                moved,
+                filter,
+                RecordingDensity.EVERY_FIX,
+                UsageType.TWO_WHEELERS
+            )
+        )
+        assertTrue(
+            FixAcceptance.shouldAccept(
+                previous,
+                moved,
+                filter,
+                RecordingDensity.EVERY_FIX,
+                UsageType.RUNNER
+            )
+        )
+        val stacked = sample(10_600L, 47.0, 19.0, 8f, 6, speedMps = 3f, bearing = 90f)
+        assertFalse(
+            FixAcceptance.shouldAccept(
+                previous,
+                stacked,
+                filter,
+                RecordingDensity.EVERY_FIX,
+                UsageType.RUNNER
             )
         )
     }
@@ -514,12 +573,13 @@ class UsageTypeTest {
     @Test
     fun runnerSmoothingKeepsEveryFixAndDisablesMapSimplify() {
         val defaults = UsageType.RUNNER.defaultSmoothing()
-        assertTrue(defaults.trackSmoothingEnabled)
+        assertFalse(defaults.trackSmoothingEnabled)
         assertEquals(SmoothingStrength.LOW, defaults.smoothingStrength)
         assertTrue(defaults.stationaryLockEnabled)
         assertEquals(RecordingDensity.EVERY_FIX, defaults.recordingDensity)
         assertFalse(defaults.optimizationActive)
         assertEquals(2.0, defaults.optimizationToleranceMeters, 0.0)
+        assertTrue(defaults.gnssOnly)
         assertEquals(8.0, UsageType.RUNNER.processNoiseQ(), 0.0)
         assertEquals(10.0, UsageType.RUNNER.turnBoost(), 0.0)
     }
@@ -533,6 +593,7 @@ class UsageTypeTest {
         assertEquals(RecordingDensity.SMART, defaults.recordingDensity)
         assertTrue(defaults.optimizationActive)
         assertEquals(6.0, defaults.optimizationToleranceMeters, 0.0)
+        assertFalse(defaults.gnssOnly)
         assertEquals(2.5, UsageType.TWO_WHEELERS.processNoiseQ(), 0.0)
         assertEquals(5.0, UsageType.TWO_WHEELERS.turnBoost(), 0.0)
     }
@@ -815,6 +876,51 @@ class KalmanTrackFilterTest {
     }
 
     @Test
+    fun runnerRoadLoopsStayOffTheStreetWhenKalmanIsOff() {
+        val path = tripleRoadLoops()
+        val filter = UsageType.RUNNER.defaultFilter()
+        var previous: TrackFix? = null
+        val stored = mutableListOf<Pair<Double, Double>>()
+        for (fix in path) {
+            if (FixAcceptance.shouldAccept(
+                    previous,
+                    fix,
+                    filter,
+                    RecordingDensity.EVERY_FIX,
+                    UsageType.RUNNER
+                )
+            ) {
+                val en = GeoProjection.eastNorth(originLat, originLon, fix.latitude, fix.longitude)
+                stored.add(en)
+                previous = fix
+            }
+        }
+        assertTrue(stored.size > 20)
+        val maxNorth = stored.maxOf { kotlin.math.abs(it.second) }
+        assertTrue(maxNorth >= 3.0)
+    }
+
+    @Test
+    fun runnerRoadLoopsSurviveKalmanLow() {
+        val filter = KalmanTrackFilter()
+        val path = tripleRoadLoops()
+        var maxNorth = 0.0
+        for (fix in path) {
+            val out = filter.observe(
+                fix,
+                UsageType.RUNNER,
+                SmoothingStrength.LOW,
+                stationaryLock = true
+            )
+            val en = GeoProjection.eastNorth(originLat, originLon, out.latitude, out.longitude)
+            if (kotlin.math.abs(en.second) > maxNorth) {
+                maxNorth = kotlin.math.abs(en.second)
+            }
+        }
+        assertTrue(maxNorth >= 3.0)
+    }
+
+    @Test
     fun runnerZigzagKeepsAmplitude() {
         val filter = KalmanTrackFilter()
         val amplitude = 6.0
@@ -991,6 +1097,64 @@ class KalmanTrackFilterTest {
                 Math.PI - (i / steps.toDouble()) * 2.0 * Math.PI
             }
             out.add(cx + radius * kotlin.math.cos(theta) to radius * kotlin.math.sin(theta))
+        }
+        return out
+    }
+
+    private fun tripleRoadLoops(): List<TrackFix> {
+        val radius = 5.0
+        val speed = 3.0
+        val centers = listOf(5.0, 15.0, 25.0)
+        val coords = mutableListOf<Pair<Double, Double>>()
+        coords.add(0.0 to 0.0)
+        var x = 0.0
+        for (center in centers) {
+            while (x < center - 0.01) {
+                x = (x + 1.2).coerceAtMost(center)
+                coords.add(x to 0.0)
+            }
+            val steps = 16
+            for (i in 1..steps) {
+                val theta = i * 2.0 * Math.PI / steps
+                coords.add(
+                    center + radius * kotlin.math.sin(theta) to
+                        radius - radius * kotlin.math.cos(theta)
+                )
+            }
+            x = center
+        }
+        while (x < 40.0) {
+            x += 1.2
+            coords.add(x.coerceAtMost(40.0) to 0.0)
+        }
+        val out = mutableListOf<TrackFix>()
+        var time = 10_000L
+        var prevE = coords[0].first
+        var prevN = coords[0].second
+        for (i in coords.indices) {
+            val east = coords[i].first
+            val north = coords[i].second
+            val ll = GeoProjection.latLon(originLat, originLon, east, north)
+            val bearing = if (i == 0) {
+                90f
+            } else {
+                heading(prevE, prevN, east, north)
+            }
+            if (i > 0) {
+                val step = GeoProjection.hypot(east - prevE, north - prevN)
+                time += ((step / speed) * 1000.0).toLong().coerceAtLeast(400L)
+            }
+            out.add(
+                sample(
+                    time = time,
+                    lat = ll.first,
+                    lon = ll.second,
+                    speedMps = speed.toFloat(),
+                    bearing = if (bearing == 0f) 1f else bearing
+                )
+            )
+            prevE = east
+            prevN = north
         }
         return out
     }

@@ -43,7 +43,8 @@ data class GtlSettings(
     val trackSmoothingEnabled: Boolean,
     val smoothingStrengthValue: Float,
     val stationaryLockEnabled: Boolean,
-    val recordingDensityValue: Float
+    val recordingDensityValue: Float,
+    val gnssOnly: Boolean
 ) {
     fun toFilter(): FixFilter {
         return FixFilter(
@@ -77,7 +78,8 @@ data class GtlSettings(
                 trackSmoothingEnabled = smoothing.trackSmoothingEnabled,
                 smoothingStrengthValue = smoothing.smoothingStrength.sliderValue(),
                 stationaryLockEnabled = smoothing.stationaryLockEnabled,
-                recordingDensityValue = smoothing.recordingDensity.sliderValue()
+                recordingDensityValue = smoothing.recordingDensity.sliderValue(),
+                gnssOnly = smoothing.gnssOnly
             )
         }
     }
@@ -176,6 +178,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.recordingDensityValue] = value.coerceIn(0f, 1f) }
     }
 
+    suspend fun setGnssOnly(value: Boolean) {
+        dataStore.edit { it[Keys.gnssOnly] = value }
+    }
+
     private suspend fun migrateSmoothingIfNeeded() {
         dataStore.edit { prefs ->
             if (prefs.contains(Keys.trackSmoothing)) {
@@ -201,6 +207,7 @@ class GtlPreferences(context: Context) {
         prefs[Keys.smoothingStrengthValue] = smoothing.smoothingStrength.sliderValue()
         prefs[Keys.stationaryLock] = smoothing.stationaryLockEnabled
         prefs[Keys.recordingDensityValue] = smoothing.recordingDensity.sliderValue()
+        prefs[Keys.gnssOnly] = smoothing.gnssOnly
         if (includeMapSimplify) {
             prefs[Keys.tolerance] = smoothing.optimizationToleranceMeters.toFloat()
             prefs[Keys.optimize] = smoothing.optimizationActive
@@ -242,7 +249,8 @@ class GtlPreferences(context: Context) {
             trackSmoothingEnabled = prefs[Keys.trackSmoothing] ?: smoothing.trackSmoothingEnabled,
             smoothingStrengthValue = readSmoothingStrength(prefs, smoothing),
             stationaryLockEnabled = prefs[Keys.stationaryLock] ?: smoothing.stationaryLockEnabled,
-            recordingDensityValue = readRecordingDensity(prefs, smoothing)
+            recordingDensityValue = readRecordingDensity(prefs, smoothing),
+            gnssOnly = prefs[Keys.gnssOnly] ?: smoothing.gnssOnly
         )
     }
 
@@ -303,6 +311,7 @@ class GtlPreferences(context: Context) {
         val stationaryLock = booleanPreferencesKey("stationary_lock")
         val recordingDensity = stringPreferencesKey("recording_density")
         val recordingDensityValue = floatPreferencesKey("recording_density_value")
+        val gnssOnly = booleanPreferencesKey("gnss_only")
     }
 
     companion object {

@@ -5,9 +5,28 @@ All notable changes to **GTL GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning matches `versionName` **2.0.3** / `versionCode` **21** (minSdk 24, targetSdk 36).
 
-Bilingual release note for this version: [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt).
+Bilingual release note for this version: [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README.md — How logging works](README.md#how-logging-works).
 
 ## [Unreleased]
+
+### Added
+
+- Settings **Use GNSS only** (`GPS_PROVIDER` satellite chip; fused HIGH_ACCURACY fallback if that provider is disabled). Runner preset turns it on; vehicles stay fused.
+- README section on how Runner logs like a sports watch (GNSS chip vs fused, no second Kalman flattening of 5–10 m on-road loops).
+- README **How logging works**: full Start→Room→Map pipeline, why the red polyline is the stored tracklog.
+
+### Changed
+
+- Runner preset: GNSS only on, Smooth recorded track **off**, Every good, map simplify off. Vehicles keep fused + Kalman + Smart.
+- Every-good duplicate floor is **0.5 m** for runner / pedestrian and **1 m** for vehicles.
+- If GPS bearing is 0, curve detection can use heading from consecutive positions.
+- Pedestrian Kalman (if you turn smoothing back on) adds extra position process noise so a 5 m road loop is not pulled onto the street.
+- Settings page has no vertical scrollbar. Help Settings / Track logging document the new switch and Runner preset (EN/HU).
+- README, GPS data-flow (EN/HU), SQLite schema, Kalman brief, and renewal report match GNSS-only, runner smoothing-off, 0.5 m pedestrian duplicate floor, and map-from-Room.
+
+### Fixed
+
+- Street-scale runner loops were flattened by fused location plus constant-velocity Kalman even at Low strength.
 
 ## [2.0.3] — 2026-09-08
 

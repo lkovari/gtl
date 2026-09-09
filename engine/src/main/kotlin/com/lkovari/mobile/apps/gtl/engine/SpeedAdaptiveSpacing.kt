@@ -1,10 +1,12 @@
 package com.lkovari.mobile.apps.gtl.engine
 
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.min
 
 object SpeedAdaptiveSpacing {
     const val CurveDegrees = 15f
+    private const val MinHeadingDisplacementMeters = 0.05
 
     fun spacingMeters(speedMps: Float, inCurve: Boolean): Float {
         val kmh = speedMps * 3.6
@@ -38,12 +40,77 @@ object SpeedAdaptiveSpacing {
         return (spaced / 2f).coerceAtLeast(1f)
     }
 
+    fun headingDegrees(
+        fromLat: Double,
+        fromLon: Double,
+        toLat: Double,
+        toLon: Double
+    ): Float? {
+        val en = GeoProjection.eastNorth(fromLat, fromLon, toLat, toLon)
+        if (GeoProjection.hypot(en.first, en.second) < MinHeadingDisplacementMeters) {
+            return null
+        }
+        val deg = Math.toDegrees(atan2(en.first, en.second))
+        return ((deg + 360.0) % 360.0).toFloat()
+    }
+
+    fun headingChangeIsCurve(previousHeading: Float, currentHeading: Float): Boolean {
+        val raw = abs(currentHeading - previousHeading)
+        val diff = min(raw, 360f - raw)
+        return diff > CurveDegrees
+    }
+
     fun isInCurve(previousBearing: Float, currentBearing: Float): Boolean {
         if (previousBearing == 0f || currentBearing == 0f) {
             return false
         }
-        val raw = abs(currentBearing - previousBearing)
-        val diff = min(raw, 360f - raw)
-        return diff > CurveDegrees
+        return headingChangeIsCurve(previousBearing, currentBearing)
+    }
+
+    fun isInCurve(previous: TrackFix, current: TrackFix): Boolean {
+        if (isInCurve(previous.bearing, current.bearing)) {
+            return true
+        }
+        if (previous.bearing != 0f && current.bearing != 0f) {
+            return false
+        }
+        val displacement = headingDegrees(
+            previous.latitude,
+            previous.longitude,
+            current.latitude,
+            current.longitude
+        )
+        if (displacement == null) {
+            return false
+        }
+        if (previous.bearing != 0f) {
+            return headingChangeIsCurve(previous.bearing, displacement)
+        }
+        if (current.bearing != 0f) {
+            return headingChangeIsCurve(displacement, current.bearing)
+        }
+        return false
+    }
+
+    fun isInCurve(first: TrackFix, second: TrackFix, third: TrackFix): Boolean {
+        if (isInCurve(second, third)) {
+            return true
+        }
+        val firstLeg = headingDegrees(
+            first.latitude,
+            first.longitude,
+            second.latitude,
+            second.longitude
+        )
+        val secondLeg = headingDegrees(
+            second.latitude,
+            second.longitude,
+            third.latitude,
+            third.longitude
+        )
+        if (firstLeg == null || secondLeg == null) {
+            return false
+        }
+        return headingChangeIsCurve(firstLeg, secondLeg)
     }
 }

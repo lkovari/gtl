@@ -52,10 +52,15 @@ class KalmanTrackFilter {
         lastTimestampMillis = fix.timestampMillis
         var q = usage.processNoiseQ() * SmoothingStrength.processNoiseMultiplier(strength)
         val previous = lastOutput
-        if (previous != null && SpeedAdaptiveSpacing.isInCurve(previous.bearing, fix.bearing)) {
+        if (previous != null && isTurning(previous, fix)) {
             q *= usage.turnBoost()
         }
         predict(dt, q)
+        if (usage.isPedestrianMode()) {
+            val extra = q * dt * dt
+            p[0][0] += extra
+            p[1][1] += extra
+        }
         val measured = GeoProjection.eastNorth(originLat, originLon, fix.latitude, fix.longitude)
         val innovEast = measured.first - x[0]
         val innovNorth = measured.second - x[1]
@@ -163,6 +168,31 @@ class KalmanTrackFilter {
             }
         }
         p = add(matMul(matMul(iMinusKh, p), transpose(iMinusKh)), krkt)
+    }
+
+    private fun isTurning(previous: TrackFix, current: TrackFix): Boolean {
+        if (SpeedAdaptiveSpacing.isInCurve(previous, current)) {
+            return true
+        }
+        val fromPos = SpeedAdaptiveSpacing.headingDegrees(
+            previous.latitude,
+            previous.longitude,
+            current.latitude,
+            current.longitude
+        )
+        if (fromPos == null) {
+            return false
+        }
+        val stateSpeed = GeoProjection.hypot(x[2], x[3])
+        val reference = if (previous.bearing != 0f) {
+            previous.bearing
+        } else if (stateSpeed >= MinOutputSpeed) {
+            val deg = Math.toDegrees(atan2(x[2], x[3]))
+            ((deg + 360.0) % 360.0).toFloat()
+        } else {
+            fromPos
+        }
+        return SpeedAdaptiveSpacing.headingChangeIsCurve(reference, fromPos)
     }
 
     private fun applyStationaryLock(fix: TrackFix, usage: UsageType, enabled: Boolean) {

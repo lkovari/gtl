@@ -2,23 +2,22 @@ Release name (Play, not shown to users):
 2.0.3 (21)
 
 What's new — max 500 characters per language.
+Date: 2026-09-09
 
 <en-US>
-Smoother stored tracks. HUD GPS ring stays on the raw fix.
+Runner mode records like a sports watch. Small on-road loops stay on the map.
 
-• Optional Kalman filter on recorded points
-• Sliders: map simplify 1–20 m, smoothing Low–High, density Smart–Every good
-• Usage presets (runner keeps figure-8; aircraft uses ICAO: knots, NM, feet)
-• Standing lock stops GPS scribble while you wait
-• English and Hungarian
+• Use GNSS only: satellite chip (GPS, Galileo, GLONASS, BeiDou), not fused Wi-Fi/cell
+• Runner preset: GNSS on, smoothing off, every good fix, no map simplify
+• 0.5 m store floor so tight loops keep vertices
+• Settings and Help (English and Hungarian)
 </en-US>
 
 <hu-HU>
-Simább letárolt nyomvonal. A HUD pontossági köre a nyers GPS-fixen marad.
+Futó módban sportóra-szerű naplózás. A kis úttest-hurkok megmaradnak a térképen.
 
-• Opcionális Kalman-szűrő a rögzített pontokon
-• Csúszkák: térkép-egyszerűsítés 1–20 m, simítás Alacsony–Magas, sűrűség Okos–Minden jó
-• Usage előbeállítások (futónál megmarad a nyolcas; repülőnél ICAO: csomó, NM, láb)
-• Álláskor nem kóborol a pont
-• Magyar és angol felület
+• Csak GNSS: műholdchip (GPS, Galileo, GLONASS, BeiDou), nem fused Wi-Fi/cella
+• Futó előbeállítás: GNSS be, simítás ki, minden jó fix, térkép-egyszerűsítés ki
+• 0,5 m küszöb, hogy a szűk hurok csúcsai megmaradjanak
+• Beállítások és Súgó (magyar és angol)
 </hu-HU>

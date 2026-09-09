@@ -1,5 +1,23 @@
 # Agent prompt: Kalman track smoothing for GTL
 
+**As built (current).** This file was the implementation brief. Do not re-implement it as written. Current behaviour is [README.md — How logging works](../README.md#how-logging-works) and [GPSDATAFLOW-en.md](GPSDATAFLOW-en.md). Differences from the original goal table:
+
+| Brief said | Shipped |
+|---|---|
+| Runner: Kalman on, LOW, EVERY_FIX, DP off | Runner: **Kalman off**, GNSS only on, EVERY_FIX, 0.5 m duplicate floor, DP off |
+| Location source always fused HIGH_ACCURACY | **Use GNSS only** → `GPS_PROVIDER`; fused fallback if that provider is disabled |
+| Strength / density as named chips | Continuous sliders (`smoothingStrengthValue`, `recordingDensityValue` in `[0, 1]`) |
+| Measurement σ = max(accuracy, 2.0) | Same (2 m, not 3 m) |
+| Position-only Kalman | Same; speed/bearing from filter velocity when ≥ 0.3 m/s |
+| Pedestrian extra process noise | Yes, when Kalman is on for runner / walk / hike |
+| Heading from GPS bearing only | Curve detection can use heading from consecutive positions if bearing is 0 |
+| `WALKING_HIKE` / `PEDESTRIAN` in Settings | Engine enums exist and share runner defaults; Settings `selectable` is still the five usages |
+| Settings cramped → keep read-only filter row | Read-only Fix filters row removed; gates still run |
+
+The sections below are the original brief (why DP 19.5 m looked wrong, algorithm, tests). Treat them as history.
+
+---
+
 Use this file as the full implementation brief. Paste it, `@`-mention it, or start a session with:
 
 > Implement `docs/dp-kalman-smoothing-en.md`. Follow every constraint. Do not invent extra features.

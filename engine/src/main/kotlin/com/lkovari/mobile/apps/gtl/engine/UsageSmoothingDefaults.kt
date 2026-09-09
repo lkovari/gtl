@@ -6,5 +6,6 @@ data class UsageSmoothingDefaults(
     val stationaryLockEnabled: Boolean,
     val recordingDensity: RecordingDensity,
     val optimizationActive: Boolean,
-    val optimizationToleranceMeters: Double
+    val optimizationToleranceMeters: Double,
+    val gnssOnly: Boolean
 )

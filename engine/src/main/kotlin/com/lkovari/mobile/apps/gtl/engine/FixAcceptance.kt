@@ -51,28 +51,37 @@ object FixAcceptance {
             current.latitude,
             current.longitude
         )
-        val inCurve = SpeedAdaptiveSpacing.isInCurve(previous.bearing, current.bearing)
+        val inCurve = SpeedAdaptiveSpacing.isInCurve(previous, current)
         val t = densityMix.coerceIn(0f, 1f)
         val smartNeeded = SpeedAdaptiveSpacing.spacingMeters(current.speedMps, inCurve, usage)
+        val everyFixMin = everyFixMinDistanceMeters(usage)
         if (t <= 0.001f) {
             return distance >= smartNeeded
         }
         if (t >= 0.999f) {
-            if (distance < EveryFixMinDistanceMeters) {
+            if (distance < everyFixMin) {
                 return false
             }
             val elapsed = current.timestampMillis - previous.timestampMillis
             return elapsed >= filter.minTimeMillis || inCurve
         }
-        val needed = smartNeeded * (1f - t) + EveryFixMinDistanceMeters.toFloat() * t
+        val needed = smartNeeded * (1f - t) + everyFixMin.toFloat() * t
         if (distance >= needed) {
             return true
         }
-        if (distance >= EveryFixMinDistanceMeters) {
+        if (distance >= everyFixMin) {
             val elapsed = current.timestampMillis - previous.timestampMillis
             return elapsed >= filter.minTimeMillis || inCurve
         }
         return false
+    }
+
+    fun everyFixMinDistanceMeters(usage: UsageType?): Double {
+        return if (usage != null && usage.isPedestrianMode()) {
+            PedestrianEveryFixMinDistanceMeters
+        } else {
+            EveryFixMinDistanceMeters
+        }
     }
 
     fun haversineMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
@@ -88,4 +97,5 @@ object FixAcceptance {
     }
 
     private const val EveryFixMinDistanceMeters = 1.0
+    private const val PedestrianEveryFixMinDistanceMeters = 0.5
 }
