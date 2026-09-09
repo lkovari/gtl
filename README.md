@@ -310,7 +310,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md) | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page) |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic |
-| [docs/screenshots/](docs/screenshots/) | Play listing screenshots (GPS, route, map/tracking, compass, settings, help, about, Google Earth KMZ) |
+| [docs/screenshots/](docs/screenshots/) | Play listing screenshots (GPS, route, map/tracking, compass, settings, saved tracks, help, about, Google Earth KMZ) |
 | [docs/DBSTRUCT-en.md](docs/DBSTRUCT-en.md) | SQLite schema (`gtl.db`) mermaid |
 | [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) | GPS listen → filter → Room → UI / KMZ (EN); mermaid of the logging pipeline |
 | [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md) | GPS figyelés → szűrés → Room → UI / KMZ (HU) |
@@ -340,12 +340,13 @@ Engine entry points worth reading:
 - `map.png`, `tracking.png` — Map while recording
 - `googleearth.png` — shared KMZ in Google Earth
 - `compass.png`, `about.png`
-- `settings.png` — Settings with simplify / smoothing sliders (2.0.3)
-- `settings-density.png` — Settings with recording density at Every good (2.0.3)
+- `settings.png` — Settings with Runner, GNSS only, and recording density at Every good
+- `saved-tracks.png` — Saved tracks (select, share, show on map)
+- `settings-density.png` — Older Settings layout with simplify / smoothing sliders (2.0.3)
 - `help.png` — Help topics (2.0.3)
 - `app-icon.png`
 
-Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Upload `settings.png`, `settings-density.png`, and `help.png` with this release.
+Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Upload `settings.png`, `saved-tracks.png`, and `help.png` with this release.
 
 ---
 
