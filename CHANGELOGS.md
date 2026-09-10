@@ -5,7 +5,7 @@ All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning matches `versionName` **2.0.4** / `versionCode` **22** (minSdk 24, targetSdk 36).
 
-Bilingual release note for this version: [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README.md — How logging works](README.md#how-logging-works).
+Bilingual release note for this version: [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
 

@@ -1,6 +1,6 @@
 # GTL 2.0.3 — 2026-09-08
 
-Play production track **21 (2.0.3)**. What’s-new for Play Console: [play-console/whatsnew.txt](play-console/whatsnew.txt). Full history: [CHANGELOGS.md](../CHANGELOGS.md). How logging writes the Map polyline (including later GNSS-only work): [README.md — How logging works](../README.md#how-logging-works).
+Play production track **21 (2.0.3)**. What’s-new for Play Console: [play-console/whatsnew.txt](play-console/whatsnew.txt). Full history: [CHANGELOGS.md](../CHANGELOGS.md). How logging writes the Map polyline (including later GNSS-only work): [README-en.md — How logging works](../README-en.md#how-logging-works) / [README-hu.md](../README-hu.md#hogyan-működik-a-naplózás).
 
 ---
 
@@ -49,7 +49,7 @@ Kalman smoothing is now in the recording pipeline. Settings sliders replace the 
 
 ## Magyar
 
-A Kalman-simítás a rögzítési lánc része. A chippeket csúszkák váltják. A usage előbeállítás (repülőnél ICAO) egy lépésben állítja a csúszkákat. A térképvonal = a letárolt log (későbbi GNSS-only viselkedéssel): [README.md — How logging works](../README.md#how-logging-works).
+A Kalman-simítás a rögzítési lánc része. A chippeket csúszkák váltják. A usage előbeállítás (repülőnél ICAO) egy lépésben állítja a csúszkákat. A térképvonal = a letárolt log (későbbi GNSS-only viselkedéssel): [README-en.md — How logging works](../README-en.md#how-logging-works) / [README-hu.md](../README-hu.md#hogyan-működik-a-naplózás).
 
 ### Új
 

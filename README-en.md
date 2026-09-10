@@ -1,5 +1,7 @@
 # GPS Track Logger
 
+[English](README-en.md) · [Magyar](README-hu.md)
+
 On-device GPS track logger. Route points stay in SQLite on the phone. Share a KMZ (KML + icons) to Google Earth or another map app. Nothing is uploaded to our servers.
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
@@ -8,7 +10,7 @@ Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application 
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
-Privacy policy: https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html
+Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html](https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html)
 
 ---
 
@@ -22,11 +24,15 @@ Privacy policy: https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-pol
 - Usage modes: aircraft, watercraft, car, motorbike (default), runner. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Runner uses a looser accuracy filter and a lower pause threshold.
 - Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
 
+
+
 ### GPS tab
 
 - Live satellite counts: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC.
 - SNR quality (excellent / good / fair / poor / none).
 - Latitude, longitude, accuracy, provider, altitude, ambient temperature, logging status.
+
+
 
 ### Route tab
 
@@ -41,6 +47,8 @@ Session totals after Start: elapsed time, odometer, time moving, time waiting, s
 - Light purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
 - Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on (see below). SQLite, Route totals, and KMZ are never simplified.
 
+
+
 ### Compass tab
 
 Magnetic heading and a live dial from the rotation sensor. Works without Start.
@@ -54,6 +62,8 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
   - one session → one KMZ named `GTL_yyyyMMdd_HHmmss.kmz`
   - several sessions → one KMZ with a folder per track
 
+
+
 ### KMZ export
 
 - Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0).
@@ -62,17 +72,21 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
 - Help documents this flow (EN/HU) and lists SQLite `gps_events` fields.
 
+
+
 ### Settings
 
 Choosing a **usage** overwrites the linked defaults in one DataStore edit. You can change any control afterwards.
 
-| Usage | Units | GNSS only | Smooth recorded track | Strength | Hold still | Density | Simplify on map | Tolerance |
-|---|---|---|---|---|---|---|---|---|
-| Runner | Metric | on | off | Low | on | Every good | off | 2 m |
-| Motorbike (default) | Metric | off | on | Medium | on | Smart | on | 6 m |
-| Car | Metric | off | on | Medium | on | Smart | on | 8 m |
-| Watercraft | ICAO | off | on | Medium | on | Smart | on | 8 m |
-| Aircraft | ICAO | off | on | High | on | Smart | on | 15 m |
+
+| Usage               | Units  | GNSS only | Smooth recorded track | Strength | Hold still | Density    | Simplify on map | Tolerance |
+| ------------------- | ------ | --------- | --------------------- | -------- | ---------- | ---------- | --------------- | --------- |
+| Runner              | Metric | on        | off                   | Low      | on         | Every good | off             | 2 m       |
+| Motorbike (default) | Metric | off       | on                    | Medium   | on         | Smart      | on              | 6 m       |
+| Car                 | Metric | off       | on                    | Medium   | on         | Smart      | on              | 8 m       |
+| Watercraft          | ICAO   | off       | on                    | Medium   | on         | Smart      | on              | 8 m       |
+| Aircraft            | ICAO   | off       | on                    | High     | on         | Smart      | on              | 15 m      |
+
 
 **What each control does**
 
@@ -98,14 +112,18 @@ Existing installs that still have the old **19.5 m** simplify default migrate to
 
 ---
 
+
+
 ## Architecture
 
 Two Gradle modules:
 
-| Module | Role |
-|---|---|
+
+| Module    | Role                                                                                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `:engine` | Pure JVM: GNSS classification, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, map-visibility rules. JUnit tests live here. |
-| `:app` | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share. |
+| `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
+
 
 ```
 app/     Compose, Room, services, maps
@@ -113,12 +131,16 @@ engine/  Domain algorithms (no Android SDK)
 docs/    Privacy policy, Play assets, renewal notes
 ```
 
+
+
 ### Data
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
 - **DataStore:** disclaimer, usage, units, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify settings.
 - **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
+
+
 
 ### How logging works
 
@@ -151,7 +173,7 @@ Stop
 **Gate 3 — recording density.** `FixAcceptance.shouldAccept` decides whether that (possibly smoothed) point becomes a SQLite row. Kalman still updates when a point is skipped.
 
 - First fix of the session → always stored as `START`.
-- **Smart** (vehicles): write when haversine distance from the last **stored** point reaches the 2014 speed band; half that band in a curve (heading change &gt; 15°). Runner Smart uses half of that band again (min 1 m).
+- **Smart** (vehicles): write when haversine distance from the last **stored** point reaches the 2014 speed band; half that band in a curve (heading change > 15°). Runner Smart uses half of that band again (min 1 m).
 - **Every good** (runner default): write when `minTimeMillis` (500 ms) has elapsed **or** the heading is in a curve, and distance is at least **1 m** (vehicles) or **0.5 m** (runner).
 - Slider positions between the ends mix Smart spacing with the Every-good floor; the min-time / curve path can still accept a point.
 - If GPS `bearing` is 0 (common when jogging), curve detection can use heading from consecutive positions.
@@ -164,14 +186,16 @@ Stop
 
 **Why the map looks like your log**
 
-| Layer | What it does | Map effect |
-|---|---|---|
-| GNSS chip vs fused | Who answers “where am I?” | Runner: chip track, street-scale shape kept. Vehicles: fused, less Wi-Fi/cell jump. |
-| Accuracy / sat gates | Drop junk before Kalman | No 200 m teleport spikes in the line. |
-| Kalman (optional) | Move points, keep count | Vehicle roundabouts and cruise look smooth; standing lock stops a 10 m scribble. |
-| Density | How many points are stored | Smart: fewer points at highway speed. Every good: ~2 Hz, tight loops keep vertices. |
-| Room | Single source of truth | Map, Route, and KMZ are the same path. |
-| Douglas–Peucker | Display-only thin | Long vehicle tracks stay cheap to draw; runner default is off so the map equals SQLite. |
+
+| Layer                | What it does               | Map effect                                                                              |
+| -------------------- | -------------------------- | --------------------------------------------------------------------------------------- |
+| GNSS chip vs fused   | Who answers “where am I?”  | Runner: chip track, street-scale shape kept. Vehicles: fused, less Wi-Fi/cell jump.     |
+| Accuracy / sat gates | Drop junk before Kalman    | No 200 m teleport spikes in the line.                                                   |
+| Kalman (optional)    | Move points, keep count    | Vehicle roundabouts and cruise look smooth; standing lock stops a 10 m scribble.        |
+| Density              | How many points are stored | Smart: fewer points at highway speed. Every good: ~2 Hz, tight loops keep vertices.     |
+| Room                 | Single source of truth     | Map, Route, and KMZ are the same path.                                                  |
+| Douglas–Peucker      | Display-only thin          | Long vehicle tracks stay cheap to draw; runner default is off so the map equals SQLite. |
+
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
@@ -211,7 +235,7 @@ So Kalman changes **where** stored points sit. Density changes **how many** of t
 **How the filter works.** Constant-velocity model in local metres (`GeoProjection`, same `111_320` m/deg as DP). State is `[east, north, vEast, vNorth]`. The GPS measurement is **position only** (no speed/heading update). Each step:
 
 1. **Predict** — move the state forward by `dt` (clamped to a small range so a pause in GNSS does not explode the covariance).
-2. **Process noise `q`** (m²/s⁴) = `baseQ(usage) × strengthMultiplier(slider)`. Then `× turnBoost(usage)` when the heading vs the previous **output** bearing (or heading from consecutive positions if GPS bearing is 0) changes more than 15°. **High `q` = trust GPS more = less smoothing.** Low `q` = trust the motion model more = smoother arcs, more lag when you actually turn.
+2. **Process noise** `q` (m²/s⁴) = `baseQ(usage) × strengthMultiplier(slider)`. Then `× turnBoost(usage)` when the heading vs the previous **output** bearing (or heading from consecutive positions if GPS bearing is 0) changes more than 15°. **High** `q` **= trust GPS more = less smoothing.** Low `q` = trust the motion model more = smoother arcs, more lag when you actually turn.
 3. **Update** — Joseph-form Kalman update with measurement σ = max(GPS accuracy, 2 m).
 4. **Jump** — if the innovation is larger than `max(50 m, 8 × accuracy)` (tunnel exit, GPS teleport), re-initialize at the new fix. The gap is **not** interpolated.
 5. **Stationary lock** (if enabled) — when GPS speed or predicted speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles) and displacement is under 1.5 m, freeze the last output, zero velocity, shrink position covariance.
@@ -224,17 +248,19 @@ Base `q` at mid slider (old Medium): runner 8.0, motorbike 2.5, car/watercraft 1
 
 These are the controls that change SQLite `gps_events`, Route odometer / speeds, and the shared KMZ. Everything else is display-only.
 
-| Setting | Written into the tracklog? | Effect |
-|---|---|---|
-| **Use GNSS only** | Yes (source) | **On:** `GPS_PROVIDER` satellite-chip positions (all GNSS constellations). **Off:** Play Services fused HIGH_ACCURACY. If the GPS provider is disabled, fused is used either way. |
-| **Smooth recorded track** | Yes | **On:** each candidate point is Kalman-smoothed before density. Route, Map (raw polyline), and KMZ all show the smoothed path. **Off:** the location source is stored as-is after the accuracy/sats gate (runner default). |
-| **Smoothing strength** (Low–High slider; only if smoothing is on) | Yes | **Low:** GPS jitter stays, figure-8 and zigzag remain. **High** (aircraft default): roundabouts and cruise are cleaner; hairpins lag a little. Mid is motorbike/car/water. |
-| **Hold still when stopped** | Yes (only if smoothing is on) | Below pause speed the stored coordinate does not wander. A 6 m GPS cluster at a red light collapses toward one point. Does not drop rows by itself — density still decides writes. |
-| **Recording density** (Smart–Every good slider) | Yes | **Smart:** write when distance from the last **stored** point reaches the 2014 speed band (half in a curve; runner Smart half again, min 1 m). Highway stores fewer points; walking stores more. **Every good:** write about once per `minTime` (500 ms) or sooner in a curve. Vehicles drop stacks closer than **1 m**; runner closer than **0.5 m**. Positions between the ends mix the two rules. |
-| **Simplify track on map** (1–20 m slider) | **No** | Fewer vertices on the Map tab only. Stored points, odometer, and KMZ are unchanged. |
-| **Show accuracy marker** | **No** | Purple circle on the **raw** GPS fix, even when Kalman is on. |
-| **Units** | Labels only | Metric / Imperial / ICAO format Route and KMZ balloons. Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO. |
-| Accuracy / satellite gates | Yes (rejection) | Fixes worse than 30 m (runner 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders. |
+
+| Setting                                                           | Written into the tracklog?    | Effect                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Use GNSS only**                                                 | Yes (source)                  | **On:** `GPS_PROVIDER` satellite-chip positions (all GNSS constellations). **Off:** Play Services fused HIGH_ACCURACY. If the GPS provider is disabled, fused is used either way.                                                                                                                                                                                                                    |
+| **Smooth recorded track**                                         | Yes                           | **On:** each candidate point is Kalman-smoothed before density. Route, Map (raw polyline), and KMZ all show the smoothed path. **Off:** the location source is stored as-is after the accuracy/sats gate (runner default).                                                                                                                                                                           |
+| **Smoothing strength** (Low–High slider; only if smoothing is on) | Yes                           | **Low:** GPS jitter stays, figure-8 and zigzag remain. **High** (aircraft default): roundabouts and cruise are cleaner; hairpins lag a little. Mid is motorbike/car/water.                                                                                                                                                                                                                           |
+| **Hold still when stopped**                                       | Yes (only if smoothing is on) | Below pause speed the stored coordinate does not wander. A 6 m GPS cluster at a red light collapses toward one point. Does not drop rows by itself — density still decides writes.                                                                                                                                                                                                                   |
+| **Recording density** (Smart–Every good slider)                   | Yes                           | **Smart:** write when distance from the last **stored** point reaches the 2014 speed band (half in a curve; runner Smart half again, min 1 m). Highway stores fewer points; walking stores more. **Every good:** write about once per `minTime` (500 ms) or sooner in a curve. Vehicles drop stacks closer than **1 m**; runner closer than **0.5 m**. Positions between the ends mix the two rules. |
+| **Simplify track on map** (1–20 m slider)                         | **No**                        | Fewer vertices on the Map tab only. Stored points, odometer, and KMZ are unchanged.                                                                                                                                                                                                                                                                                                                  |
+| **Show accuracy marker**                                          | **No**                        | Purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                        |
+| **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons. Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
+| Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
+
 
 **Practical result.** Motorbike default: fused + smoothed street track, Smart spacing, Map line thinned at 6 m. Runner default: GNSS chip, no Kalman, almost every good fix stored (0.5 m floor), Map shows every stored vertex so a small on-road loop stays visible. Aircraft default: stronger smoothing, Smart spacing, 15 m Map thinning, speed/distance in knots and nautical miles.
 
@@ -245,6 +271,8 @@ Separate from Kalman. Kalman always sees every accuracy-passed fix while smoothi
 - **Smart** (vehicles): write a point when haversine distance from the last **stored** fix reaches the 2014 speed band; half that in a curve. Runner Smart uses half of that band again (walk/jog was too coarse for a small figure-8).
 - **Every good** (runner default): accept when `minTimeMillis` has elapsed or heading is in a curve. Vehicles drop stacks closer than 1 m; runner drops closer than 0.5 m.
 - **Between the slider ends:** required distance is a mix of the Smart band and the Every-good floor (1 m vehicles, 0.5 m runner); the min-time / curve path can also accept a point.
+
+
 
 ### Douglas–Peucker (map simplify)
 
@@ -268,6 +296,8 @@ So a nearly colinear stretch collapses to two endpoints, while a corner that sti
 `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE` / `_LOCATION`, `POST_NOTIFICATIONS`, `INTERNET` / `ACCESS_NETWORK_STATE` (maps + OSM download). GPS hardware required; compass and ambient temperature optional. No `ACCESS_BACKGROUND_LOCATION`, no phone-state / IMEI.
 
 ---
+
+
 
 ## Setup
 
@@ -300,22 +330,26 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 ---
 
+
+
 ## Technical documents
 
-| Document | What it is |
-|---|---|
-| [CHANGELOGS.md](CHANGELOGS.md) | Version history (2.0.0 rewrite through 2.0.4) |
-| [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md) | 2.0.4 release notes (English and Hungarian) |
-| [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md) | 2.0.3 release notes (English and Hungarian) |
-| [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt) | Play Console release name and EN/HU what’s-new text |
-| [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md) | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups |
-| [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page) |
-| [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic |
-| [docs/screenshots/](docs/screenshots/) | Play listing screenshots (GPS, route, map/tracking, compass, settings, saved tracks, help, about, Google Earth KMZ) |
-| [docs/DBSTRUCT-en.md](docs/DBSTRUCT-en.md) | SQLite schema (`gtl.db`) mermaid |
-| [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) | GPS listen → filter → Room → UI / KMZ (EN); mermaid of the logging pipeline |
-| [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md) | GPS figyelés → szűrés → Room → UI / KMZ (HU) |
-| [docs/dp-kalman-smoothing-en.md](docs/dp-kalman-smoothing-en.md) | Original Kalman implementation brief; **as-built notes at the top** (current behaviour is this README) |
+
+| Document                                                                       | What it is                                                                                                          |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| [CHANGELOGS.md](CHANGELOGS.md)                                                 | Version history (2.0.0 rewrite through 2.0.4)                                                                       |
+| [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md)                   | 2.0.4 release notes (English and Hungarian)                                                                         |
+| [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md)                   | 2.0.3 release notes (English and Hungarian)                                                                         |
+| [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console release name and EN/HU what’s-new text                                                                 |
+| [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md)                               | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups                                      |
+| [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page)                                                                 |
+| [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic                                                                                          |
+| [docs/screenshots/](docs/screenshots/)                                         | Play listing screenshots (GPS, route, map/tracking, compass, settings, saved tracks, help, about, Google Earth KMZ) |
+| [docs/DBSTRUCT-en.md](docs/DBSTRUCT-en.md)                                     | SQLite schema (`gtl.db`) mermaid                                                                                    |
+| [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md)                               | GPS listen → filter → Room → UI / KMZ (EN); mermaid of the logging pipeline                                         |
+| [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md)                               | GPS figyelés → szűrés → Room → UI / KMZ (HU)                                                                        |
+| [docs/dp-kalman-smoothing-en.md](docs/dp-kalman-smoothing-en.md)               | Original Kalman implementation brief; **as-built notes at the top** (current behaviour is this README)              |
+
 
 Engine entry points worth reading:
 
@@ -331,6 +365,8 @@ Engine entry points worth reading:
 - `app/.../LocationClient.kt` — fused HIGH_ACCURACY or `GPS_PROVIDER` when Use GNSS only is on
 
 ---
+
+
 
 ## Play listing screenshots
 
@@ -351,15 +387,16 @@ Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Upload `settin
 
 ---
 
+
+
 ## Next to do
 
 - Implement GPX export. GPX (GPS Exchange Format) is the most common GPS tracklog interchange format.
-- Store both barometric and GPS altitude on each tracklog point when usage is aircraft and the measurement system is ICAO.
-- Add Internationalization
 - Add light and dark themes
-- Add diration in mins to the end of the route stop details when the user after finish logging press to stop icon.
 
 ---
+
+
 
 ## Not in this app
 

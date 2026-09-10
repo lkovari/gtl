@@ -1,6 +1,6 @@
 # GPS event listening and data flow
 
-How a location update becomes a SQLite row, then the map, Route HUD, and KMZ. The Map polyline is those Room coordinates — there is no second sketch. Why that line looks like the path you took: [README.md — How logging works](../README.md#how-logging-works).
+How a location update becomes a SQLite row, then the map, Route HUD, and KMZ. The Map polyline is those Room coordinates — there is no second sketch. Why that line looks like the path you took: [README-en.md — How logging works](../README-en.md#how-logging-works).
 
 ```mermaid
 flowchart TD
@@ -125,7 +125,7 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 | Room | Single source for Map, Route, KMZ. |
 | Douglas–Peucker | Display-only. Runner default is off, so every stored vertex is drawn. |
 
-Full prose: [README.md — How logging works](../README.md#how-logging-works).
+Full prose: [README-en.md — How logging works](../README-en.md#how-logging-works).
 
 ## Map polyline: Douglas–Peucker
 
@@ -135,4 +135,4 @@ Full prose: [README.md — How logging works](../README.md#how-logging-works).
 
 **How.** Keep the segment’s first and last points. Find the intermediate point with the largest perpendicular distance (metres, local `111_320` m/deg projection) to the chord between them. If that distance is above the tolerance, keep the point and recurse on both sides; otherwise drop every intermediate point.
 
-This discards near-colinear jitter. It does not smooth GPS noise — leftover corners stay sharp. Full write-up: [README.md](../README.md#douglaspeucker-map-simplify).
+This discards near-colinear jitter. It does not smooth GPS noise — leftover corners stay sharp. Full write-up: [README-en.md](../README-en.md#douglaspeucker-map-simplify).

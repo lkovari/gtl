@@ -1,6 +1,6 @@
 # GPS eseményfigyelés és adatút
 
-Hogyan lesz a helyfrissítésből SQLite sor, majd térkép, Route HUD és KMZ. A Map polyline ezek a Room koordináták — nincs külön vázlat. Miért néz ki a vonal úgy, ahogy mentél: [README.md — How logging works](../README.md#how-logging-works).
+Hogyan lesz a helyfrissítésből SQLite sor, majd térkép, Route HUD és KMZ. A Map polyline ezek a Room koordináták — nincs külön vázlat. Miért néz ki a vonal úgy, ahogy mentél: [README-hu.md — Hogyan működik a naplózás](../README-hu.md#hogyan-működik-a-naplózás).
 
 ```mermaid
 flowchart TD
@@ -125,7 +125,7 @@ Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 | Room | Egy forrás a Map, Route és KMZ számára. |
 | Douglas–Peucker | Csak megjelenítés. Futó alapból ki, ezért minden letárolt csúcs kirajzolódik. |
 
-Részletes leírás: [README.md — How logging works](../README.md#how-logging-works).
+Részletes leírás: [README-hu.md — Hogyan működik a naplózás](../README-hu.md#hogyan-működik-a-naplózás).
 
 ## Térképvonal: Douglas–Peucker
 
@@ -135,4 +135,4 @@ Részletes leírás: [README.md — How logging works](../README.md#how-logging-
 
 **Hogyan.** A szakasz első és utolsó pontja mindig megmarad. A köztes pontok közül azt választjuk, amelynek a merőleges távolsága (méterben, helyi `111_320` m/fok vetület) a két végpontot összekötő húrhoz a legnagyobb. Ha ez a távolság a tolerancia fölött van, a pontot megtartjuk, és mindkét oldalon rekurzívan folytatjuk; különben minden köztes pontot eldobunk.
 
-Ez a közel egyenes szakaszok zaját csökkenti. GPS-zajt nem simít — a megmaradó sarkok élesek maradnak. Részletes leírás: [README.md](../README.md#douglaspeucker-map-simplify).
+Ez a közel egyenes szakaszok zaját csökkenti. GPS-zajt nem simít — a megmaradó sarkok élesek maradnak. Részletes leírás: [README-hu.md](../README-hu.md#douglaspeucker-térkép-egyszerűsítés).

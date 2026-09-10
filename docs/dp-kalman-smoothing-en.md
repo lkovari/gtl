@@ -1,6 +1,6 @@
 # Agent prompt: Kalman track smoothing for GTL
 
-**As built (current).** This file was the implementation brief. Do not re-implement it as written. Current behaviour is [README.md — How logging works](../README.md#how-logging-works) and [GPSDATAFLOW-en.md](GPSDATAFLOW-en.md). Differences from the original goal table:
+**As built (current).** This file was the implementation brief. Do not re-implement it as written. Current behaviour is [README-en.md — How logging works](../README-en.md#how-logging-works) and [GPSDATAFLOW-en.md](GPSDATAFLOW-en.md). Differences from the original goal table:
 
 | Brief said | Shipped |
 |---|---|
@@ -323,7 +323,7 @@ DP tolerance chips (metres, write `optimizationTolerance`): `2`, `6`, `8`, `15`,
 
 Help map/GPS bodies: one sentence that Kalman smooths **stored** points; DP only thins the **drawn** line; runner default is every good fix and no DP.
 
-Update `README.md`, `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFLOW-hu.md` mermaid: Kalman box between `TrackFix` and `FixAcceptance`.
+Update `README-en.md`, `README-hu.md`, `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFLOW-hu.md` mermaid: Kalman box between `TrackFix` and `FixAcceptance`.
 
 ---
 
@@ -347,7 +347,7 @@ Update `README.md`, `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFLOW-hu.md` mermaid: 
 - `app/.../TrackingForegroundService.kt` — construct filter, observe, reset
 - `app/.../ui/screens/SecondaryScreens.kt` — new controls
 - `app/src/main/res/values/strings.xml` and `values-hu/strings.xml`
-- `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFLOW-hu.md`, `README.md`
+- `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFLOW-hu.md`, `README-en.md`, `README-hu.md`
 
 Do not change KMZ exporters except if they would start reading display points (they must not).
 

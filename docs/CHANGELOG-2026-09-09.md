@@ -1,6 +1,6 @@
 # GTL 2.0.4 — 2026-09-09
 
-Play production track **22 (2.0.4)**. What’s-new for Play Console: [play-console/whatsnew.txt](play-console/whatsnew.txt). Full history: [CHANGELOGS.md](../CHANGELOGS.md). How logging writes the Map polyline: [README.md — How logging works](../README.md#how-logging-works).
+Play production track **22 (2.0.4)**. What’s-new for Play Console: [play-console/whatsnew.txt](play-console/whatsnew.txt). Full history: [CHANGELOGS.md](../CHANGELOGS.md). How logging writes the Map polyline: [README-en.md — How logging works](../README-en.md#how-logging-works) / [README-hu.md](../README-hu.md#hogyan-működik-a-naplózás).
 
 ---
 
