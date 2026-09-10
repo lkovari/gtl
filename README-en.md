@@ -387,7 +387,7 @@ Engine entry points worth reading:
 - `map.png`, `tracking.png` — Map while recording
 - `googleearth.png` — shared KMZ in Google Earth
 - `compass.png`, `about.png`
-- `settings.png` — Settings with Runner, GNSS only, and recording density at Every good
+- `settings.png` — Settings with six usage types (Watercraft selected), Show fix cloud, GNSS only, and recording density at Every good
 - `saved-tracks.png` — Saved tracks (select, share, show on map)
 - `settings-density.png` — Older Settings layout with simplify / smoothing sliders (2.0.3)
 - `help.png` — Help topics (2.0.3)

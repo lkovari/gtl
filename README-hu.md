@@ -387,7 +387,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `map.png`, `tracking.png` — Térkép felvétel közben
 - `googleearth.png` — megosztott KMZ a Google Earth-ben
 - `compass.png`, `about.png`
-- `settings.png` — Beállítások Futóval, Csak GNSS-szel, rögzítés sűrűsége Minden jónál
+- `settings.png` — Beállítások hat használati móddal (Hajó kiválasztva), Pontfelhővel, Csak GNSS-szel, rögzítés sűrűsége Minden jónál
 - `saved-tracks.png` — Mentett útvonalak (kijelölés, megosztás, térképen)
 - `settings-density.png` — Régebbi Beállítások elrendezés egyszerűsítő / simító csúszkákkal (2.0.3)
 - `help.png` — Súgótémák (2.0.3)
