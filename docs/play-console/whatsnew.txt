@@ -27,7 +27,7 @@ Date: 2026-09-10
 <en-US>
 Shared KMZ: tap the stop icon in Google Earth for session duration, average speed, and maximum speed.
 
-• Duration in minutes if under 60 minutes, otherwise HH:MM:SS
+• Duration in seconds if 60 seconds or less, minutes if under 60 minutes, otherwise HH:MM:SS
 • Average and max speed as whole numbers
 • Units follow Settings (km/h, mile/h, or knots)
 • Play and pause still show time, position, speed, and temperature
@@ -36,8 +36,94 @@ Shared KMZ: tap the stop icon in Google Earth for session duration, average spee
 <hu-HU>
 Megosztott KMZ: a Google Earth stop ikonjára koppintva megjelenik a session időtartama, az átlag- és a maximális sebesség.
 
-• Időtartam percben 60 perc alatt, különben HH:MM:SS
+• Időtartam másodpercben 60 másodpercig, percben 60 perc alatt, különben HH:MM:SS
 • Átlag- és maxsebesség egész számként
 • Mértékegység a Beállításokat követi (km/h, mile/h vagy csomó)
 • Play és szünet továbbra is időt, helyzetet, sebességet és hőmérsékletet mutat
+</hu-HU>
+
+Date: 2026-09-10
+
+<en-US>
+Fix cloud dots raw GPS while you stand still.
+
+• Outer circle is magenta CEP95; pale purple circle stays claimed accuracy
+• Turning Show fix cloud on also enables the accuracy marker
+• Use GNSS only stays as you set it — not required for CEP95
+• Pauses when you move so it is not a trail
+• GPS tab: n, RMS, CEP95, reported accuracy
+</en-US>
+
+<hu-HU>
+Pontfelhő: állóhelyen nyers GPS-pöttyök.
+
+• A külső kör a magenta CEP95; a világos lila a jelentett pontosság
+• A Pontfelhő bekapcsolása a pontossági jelzést is bekapcsolja
+• A Csak GNSS attól független, a CEP95-höz nem kell
+• Mozgáskor szünetel, nem nyúlik csíkba
+• GPS fül: n, RMS, CEP95, jelentett pontosság
+</hu-HU>
+
+Date: 2026-09-10
+
+<en-US>
+KMZ play, pause, and stop details now include usage type.
+
+• Stored on every GPS log point
+• Shown as usage= Aircraft, Watercraft, Car, Motorbike, Bicycle, or Runner
+• Same names as Settings
+</en-US>
+
+<hu-HU>
+A KMZ play, szünet és stop részleteiben megjelenik a használati mód.
+
+• Minden GPS-ponton eltárolva
+• usage= Aircraft, Watercraft, Car, Motorbike, Bicycle vagy Runner
+• Ugyanazok a nevek, mint a Beállításokban
+</hu-HU>
+
+Date: 2026-09-10
+
+<en-US>
+Saved tracks open on the map in the usage they were recorded with.
+
+• Show on map also switches Settings to that usage
+• After that, changing usage or sliders redraws the same log that way
+• New Bicycle usage: GNSS on, no Kalman, every good fix, no map simplify
+</en-US>
+
+<hu-HU>
+A mentett track a felvétel használati módjában nyílik a térképen.
+
+• A Térképen a Beállításokat is erre a usage-re állítja
+• Utána a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot
+• Új Kerékpár mód: GNSS be, nincs Kalman, minden jó fix, térkép-egyszerűsítés ki
+</hu-HU>
+
+Date: 2026-09-10
+
+<en-US>
+A broom on Map clears the drawn track without deleting the log.
+
+• Top left, only while idle with a saved track shown
+• Start or Saved tracks → Show on map draws the line again
+• Logging still draws even if the map was cleared
+</en-US>
+
+<hu-HU>
+A térkép seprő gombja leveszi a kirajzolt nyomvonalat, a naplót nem törli.
+
+• Bal felső, csak idle, ha mentett track látszik
+• Indítás vagy Mentett útvonalak → Térképen újra kirajzol
+• Naplózáskor a vonal akkor is megjelenik, ha a térképet kiürítették
+</hu-HU>
+
+Date: 2026-09-10
+
+<en-US>
+Saved tracks open in the usage they were recorded with and switch Settings to match; after that, changing usage or sliders redraws the same log. A broom on Map clears that line without deleting the log. KMZ stop shows duration in seconds under a minute, then minutes, then HH:MM:SS, plus usage and speeds. Bicycle mode keeps slow curves. The map has a usage silhouette and north marker, and Show fix cloud dots raw GPS with a magenta CEP95 ring.
+</en-US>
+
+<hu-HU>
+A mentett track a felvétel usage-ében nyílik, és a Beállításokat is arra állítja; utána a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot. A seprő gomb leveszi a vonalat a térképről, a logot nem törli. A KMZ stop duration másodperc 60 mp-ig, utána perc, majd HH:MM:SS, plusz usage és sebességek. A Kerékpár mód megtartja a lassú íveket, a térképen usage-sziluett és északjelző van, a Pontfelhő pedig állóhelyen nyers GPS-pöttyöket és magenta CEP95-kört rajzol.
 </hu-HU>

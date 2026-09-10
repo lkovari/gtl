@@ -16,7 +16,11 @@ import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
+import com.lkovari.mobile.apps.gtl.engine.FixCloudBuffer
+import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
+import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
+import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
@@ -39,6 +43,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+private data class MapUiBits(
+    val requestedTab: Int?,
+    val selectedSessionId: Long?,
+    val fixCloud: FixCloudSnapshot,
+    val mainTab: Int,
+    val mapCleared: Boolean
+)
+
 data class GtlUiState(
     val settings: GtlSettings,
     val live: LiveTrackingState,
@@ -49,7 +61,10 @@ data class GtlUiState(
     val mapsKeyPresent: Boolean,
     val osmFile: File?,
     val requestedTab: Int?,
-    val selectedSessionId: Long?
+    val selectedSessionId: Long?,
+    val fixCloud: FixCloudSnapshot,
+    val mapUsageType: UsageType,
+    val mainTab: Int
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -58,11 +73,17 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private val exporter = KmlExportUseCase(application)
     private val selectedSessionId = MutableStateFlow<Long?>(null)
     private val requestedTab = MutableStateFlow<Int?>(null)
+    private val mainTab = MutableStateFlow(0)
+    private val mapCleared = MutableStateFlow(false)
     private var gnssJob: Job? = null
     private var locationJob: Job? = null
     private var compassJob: Job? = null
     private var temperatureJob: Job? = null
     private var gravityJob: Job? = null
+    private val fixCloudBuffer = FixCloudBuffer()
+    private val fixCloudView = MutableStateFlow(FixCloudSnapshot.Empty)
+    private var lastObservedNanos = Long.MIN_VALUE
+    private var lastGnssOnly: Boolean? = null
 
     val settings: StateFlow<GtlSettings> = app.preferences.settings.stateIn(
         viewModelScope,
@@ -72,8 +93,12 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     val live: StateFlow<LiveTrackingState> = app.trackingState.state
 
+    val sessions: StateFlow<List<TrackSessionEntity>> = app.trackRepository.observeSessions()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     init {
         startPreview()
+        observeFixCloud()
     }
 
     fun startPreview() {
@@ -139,13 +164,67 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    val sessions: StateFlow<List<TrackSessionEntity>> = app.trackRepository.observeSessions()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private fun observeFixCloud() {
+        viewModelScope.launch {
+            combine(
+                settings.map { Triple(it.showFixCloud, it.gnssOnly, it.usageType.pauseSpeedMps()) }
+                    .distinctUntilChanged(),
+                live
+            ) { cloudPrefs, liveState ->
+                cloudPrefs to liveState.lastLocation
+            }.collect { (cloudPrefs, location) ->
+                val enabled = cloudPrefs.first
+                val gnssOnly = cloudPrefs.second
+                val pauseSpeed = cloudPrefs.third
+                if (lastGnssOnly != null && lastGnssOnly != gnssOnly) {
+                    fixCloudBuffer.clear()
+                    lastObservedNanos = location?.elapsedRealtimeNanos ?: Long.MIN_VALUE
+                    lastGnssOnly = gnssOnly
+                    fixCloudView.value = if (enabled) {
+                        fixCloudBuffer.snapshot()
+                    } else {
+                        FixCloudSnapshot.Empty
+                    }
+                    return@collect
+                }
+                lastGnssOnly = gnssOnly
+                if (!enabled) {
+                    fixCloudBuffer.clear()
+                    lastObservedNanos = Long.MIN_VALUE
+                    if (fixCloudView.value != FixCloudSnapshot.Empty) {
+                        fixCloudView.value = FixCloudSnapshot.Empty
+                    }
+                    return@collect
+                }
+                if (location == null) {
+                    return@collect
+                }
+                val nanos = location.elapsedRealtimeNanos
+                if (nanos != 0L && nanos == lastObservedNanos) {
+                    return@collect
+                }
+                lastObservedNanos = nanos
+                val speed = if (location.hasSpeed()) location.speed else 0f
+                val accuracy = if (location.hasAccuracy()) location.accuracy else 0f
+                fixCloudBuffer.observe(
+                    FixCloudSample(
+                        timeMillis = location.time,
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        accuracyMeters = accuracy,
+                        speedMps = speed
+                    ),
+                    pauseSpeed
+                )
+                fixCloudView.value = fixCloudBuffer.snapshot()
+            }
+        }
+    }
 
-    private val activeEvents = combine(live, selectedSessionId, settings, sessions) { liveState, selected, prefs, sessionList ->
+    private val activeEvents = combine(live, selectedSessionId, settings, sessions, mapCleared) { liveState, selected, prefs, sessionList, cleared ->
         liveState.sessionId
             ?: selected
-            ?: if (prefs.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
+            ?: if (!cleared && prefs.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
     }.flatMapLatest { sessionId ->
         if (sessionId == null) {
             flowOf(emptyList())
@@ -159,23 +238,46 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         live,
         activeEvents,
         sessions,
-        combine(requestedTab, selectedSessionId, ::Pair)
-    ) { prefs, liveState, events, sessionList, tabAndSelected ->
-        val tab = tabAndSelected.first
-        val selected = tabAndSelected.second
+        combine(requestedTab, selectedSessionId, fixCloudView, mainTab, mapCleared) { tab, selected, cloud, persistedTab, cleared ->
+            MapUiBits(tab, selected, cloud, persistedTab, cleared)
+        }
+    ) { prefs, liveState, events, sessionList, mapBits ->
+        val tab = mapBits.requestedTab
+        val selected = mapBits.selectedSessionId
+        val cloud = mapBits.fixCloud
+        val persistedTab = mapBits.mainTab
+        val cleared = mapBits.mapCleared
+        val followSettings = MapDisplayUsage.followsSettings(liveState.logging, selected)
         val samples = app.trackRepository.toSamples(events)
         val routeStats = if (liveState.logging) {
             TrackStatsCalculator.compute(samples)
         } else {
             TrackStatsCalculator.compute(emptyList())
         }
+        val viewingId = liveState.sessionId
+            ?: selected
+            ?: if (!cleared && prefs.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
+        val viewed = sessionList.find { it.id == viewingId }
+        val mapUsage = MapDisplayUsage.of(
+            logging = liveState.logging,
+            followSettings = followSettings,
+            settingsUsage = prefs.usageType,
+            sessionUsageName = viewed?.usageType
+        )
+        val simplify = MapDisplayUsage.simplify(
+            usage = mapUsage,
+            logging = liveState.logging,
+            followSettings = followSettings,
+            settingsActive = prefs.optimizationActive,
+            settingsTolerance = prefs.optimizationTolerance
+        )
         val points = events.map { GeoPoint(it.latitude, it.longitude, it.altitude) }
-        val display = if (prefs.optimizationActive && points.size > 4) {
-            DouglasPeucker.simplify(points, DouglasPeucker.clampTolerance(prefs.optimizationTolerance))
+        val display = if (simplify.first && points.size > 4) {
+            DouglasPeucker.simplify(points, DouglasPeucker.clampTolerance(simplify.second))
         } else {
             points
         }
-        val mapPoints = if (MapTrackVisibility.visible(liveState.logging, prefs.showLastTrackOnMap, selected)) {
+        val mapPoints = if (MapTrackVisibility.visible(liveState.logging, prefs.showLastTrackOnMap, selected, cleared)) {
             display
         } else {
             emptyList()
@@ -195,7 +297,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
             osmFile = osm,
             requestedTab = tab,
-            selectedSessionId = selected
+            selectedSessionId = selected,
+            fixCloud = cloud,
+            mapUsageType = mapUsage,
+            mainTab = persistedTab
         )
     }.stateIn(
         viewModelScope,
@@ -210,7 +315,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
             osmFile = null,
             requestedTab = null,
-            selectedSessionId = null
+            selectedSessionId = null,
+            fixCloud = FixCloudSnapshot.Empty,
+            mapUsageType = settings.value.usageType,
+            mainTab = 0
         )
     )
 
@@ -219,6 +327,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startLogging() {
+        selectedSessionId.value = null
+        mapCleared.value = false
         startPreview()
         val intent = Intent(app, TrackingForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -238,20 +348,42 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun showSessionOnMap(id: Long) {
-        selectedSessionId.value = id
-        requestedTab.value = 2
+        viewModelScope.launch {
+            val session = app.trackRepository.sessionById(id)
+            val usage = session?.usageType?.let { raw ->
+                runCatching { UsageType.valueOf(raw) }.getOrNull()
+            }
+            if (usage != null) {
+                app.preferences.setUsageType(usage)
+            }
+            mapCleared.value = false
+            selectedSessionId.value = id
+            mainTab.value = 2
+            requestedTab.value = 2
+        }
     }
 
     fun consumeRequestedTab() {
         requestedTab.value = null
     }
 
+    fun clearShownTrack() {
+        selectedSessionId.value = null
+        mapCleared.value = true
+    }
+
     fun deleteSession(id: Long) {
         viewModelScope.launch { app.trackRepository.deleteSession(id) }
     }
 
+    fun setMainTab(index: Int) {
+        mainTab.value = index
+    }
+
     fun setUsage(value: UsageType) {
-        viewModelScope.launch { app.preferences.setUsageType(value) }
+        viewModelScope.launch {
+            app.preferences.setUsageType(value)
+        }
     }
 
     fun setUnits(value: MeasurementSystem) {
@@ -296,6 +428,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowAccuracyMarker(value: Boolean) {
         viewModelScope.launch { app.preferences.setShowAccuracyMarker(value) }
+    }
+
+    fun setShowFixCloud(value: Boolean) {
+        viewModelScope.launch { app.preferences.setShowFixCloud(value) }
     }
 
     fun setTrackSmoothing(value: Boolean) {

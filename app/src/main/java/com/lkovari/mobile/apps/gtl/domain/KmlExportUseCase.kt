@@ -15,6 +15,7 @@ import com.lkovari.mobile.apps.gtl.engine.KmzExporter
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.TrackSample
 import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
+import com.lkovari.mobile.apps.gtl.engine.UsageType
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -77,7 +78,8 @@ class KmlExportUseCase(private val context: Context) {
                             averageSpeedMps = if (kind == EventKind.STOP) stats.averageSpeedMps else null,
                             elapsedMillis = if (kind == EventKind.STOP) stats.elapsedMillis else 0L,
                             system = system,
-                            leanAngle = event.leanAngle
+                            leanAngle = event.leanAngle,
+                            usageType = UsageType.kmlLabelOf(event.usageType ?: session.usageType)
                         )
                     )
                 }

@@ -19,7 +19,8 @@ object KmlDescriptions {
         averageSpeedMps: Float? = null,
         elapsedMillis: Long = 0L,
         system: MeasurementSystem = MeasurementSystem.METRIC,
-        leanAngle: Float? = null
+        leanAngle: Float? = null,
+        usageType: String? = null
     ): String {
         val speed = if (kind == EventKind.PAUSE || kind == EventKind.STOP) {
             formatSpeed(0f, system)
@@ -27,13 +28,17 @@ object KmlDescriptions {
             formatSpeed(speedMps, system)
         }
         val temp = tempCelsius?.toString() ?: "-"
-        val lines = mutableListOf(
-            "time=${formatTime(timestampMillis)}",
-            "lat=${formatCoord(latitude)}",
-            "lon=${formatCoord(longitude)}",
-            "speed=$speed",
-            "temp=$temp"
-        )
+        val lines = mutableListOf("time=${formatTime(timestampMillis)}")
+        if (
+            (kind == EventKind.START || kind == EventKind.PAUSE || kind == EventKind.STOP) &&
+            !usageType.isNullOrBlank()
+        ) {
+            lines.add("usage=$usageType")
+        }
+        lines.add("lat=${formatCoord(latitude)}")
+        lines.add("lon=${formatCoord(longitude)}")
+        lines.add("speed=$speed")
+        lines.add("temp=$temp")
         if (leanAngle != null) {
             lines.add("lean=${String.format(Locale.US, "%.1f", leanAngle)}")
         }
@@ -63,11 +68,10 @@ object KmlDescriptions {
 
     private fun formatSessionDuration(elapsedMillis: Long): String {
         val totalSeconds = (elapsedMillis / 1000).coerceAtLeast(0)
-        val totalMinutes = totalSeconds / 60
-        return if (totalMinutes < 60) {
-            "$totalMinutes min"
-        } else {
-            Units.formatDuration(elapsedMillis)
+        return when {
+            totalSeconds <= 60L -> "$totalSeconds s"
+            totalSeconds < 3600L -> "${totalSeconds / 60} min"
+            else -> Units.formatDuration(elapsedMillis)
         }
     }
 

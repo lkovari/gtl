@@ -23,6 +23,10 @@ flowchart TD
     Grav --> LiveLean["leanAngle"]
     Comp --> LiveAz["azimuthDegrees HUD only"]
 
+    LiveLoc --> Cloud["FixCloudBuffer memory"]
+    Cloud --> CloudMap["Map magenta dots + CEP95"]
+    Cloud --> CloudGps["GPS tab n RMS CEP95"]
+
     LiveLoc --> Fix["TrackFix<br/>lat lon alt speed bearing accuracy sats"]
     LiveGnss --> Fix
     Fix --> AccGate{"accuracy / sats"}
@@ -40,7 +44,7 @@ flowchart TD
     KindMove -->|"below pause speed"| KindPause["PAUSE"]
     KindMove -->|"moving"| KindGo["MOVE"]
 
-    KindStart --> Row["GpsEventEntity<br/>+ live temp, accel, lean"]
+    KindStart --> Row["GpsEventEntity<br/>+ live temp, accel, lean, usageType"]
     KindPause --> Row
     KindGo --> Row
 
@@ -87,11 +91,13 @@ A remaining fix is stored only if:
 1. `accuracy` ≤ settings minimum accuracy (m) and `satellitesInFix` ≥ settings minimum (default 4) — already checked before Kalman.
 2. It is the first point of the session, **or**
    - **Smart density:** haversine distance from the last **stored** point is at least `SpeedAdaptiveSpacing` (speed bands; half spacing if heading change &gt; 15°; runner SMART uses half of that band).
-   - **Every good fix:** elapsed time ≥ `minTimeMillis` **or** heading curve, and distance ≥ 1 m (vehicles) or 0.5 m (runner). If GPS bearing is 0, heading can come from consecutive positions.
+   - **Every good fix:** elapsed time ≥ `minTimeMillis` **or** heading curve, and distance ≥ 1 m (vehicles) or 0.5 m (runner and bicycle). If GPS bearing is 0, heading can come from consecutive positions.
 
 Optional **KalmanTrackFilter** (constant-velocity, position-only) runs after the accuracy/sat gate and before spacing. Output lat/lon is the filter state; timestamp, altitude, accuracy, and sats stay with the GPS fix. Speed and bearing come from filter velocity when that speed is at least 0.3 m/s. Measurement σ = max(GPS accuracy, 2 m). Pedestrian usages add extra position process noise so a 5 m loop is not pulled onto the street. Stationary lock holds the stored point when slower than the usage pause speed. Jump (innovation larger than `max(50 m, 8 × accuracy)`) re-initializes; it does not interpolate across a gap.
 
 Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
+
+**Show fix cloud** (off by default) samples that same raw `lastLocation` into an in-memory `FixCloudBuffer` (max 120 points or 120 s). It is not `gps_events`, not Kalman, and not Douglas–Peucker. Map pastel magenta dots and GPS-tab n / RMS / CEP95 read only this buffer. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud.
 
 ## `eventKind`
 
@@ -99,7 +105,7 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 |---|---|
 | `START` | First accepted fix (or resume with no prior point). |
 | `MOVE` | Accepted and speed ≥ usage pause threshold. |
-| `PAUSE` | Accepted and speed below pause threshold (default 0.4 m/s; 0.25 m/s for runner). |
+| `PAUSE` | Accepted and speed below pause threshold (default 0.4 m/s; 0.25 m/s for runner and bicycle). |
 | `STOP` | User Stop; last location written even if the gate would drop it. |
 
 `isPlacemark` is true for START / PAUSE / STOP (KMZ play / pause / stop icons).
@@ -109,8 +115,8 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 `GtlViewModel` observes `gps_events` for the live session, a Saved-tracks selection, or the last session if **Show last logged route on map** is on. The Map polyline **is** those Room coordinates. There is no in-memory sketch, so what you see on Map is the log that was stored (optionally thinned by Douglas–Peucker for drawing only).
 
 - **Route** totals from `TrackStatsCalculator` while logging (raw Room samples).
-- **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`).
-- **Share** builds KMZ (`gx:Track` + balloons) from the same Room rows. KMZ is never simplified. STOP balloon duration, average speed, and max speed come from `TrackStatsCalculator` over the session events, not from the STOP row’s `speed`.
+- **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`). The Map broom (idle, saved track shown) sets `mapCleared` so the line hides without deleting the log; Start or Show on map draws again. Logging always draws.
+- **Share** builds KMZ (`gx:Track` + balloons) from the same Room rows. KMZ is never simplified. START / PAUSE / STOP balloons include `usage=` from the event (or the session if older rows). STOP balloon duration, average speed, and max speed come from `TrackStatsCalculator` over the session events, not from the STOP row’s `speed`.
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
@@ -118,12 +124,13 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
 | Layer | Job |
 |---|---|
-| GNSS chip vs fused | Runner default uses `GPS_PROVIDER` so a street-scale loop is not flattened by fused Wi-Fi/cell. Vehicles stay fused. |
+| GNSS chip vs fused | Runner and bicycle default uses `GPS_PROVIDER` so a street-scale loop is not flattened by fused Wi-Fi/cell. Vehicles stay fused. |
 | Accuracy / sats | Poor fixes never enter Kalman or Room. |
-| Kalman (optional) | Moves stored lat/lon; vehicles on, runner off. HUD purple circle stays on the raw fix. |
-| Density | Smart (speed bands) or Every good (~500 ms, 0.5 m floor for runner). |
+| Kalman (optional) | Moves stored lat/lon; vehicles on, runner and bicycle off. HUD pale purple circle stays on the raw fix. |
+| Fix cloud | Memory-only raw dots + CEP95 while standing. Not Room. Turning it on enables the accuracy marker. |
+| Density | Smart (speed bands) or Every good (~500 ms, 0.5 m floor for runner and bicycle). |
 | Room | Single source for Map, Route, KMZ. |
-| Douglas–Peucker | Display-only. Runner default is off, so every stored vertex is drawn. |
+| Douglas–Peucker | Display-only. Runner and bicycle default is off, so every stored vertex is drawn. |
 
 Full prose: [README-en.md — How logging works](../README-en.md#how-logging-works).
 
@@ -131,7 +138,7 @@ Full prose: [README-en.md — How logging works](../README-en.md#how-logging-wor
 
 **Purpose.** Fewer vertices on the Map tab so a long track stays cheap to draw. SQLite, Route stats, and KMZ keep every stored point.
 
-**When.** Settings **Simplify track on map** (on by default for vehicles, off for runner) and more than 4 points. Tolerance is a **1–20 m** slider (1 m steps), chosen by usage (motorbike 6 m, car 8 m, aircraft 15 m, runner 2 m if turned on). Hidden when the switch is off; the stored value is kept. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. Kalman, not Douglas–Peucker, is the noise filter.
+**When.** Settings **Simplify track on map** (on by default for vehicles, off for runner and bicycle) and more than 4 points. Tolerance is a **1–20 m** slider (1 m steps), chosen by usage (motorbike 6 m, car 8 m, aircraft 15 m, bicycle 3 m and runner 2 m if turned on). **Show on map** copies the session usage into Settings first, then the drawn line follows the current Settings sliders. Hidden when the switch is off; the stored value is kept. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. Kalman, not Douglas–Peucker, is the noise filter.
 
 **How.** Keep the segment’s first and last points. Find the intermediate point with the largest perpendicular distance (metres, local `111_320` m/deg projection) to the chord between them. If that distance is above the tolerance, keep the point and recurse on both sides; otherwise drop every intermediate point.
 

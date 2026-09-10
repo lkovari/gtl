@@ -21,7 +21,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - **Indít / Leállít** a munkamenetet látható előtér-szolgáltatásként rögzíti, értesítéssel.
 - A fixek csak akkor tárolódnak, ha átmennek a pontossági és műholdszám-kapun. Opcionális **Kalman**-simítás utána elmozdítja a pontot. Az **Okos** vagy **Minden jó fix** sűrűség dönti el, hogy beíródik-e (lásd Beállítások). Futónál az alap: **Csak GNSS** (műholdchip, nem fused hely) simítás nélkül, hogy a kis úttest-alakzatok megmaradjanak a tracklogban. Teljes lánc: [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - Eseménytípusok: `START`, `MOVE`, `PAUSE` (a usage pauza-sebesség alatt), `STOP`.
-- Használati módok: repülő, hajó, autó, motor (alap), futó. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A futó lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
+- Használati módok: repülő, hajó, autó, motor (alap), kerékpár, futó. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A futó és a kerékpár lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
 - Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), gyorsulásmérő-minták és dőlésszög (gravitáció, tankra szerelve) minden letárolt ponton.
 
 
@@ -31,6 +31,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - Élő műholdszámok: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC.
 - SNR minőség (kiváló / jó / közepes / gyenge / nincs jel).
 - Szélesség, hosszúság, pontosság, forrás, magasság, környezeti hőmérséklet, naplózási állapot.
+- Ha a **Pontfelhő** be van: n, RMS, CEP95, medián jelentett pontosság, plusz álló / mozgás / várakozás felirat (ugyanaz a memóriabeli ablak, mint a térkép pöttyei; a CEP95-höz 8 minta kell).
 
 
 
@@ -45,6 +46,8 @@ Az Indítás utáni összesítők: eltelt idő, út, mozgás ideje, várakozás 
 - **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
 - **OSM Mapsforge**, ha letöltöttél egy régiót, és bekapcsoltad a **Letöltött OSM térkép használata** kapcsolót. Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
+- Kis piros sziluett a helyeden (repülő, hajó, autó, motor, kerékpár, futó — ugyanaz, mint a Beállításokban). Álló portrén vízszintesen marad. Az északjelző mindig a térképen van.
+- Ha mentett track látszik és nincs naplózás, a bal felső seprő leveszi a vonalat a térképről, a logot nem törli. Indítás vagy Mentett útvonalak → Térképen újra kirajzol.
 - Douglas–Peucker egyszerűsítés a kirajzolt vonalon, ha az **Útvonal egyszerűsítése a térképen** be van (lásd lent). Az SQLite, az Útvonal összesítők és a KMZ soha nem egyszerűsödik.
 
 
@@ -56,7 +59,7 @@ Mágneses irány és élő tárcsa a forgásérzékelőből. Indítás nélkül 
 ### Mentett útvonalak
 
 - Munkamenetek listája dátummal, használattal, mértékegységgel.
-- **Térképen** a Térkép fület nyitja azon a munkameneten (Google Maps vagy OSM).
+- **Térképen** a Térkép fület nyitja azon a munkameneten (Google Maps vagy OSM), a sessionben tárolt használati módot beírja a Beállításokba, és azzal rajzolja. Utána a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot. A következő Indít a kiválasztott Beállításokat követi. A seprő leveszi a vonalat, a munkamenetet nem törli.
 - Törlés.
 - Jelölőnégyzetek, **Összes kijelölése**, **Kijelöltek megosztása**:
   - egy munkamenet → egy KMZ, neve `GTL_yyyyMMdd_HHmmss.kmz`
@@ -69,9 +72,9 @@ Mágneses irány és élő tárcsa a forgásérzékelőből. Indítás nélkül 
 - Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0).
 - Minden letárolt GPS-pont egy `gx:Track`-en van (`when`, lon/lat/alt, speed).
 - START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva):
-  - Mindhárom: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`, és `lean=` ha volt dőlésszög.
+  - Mindhárom: `time=` (UTC), `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle vagy Runner), `lat=`, `lon=`, `speed=`, `temp=`, és `lean=` ha volt dőlésszög.
   - Pause és stop `speed=0`-t kényszerít.
-  - Stop-nál még: `Duration:` (egész perc 60 perc alatt, különben `HH:MM:SS`), `Avg. speed:` és `Max. speed:` egész számként a `TrackStatsCalculator`-ból (metrikus `km/h`, angolszász `mile/h`, ICAO `kt`).
+  - Stop-nál még: `Duration:` (`20 s`, ha 60 másodperc vagy kevesebb, egész perc 60 perc alatt, különben `HH:MM:SS`), `Avg. speed:` és `Max. speed:` egész számként a `TrackStatsCalculator`-ból (metrikus `km/h`, angolszász `mile/h`, ICAO `kt`).
 - MIME `application/vnd.google-earth.kmz`. Nyisd meg Google Earth-tel (ha kell, telepítsd a Play Áruházból).
 - A súgó **KMZ/KML megtekintése** felsorolja ezeket a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
 
@@ -85,6 +88,7 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 | Használat        | Mértékegység | Csak GNSS | Rögzített útvonal simítása | Erősség | Álláskor ne vándoroljon | Sűrűség    | Egyszerűsítés a térképen | Tűrés |
 | ---------------- | ------------ | --------- | -------------------------- | ------- | ----------------------- | ---------- | ------------------------ | ----- |
 | Futó             | Metrikus     | be        | ki                         | Alacsony | be                      | Minden jó  | ki                       | 2 m   |
+| Kerékpár         | Metrikus     | be        | ki                         | Alacsony | be                      | Minden jó  | ki                       | 3 m   |
 | Motor (alap)     | Metrikus     | ki        | be                         | Közepes | be                      | Okos       | be                       | 6 m   |
 | Autó             | Metrikus     | ki        | be                         | Közepes | be                      | Okos       | be                       | 8 m   |
 | Hajó             | ICAO         | ki        | be                         | Közepes | be                      | Okos       | be                       | 8 m   |
@@ -93,14 +97,15 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 
 **Mit csinál az egyes vezérlő**
 
-- **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (futó 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
+- **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (futó és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
 - **Mértékegység** — metrikus, angolszász vagy ICAO az Útvonalon (km/h és méter; mph és láb/mérföld; csomó, tengeri mérföld és láb). A letárolt koordinátákat nem mozgatja.
 - **Letöltött OSM térkép használata** — Mapsforge fájl a Google Maps helyett.
 - **Útvonal egyszerűsítése a térképen** — kevesebb csúcs csak a Térképen. A kapcsoló bekapcsolva **1–20 m** csúszka (1 m-es lépés). A KMZ és az odométer minden letárolt pontot megtart.
-- **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad.
+- **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad. A seprő leveszi a kirajzolt mentett tracket, a logot nem törli.
 - **Teljes útvonal a képernyőn** — naplózáskor minden GPS-frissítés a teljes nyomvonalat a képernyőre illeszti. A nagyítás és mozgatás a következő fixig megengedett.
-- **Pontossági jelzés megjelenítése** — lila kör; a sugár a GPS pontossága. A HUD a nyers helyen marad (chip vagy fused).
-- **Csak GNSS** — műholdchip-pozíciók fused hely helyett. Futónál be; járműveknél ki.
+- **Pontossági jelzés megjelenítése** — világos lila kör; a sugár a GPS pontossága. A HUD a nyers helyen marad (chip vagy fused).
+- **Pontfelhő** — pasztell magenta pöttyök a nyers GPS-fixekből, amíg állsz, plusz magenta CEP95-kör a felhő centroidján. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem íródik a naplóba és a KMZ-be.
+- **Csak GNSS** — műholdchip-pozíciók fused hely helyett. Futónál és kerékpárnál be; járműveknél ki.
 - **Rögzített útvonal simítása**, **Simítás erőssége**, **Álláskor ne vándoroljon a pont**, **Rögzítés sűrűsége** — ezek azt változtatják, ami **a tracklogba íródik**. Részletek lent.
 
 A meglévő telepítések, amelyeknél még a régi **19,5 m** egyszerűsítési alap van, a usage táblára migrálnak, amikor a Kalman-kulcsok először íródnak. A 19,5-től eltérő egyedi tűrés megmarad.
@@ -124,7 +129,7 @@ Két Gradle-modul:
 
 | Modul     | Szerep                                                                                                                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Tiszta JVM: GNSS-osztályozás, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, térkép-láthatósági szabályok. A JUnit tesztek itt vannak. |
+| `:engine` | Tiszta JVM: GNSS-osztályozás, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, térkép-láthatósági szabályok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
 | `:app`    | Android: Compose UI, Room, DataStore, hely/GNSS/szenzorok, előtér-szolgáltatás, Google Maps, Mapsforge, WorkManager OSM-letöltés, FileProvider megosztás.                            |
 
 
@@ -139,7 +144,7 @@ docs/    Adatvédelmi tájékoztató, Play-anyagok, renewal jegyzetek
 ### Adatok
 
 - **Room:** `track_sessions` + `gps_events` (kaszkád törlés). A Map polyline mindig a Room-ból olvasódik, nem memóriabeli vázlatból. Ezért a látott vonal az a log, amit eltároltál.
-- **DataStore:** nyilatkozat, használat, mértékegység, szűrők, OSM-fájlútvonal, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés.
+- **DataStore:** nyilatkozat, használat, mértékegység, szűrők, OSM-fájlútvonal, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
 - **Fájlok:** OSM `.map` letöltések; KMZ a `files/gtltracklogs/` alatt (FileProvider).
 - **RemoteTrackSync:** no-op csonk egy későbbi backendhez. Nincs élő helyfeltöltés.
 
@@ -153,7 +158,8 @@ A Térképen a piros vonal a letárolt tracklog, nem egy második vázlat. A `Gt
 Indít
   → előtér-szolgáltatás (látható helymeghatározási értesítés)
   → helyfrissítések (GNSS chip vagy fused)
-  → a HUD mindig a nyers fixet kapja (lila pontossági kör)
+  → a HUD mindig a nyers fixet kapja (világos lila pontossági kör)
+  → opcionális Pontfelhő (csak memória: pasztell magenta pöttyök + CEP95 állva)
   → rossz pontosság / túl kevés műhold eldobása
   → opcionális Kalman (mozgatja a lat/lon-t; nem dobja el a pontot)
   → sűrűségkapu (Okos / Minden jó / keverék) — ez ír vagy kihagy
@@ -167,9 +173,9 @@ Leállít
 
 **Forrás.** **Csak GNSS** be → Android `GPS_PROVIDER` (a műholdchip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — a szolgáltató neve történeti). Ki → Play Services fused `PRIORITY_HIGH_ACCURACY` (műholdak Wi-Fi-vel, cellával és IMU-val keverve). Ha a GPS-szolgáltató ki van kapcsolva, fused megy mindkét esetben. Futónál az alap a csak GNSS, hogy egy 5–10 m-es úttest-hurkot ne lapítson el a telefon „hol van a felhasználó?” szűrője, mielőtt a GTL egyáltalán látná.
 
-**HUD vs letárolt track.** Minden frissítés a **nyers** `Location`-t másolja a `lastLocation`-be. A lila pontossági kör, az élő szélesség/hosszúság, a forrás és a pontosság ez a nyers fix. A piros polyline az, ami **a Roomba bekerült** (Kalman-simítva, ha az a kapcsoló be van). Szándékosan lehetnek pár méterre egymástól.
+**HUD vs letárolt track.** Minden frissítés a **nyers** `Location`-t másolja a `lastLocation`-be. A világos lila pontossági kör, az élő szélesség/hosszúság, a forrás és a pontosság ez a nyers fix. A **Pontfelhő** ugyanezt a `lastLocation`-t mintavételezi egy memóriabeli ablakba (centroid RMS / CEP95), és nem ír SQLite-ot. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. A piros polyline az, ami **a Roomba bekerült** (Kalman-simítva, ha az a kapcsoló be van). Szándékosan lehetnek pár méterre egymástól.
 
-**1. kapu — pontosság és műholdak.** A usage pontosságánál rosszabb (30 m, futónál 45 m) vagy 4-nél kevesebb műholdas fix eldobódik. Nem megy Kalmanba, és nem lesz sor. A HUD ettől még frissül.
+**1. kapu — pontosság és műholdak.** A usage pontosságánál rosszabb (30 m, futónál és kerékpárnál 45 m) vagy 4-nél kevesebb műholdas fix eldobódik. Nem megy Kalmanba, és nem lesz sor. A HUD ettől még frissül.
 
 **2. kapu — opcionális Kalman.** Ha a **Rögzített útvonal simítása** be van, a `KalmanTrackFilter.observe` minden pontosságon átment fixen lefut (egy szűrőpéldány Indít→Leállít munkamenetenként; folytatásnál az utolsó letárolt pontból magoz). Új lat/lon-t ad. Az időbélyeg, magasság, pontosság és műholdszám a GPS-fixé marad. A sebesség és az irányszög a szűrő sebességéből jön, ha az legalább 0,3 m/s; különben a GPS-fixé (vagy az utolsó irányszög). A Kalman **mozgatja** a pontokat, és **ugyanannyi jelöltet tart**. Nem map-matching, és nem dob el csúcsokat. Járműveknél ez az alap, hogy a körforgalom kerek legyen, a cruise tiszta vonal. Futónál **ki**, hogy egy kis nyolcas ne számítson mérési zajnak.
 
@@ -177,7 +183,7 @@ Leállít
 
 - A munkamenet első fixe → mindig `START`-ként tárolódik.
 - **Okos** (járművek): ír, ha a haversine-távolság az utolsó **eltárolt** ponttól eléri a 2014-es sebességsávot; kanyarban annak a fele (irányszög-változás > 15°). Futó Okos ezt a sávot újra felezi (min. 1 m).
-- **Minden jó** (futó alap): ír, ha eltelt a `minTimeMillis` (500 ms) **vagy** az irányszög kanyarban van, és a távolság legalább **1 m** (jármű) vagy **0,5 m** (futó).
+- **Minden jó** (futó alap): ír, ha eltelt a `minTimeMillis` (500 ms) **vagy** az irányszög kanyarban van, és a távolság legalább **1 m** (jármű) vagy **0,5 m** (futó és kerékpár).
 - A csúszka köztes állásai az Okos térközt keverik a Minden-jó padlóval; a min-idő / kanyar út akkor is elfogadhat egy pontot.
 - Ha a GPS `bearing` 0 (kocogáskor gyakori), a kanyardetekció a szomszédos pozíciókból számolt irányszöget is használhatja.
 
@@ -185,14 +191,14 @@ Leállít
 
 **Leállítás.** Mindig ír egy `STOP` placemarkot (`isPlacemark` true), még ha a sűrűség eldobná is a pontot. Simítás bekapcsolva az a sor az utolsó Kalman-kimenetet használja, hogy a track vége a simított vonallal egyezzen.
 
-**Térképrajzolás.** A `GtlViewModel` a Room-sorokat `displayPoints`-re képezi. A `MapTrackVisibility` akkor mutatja a vonalat, ha naplózás megy, ha az **Utolsó naplózott útvonal a térképen** be van, vagy ha Mentett útvonalak-munkamenet van kiválasztva. Ha az **Útvonal egyszerűsítése a térképen** be van, és több mint 4 pont van, a Douglas–Peucker **csak ezeket a megjelenítési csúcsokat** ritkítja az 1–20 m csúszkán. Az SQLite, az Útvonal-odométer és a KMZ soha nem megy DP-n. Egyszerűsítés **ki** (futó alap) esetén minden letárolt csúcs a térképen van — ezért marad látható egy kis úttest-hurok.
+**Térképrajzolás.** A `GtlViewModel` a Room-sorokat `displayPoints`-re képezi. A `MapTrackVisibility` akkor mutatja a vonalat, ha naplózás megy, ha az **Utolsó naplózott útvonal a térképen** be van, vagy ha Mentett útvonalak-munkamenet van kiválasztva — hacsak a seprő `mapCleared`-et nem állított (csak idle; naplózáskor akkor is rajzol). Ha az **Útvonal egyszerűsítése a térképen** be van, és több mint 4 pont van, a Douglas–Peucker **csak ezeket a megjelenítési csúcsokat** ritkítja az 1–20 m csúszkán. Az SQLite, az Útvonal-odométer és a KMZ soha nem megy DP-n. Egyszerűsítés **ki** (futó és kerékpár alap) esetén minden letárolt csúcs a térképen van — ezért marad látható egy kis úttest-hurok.
 
 **Miért néz ki a térkép a logodnak**
 
 
 | Réteg                | Mit csinál                    | Hatás a térképen                                                                              |
 | -------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- |
-| GNSS chip vs fused   | Ki válaszol a „hol vagyok?”-ra | Futó: chip-track, utcai léptékű alak megmarad. Járművek: fused, kevesebb Wi-Fi/cella-ugrás.    |
+| GNSS chip vs fused   | Ki válaszol a „hol vagyok?”-ra | Futó és kerékpár: chip-track, utcai léptékű alak megmarad. Járművek: fused, kevesebb Wi-Fi/cella-ugrás.    |
 | Pontosság / műhold   | Szemét eldobása Kalman előtt  | Nincs 200 m-es teleport-tüske a vonalon.                                                      |
 | Kalman (opcionális)  | Pontok mozgatása, darabszám megmarad | Jármű-körforgalom és cruise sima; álló zár megállítja a 10 m-es firkát.                  |
 | Sűrűség              | Hány pont tárolódik           | Okos: autópályán kevesebb pont. Minden jó: ~2 Hz, szűk hurkok megtartják a csúcsokat.         |
@@ -227,8 +233,8 @@ A pontossági és műhold kapuk továbbra is eldobják a rossz fixeket. Ez **nem
 
 **Hol ül a láncban.** Egy `KalmanTrackFilter` Indít→Leállít munkamenetenként, a `:engine`-ben. A `TrackingForegroundService` minden helyfrissítésre ezt csinálja:
 
-1. A fixet a HUD-ra másolja (`lastLocation`). A lila pontossági kör mindig ezt a **nyers** pontot követi.
-2. Eldobja a fixet, ha a pontosság a usage kapunál rosszabb (30 m, futónál 45 m), vagy a fixben lévő műholdak száma 4 alatt van. Az elutasított fixek nem jutnak Kalmanba és SQLite-ba.
+1. A fixet a HUD-ra másolja (`lastLocation`). A világos lila pontossági kör mindig ezt a **nyers** pontot követi.
+2. Eldobja a fixet, ha a pontosság a usage kapunál rosszabb (30 m, futónál és kerékpárnál 45 m), vagy a fixben lévő műholdak száma 4 alatt van. Az elutasított fixek nem jutnak Kalmanba és SQLite-ba.
 3. Ha a **Rögzített útvonal simítása** be van, lefut a `KalmanTrackFilter.observe`. A szűrő új lat/lon-t ad. Az időbélyeg, magasság, pontosság és műholdszám a GPS-fixé marad. A sebesség és az irányszög a szűrő sebességéből jön, ha az legalább 0,3 m/s. Futó/gyalogos extra helyzet-folyamat-zajt kap, hogy egy 5 m-es hurok ne húzódjon a húrra.
 4. A **Rögzítés sűrűsége** (`FixAcceptance`) dönti el, hogy ezt az (esetleg simított) pontot **beírja-e**. Ha a hézag túl kicsi, a Kalman-állapot ettől még frissül, de a Room nem kap sort.
 5. Leállításkor az utolsó Kalman-kimenet a STOP pont, ha a simítás be van.
@@ -243,7 +249,7 @@ Tehát a Kalman azt változtatja, **hol** ülnek a letárolt pontok. A sűrűsé
 4. **Ugrás** — ha az innováció nagyobb, mint `max(50 m, 8 × pontosság)` (alagút-kijárat, GPS-teleport), újrainicializál az új fixre. A hézagot **nem** interpolálja.
 5. **Álló zár** (ha be van) — ha a GPS-sebesség vagy a prediktált sebesség a usage pauza-küszöb alatt van (0,25 m/s futó, 0,4 m/s járművek), és az elmozdulás 1,5 m alatt, befagyasztja az utolsó kimenetet, nullázza a sebességet, zsugorítja a helyzet-kovarianciát.
 
-Alap `q` a csúszka közepén (régi Közepes): futó 8,0, motor 2,5, autó/hajó 1,5, repülő 0,8. Fordulási boost: futó 10, motor 5, autó/víz 3, repülő 2. Erősségcsúszka `t` a `[0, 1]`-ben (Alacsony→Magas) a `q`-t `4^(1 − 2t)`-vel szorozza: Alacsony ×4, közép ×1, Magas ×0,25.
+Alap `q` a csúszka közepén (régi Közepes): futó 8,0, kerékpár 6,0, motor 2,5, autó/hajó 1,5, repülő 0,8. Fordulási boost: futó 10, kerékpár 8, motor 5, autó/víz 3, repülő 2. Erősségcsúszka `t` a `[0, 1]`-ben (Alacsony→Magas) a `q`-t `4^(1 − 2t)`-vel szorozza: Alacsony ×4, közép ×1, Magas ×0,25.
 
 **Szándékosan nincs implementálva.** OSM/Google utcára pattintás, RTS előre–hátra simító, IMU holtpontszámítás / Suunto FusedTrack hézagkitöltés, megjelenítési spline-ok.
 
@@ -260,20 +266,21 @@ Ezek a vezérlők változtatják a SQLite `gps_events` táblát, az Útvonal odo
 | **Álláskor ne vándoroljon a pont**                                     | Igen (csak ha a simítás be van) | Pauza-sebesség alatt a letárolt koordináta nem kóborol. Egy 6 m-es GPS-csoport pirosnál egy pont felé omlik. Magában nem dob el sorokat — a sűrűség dönti el az írást.                                                                                                                                                                                                                                |
 | **Rögzítés sűrűsége** (Okos–Minden jó csúszka)                         | Igen                            | **Okos:** ír, ha a távolság az utolsó **eltárolt** ponttól eléri a 2014-es sebességsávot (kanyarban fele; futó Okos újra fele, min. 1 m). Autópályán kevesebb pont; gyalogláskor több. **Minden jó:** ír kb. `minTime`-onként (500 ms), vagy kanyarban hamarabb. Járműveknél az **1 m**-nél közelebbi halmok hullanak; futónál **0,5 m**. A csúszka közepe a két szabályt keveri.                    |
 | **Útvonal egyszerűsítése a térképen** (1–20 m csúszka)                 | **Nem**                         | Kevesebb csúcs csak a Térkép fülön. A letárolt pontok, az odométer és a KMZ változatlan.                                                                                                                                                                                                                                                                                                             |
-| **Pontossági jelzés megjelenítése**                                    | **Nem**                         | Lila kör a **nyers** GPS-fixen, akkor is, ha a Kalman be van.                                                                                                                                                                                                                                                                                                                                        |
+| **Pontossági jelzés megjelenítése**                                    | **Nem**                         | Világos lila kör a **nyers** GPS-fixen, akkor is, ha a Kalman be van.                                                                                                                                                                                                                                                                                                                                     |
+| **Pontfelhő**                                                          | **Nem**                         | Pasztell magenta pöttyök a nyers HUD-fixekből állva, CEP95 a centroid körül. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem tárolódik.                                                                                                                                                                          |
 | **Mértékegység**                                                       | Csak címkék                     | Metrikus / angolszász / ICAO formázza az Útvonalat és a KMZ balloonokat. A koordináták WGS-84 maradnak. A repülő és hajó előbeállítás ICAO-t választ.                                                                                                                                                                                                                                                |
-| Pontossági / műhold kapuk                                              | Igen (elutasítás)               | A 30 m-nél (futónál 45 m) rosszabb, vagy 4-nél kevesebb műholdas fix Kalman előtt eldobódik. Nincs Settings-csúszkaként megjelenítve.                                                                                                                                                                                                                                                                |
+| Pontossági / műhold kapuk                                              | Igen (elutasítás)               | A 30 m-nél (futónál és kerékpárnál 45 m) rosszabb, vagy 4-nél kevesebb műholdas fix Kalman előtt eldobódik. Nincs Settings-csúszkaként megjelenítve.                                                                                                                                                                                                                                                                |
 
 
-**Gyakorlati eredmény.** Motor alap: fused + simított utcai track, Okos térköz, térképvonal 6 m-en ritkítva. Futó alap: GNSS chip, nincs Kalman, majdnem minden jó fix tárolódik (0,5 m padló), a Térkép minden letárolt csúcsot mutat, hogy a kis úttest-hurok látható maradjon. Repülő alap: erősebb simítás, Okos térköz, 15 m térkép-ritkítás, sebesség/távolság csomóban és tengeri mérföldben.
+**Gyakorlati eredmény.** Motor alap: fused + simított utcai track, Okos térköz, térképvonal 6 m-en ritkítva. Futó és kerékpár alap: GNSS chip, nincs Kalman, majdnem minden jó fix tárolódik (0,5 m padló), a Térkép minden letárolt csúcsot mutat, hogy a kis úttest-hurok látható maradjon. Repülő alap: erősebb simítás, Okos térköz, 15 m térkép-ritkítás, sebesség/távolság csomóban és tengeri mérföldben.
 
 ### Rögzítés sűrűsége
 
 Független a Kalmantól. A Kalman simítás bekapcsolva minden pontosságon átment fixet lát; a sűrűség csak a **tárolást** kapuzza.
 
 - **Okos** (járművek): pontot ír, ha a haversine-távolság az utolsó **eltárolt** fixtől eléri a 2014-es sebességsávot; kanyarban annak a fele. Futó Okos ezt a sávot újra felezi (a gyaloglás/kocogás túl durva volt egy kis nyolcashoz).
-- **Minden jó** (futó alap): elfogad, ha eltelt a `minTimeMillis`, vagy az irányszög kanyarban van. Járműveknél az 1 m-nél közelebbi halmok hullanak; futónál 0,5 m.
-- **A csúszka közepe:** a szükséges távolság az Okos sáv és a Minden-jó padló keveréke (1 m jármű, 0,5 m futó); a min-idő / kanyar út is elfogadhat egy pontot.
+- **Minden jó** (futó és kerékpár alap): elfogad, ha eltelt a `minTimeMillis`, vagy az irányszög kanyarban van. Járműveknél az 1 m-nél közelebbi halmok hullanak; futónál és kerékpárnál 0,5 m.
+- **A csúszka közepe:** a szükséges távolság az Okos sáv és a Minden-jó padló keveréke (1 m jármű, 0,5 m futó és kerékpár); a min-idő / kanyar út is elfogadhat egy pontot.
 
 
 
@@ -283,7 +290,7 @@ Független a Kalmantól. A Kalman simítás bekapcsolva minden pontosságon átm
 
 Ez **csak megjelenítés**. A `gps_events`, az Útvonal odométer / sebességek és a KMZ export mindig a Room-sorokat használja (már Kalman-simítva, ha az a beállítás be van). A Douglas–Peucker nem simítja a GPS-zajt: a megmaradó sarkok élesek maradnak. Csak azokat a pontokat dobja el, amelyek elég közel vannak egy húrhoz.
 
-**Mikor fut.** Beállítások → **Útvonal egyszerűsítése a térképen** (`optimizationActive`; járműveknél be, futónál ki). A `GtlViewModel` a `DouglasPeucker.simplify(points, clampTolerance(optimizationTolerance))` hívást akkor teszi, ha a kapcsoló be van, és `points.size > 4`. A tűrés **1–20 m** csúszka (1 m-es lépés; motor alap 6 m, autó 8 m). A `DouglasPeucker.clampTolerance` íráskor továbbra is pattint és szorít.
+**Mikor fut.** Beállítások → **Útvonal egyszerűsítése a térképen** (`optimizationActive`; járműveknél be, futónál és kerékpárnál ki). Naplózáskor a `GtlViewModel` ezt a kapcsolót használja. A **Térképen** először a session usage-ét írja a Beállításokba, utána a kirajzolt vonal a jelenlegi csúszkákat követi, ezért a usage váltása más módban mutatja ugyanazt a logot. A tűrés **1–20 m** csúszka (1 m-es lépés; motor alap 6 m, autó 8 m). A `DouglasPeucker.clampTolerance` íráskor továbbra is pattint és szorít.
 
 **Hogyan működik.** Klasszikus Ramer–Douglas–Peucker, távolságok méterben helyi érintősíkon (`111_320` m szélességi fokonként; a hosszúság `cos(lat)`-tal skálázva):
 
@@ -340,9 +347,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 | Dokumentum                                                                     | Mi ez                                                                                                               |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| [CHANGELOGS.md](CHANGELOGS.md)                                                 | Verzióelőzmény (2.0.0 újraírás → 2.0.4)                                                                            |
-| [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md)                   | 2.0.4 kiadási jegyzetek (angol és magyar)                                                                          |
-| [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md)                   | 2.0.3 kiadási jegyzetek (angol és magyar)                                                                          |
+| [CHANGELOGS.md](CHANGELOGS.md)                                                 | Kanonikus verzióelőzmény (2.0.0 újraírás → Unreleased, angol és magyar)                                            |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console kiadásnév és EN/HU what’s-new szöveg                                                                   |
 | [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md)                               | Újraírási jelentés: mi készült újra, mi esett ki Play-szabály miatt, follow-up-ok                                  |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Adatvédelmi tájékoztató (az élő KLHome-oldal helyi másolata)                                                        |
@@ -364,7 +369,9 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../TrackStats.kt` — odométer, mozgás vs várakozás
 - `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ helyi ikonokkal
 - `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR
-- `engine/.../MapTrackVisibility.kt` — mikor kell a térképnek tracket rajzolnia
+- `engine/.../FixCloud.kt` — memóriabeli állóhelyi pontfelhő / CEP95
+- `engine/.../MapDisplayUsage.kt` — melyik usage és egyszerűsítés szerint rajzol a térkép
+- `engine/.../MapTrackVisibility.kt` — mikor kell a térképnek tracket rajzolnia (naplózáskor mindig; különben last-track vagy kijelölt session, hacsak nem ürítették)
 - `app/.../LocationClient.kt` — fused HIGH_ACCURACY vagy `GPS_PROVIDER`, ha a Csak GNSS be van
 
 ---

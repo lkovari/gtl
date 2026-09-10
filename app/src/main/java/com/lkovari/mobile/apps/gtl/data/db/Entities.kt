@@ -42,6 +42,7 @@ data class GpsEventEntity(
     val accelY: Float?,
     val accelZ: Float?,
     val leanAngle: Float?,
+    val usageType: String? = null,
     val isPlacemark: Boolean,
     val eventKind: String
 )

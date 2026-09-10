@@ -63,8 +63,10 @@ class TrackingForegroundService : LifecycleService() {
         }
         locationJob = lifecycleScope.launch {
             val settings = app.preferences.settings.first()
-            val sessionId = app.trackRepository.openSession()?.id
+            val existing = app.trackRepository.openSession()
+            val sessionId = existing?.id
                 ?: app.trackRepository.startSession(settings.usageType, settings.measurementSystem)
+            val usageTypeName = existing?.usageType ?: settings.usageType.name
             app.trackingState.update {
                 it.copy(logging = true, sessionId = sessionId, temperatureAvailable = app.ambientTemperatureSource.isAvailable)
             }
@@ -89,7 +91,7 @@ class TrackingForegroundService : LifecycleService() {
                 lastFiltered = accepted
             }
             lastKind = if (lastAccepted == null) EventKind.START else EventKind.MOVE
-            launch { collectLocation(app, sessionId, settings) }
+            launch { collectLocation(app, sessionId, settings, usageTypeName) }
             launch {
                 app.gnssStatusSource.snapshots().collectLatest { snapshot ->
                     app.trackingState.update { it.copy(gnss = snapshot) }
@@ -120,7 +122,12 @@ class TrackingForegroundService : LifecycleService() {
         }
     }
 
-    private suspend fun collectLocation(app: GtlApplication, sessionId: Long, settings: GtlSettings) {
+    private suspend fun collectLocation(
+        app: GtlApplication,
+        sessionId: Long,
+        settings: GtlSettings,
+        usageTypeName: String
+    ) {
         val client = LocationClient(this)
         client.locations(settings.minTimeMillis.coerceAtLeast(500L), 0f, settings.gnssOnly).collect { location ->
             val gnss = app.trackingState.state.value.gnss
@@ -186,6 +193,7 @@ class TrackingForegroundService : LifecycleService() {
                         accelY = live.accel?.getOrNull(1),
                         accelZ = live.accel?.getOrNull(2),
                         leanAngle = live.leanAngle,
+                        usageType = usageTypeName,
                         isPlacemark = kind != EventKind.MOVE,
                         eventKind = kind.name
                     )
@@ -206,6 +214,8 @@ class TrackingForegroundService : LifecycleService() {
                 val live = app.trackingState.state.value
                 val last = live.lastLocation
                 val filtered = lastFiltered
+                val usageTypeName = app.trackRepository.openSession()?.usageType
+                    ?: app.preferences.settings.first().usageType.name
                 if (smoothingEnabled && filtered != null) {
                     app.trackRepository.insertEvent(
                         GpsEventEntity(
@@ -223,6 +233,7 @@ class TrackingForegroundService : LifecycleService() {
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
                             leanAngle = live.leanAngle,
+                            usageType = usageTypeName,
                             isPlacemark = true,
                             eventKind = EventKind.STOP.name
                         )
@@ -244,6 +255,7 @@ class TrackingForegroundService : LifecycleService() {
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
                             leanAngle = live.leanAngle,
+                            usageType = usageTypeName,
                             isPlacemark = true,
                             eventKind = EventKind.STOP.name
                         )

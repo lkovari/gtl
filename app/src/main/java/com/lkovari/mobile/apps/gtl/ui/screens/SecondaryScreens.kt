@@ -23,13 +23,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.filled.DirectionsBoat
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Flight
-import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -46,6 +42,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,12 +53,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
@@ -69,6 +67,7 @@ import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.ui.usageIcon
 import com.lkovari.mobile.apps.gtl.ui.theme.CockpitPanel
 import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
@@ -81,7 +80,12 @@ import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SecondaryScaffold(pageTitle: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+fun SecondaryScaffold(
+    pageTitle: String,
+    onBack: () -> Unit,
+    compactTopBar: Boolean = false,
+    content: @Composable () -> Unit
+) {
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
@@ -91,11 +95,19 @@ fun SecondaryScaffold(pageTitle: String, onBack: () -> Unit, content: @Composabl
                         Text(
                             text = stringResource(R.string.brand_title),
                             color = TitleMagenta,
-                            style = MaterialTheme.typography.titleLarge
+                            style = if (compactTopBar) {
+                                MaterialTheme.typography.titleMedium
+                            } else {
+                                MaterialTheme.typography.titleLarge
+                            }
                         )
                         Text(
                             text = pageTitle,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = if (compactTopBar) {
+                                MaterialTheme.typography.labelSmall
+                            } else {
+                                MaterialTheme.typography.labelLarge
+                            },
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -135,43 +147,48 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
     LaunchedEffect(state.settings.recordingDensityValue) {
         densityValue = state.settings.recordingDensityValue
     }
-    SecondaryScaffold(stringResource(R.string.settings_title), onBack) {
+    SecondaryScaffold(stringResource(R.string.settings_title), onBack, compactTopBar = true) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 2.dp),
-            verticalArrangement = Arrangement.Top
+                .padding(horizontal = 12.dp, vertical = 0.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(stringResource(R.string.settings_usage), style = MaterialTheme.typography.titleMedium)
-            Row(
-                modifier = Modifier.fillMaxWidth().selectableGroup(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Top
-            ) {
-                UsageType.selectable.forEach { type ->
-                    val selected = state.settings.usageType == type
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .selectable(
-                                selected = selected,
-                                onClick = { viewModel.setUsage(type) },
-                                role = Role.RadioButton
-                            )
-                            .padding(vertical = 1.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            Text(stringResource(R.string.settings_usage), style = MaterialTheme.typography.titleSmall)
+            Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+                UsageType.selectable.chunked(3).forEach { rowTypes ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Icon(
-                            imageVector = usageIcon(type),
-                            contentDescription = stringResource(usageLabel(type)),
-                            modifier = Modifier.size(26.dp),
-                            tint = if (selected) TitleMagenta else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = stringResource(usageLabel(type)),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1
-                        )
+                        rowTypes.forEach { type ->
+                            val selected = state.settings.usageType == type
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .selectable(
+                                        selected = selected,
+                                        onClick = { viewModel.setUsage(type) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 0.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = usageIcon(type),
+                                    contentDescription = stringResource(usageLabel(type)),
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (selected) TitleMagenta else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = stringResource(usageLabel(type)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -180,12 +197,18 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(stringResource(R.string.settings_units), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_units), style = MaterialTheme.typography.titleSmall)
                 MeasurementSystem.entries.forEach { system ->
                     FilterChip(
                         selected = state.settings.measurementSystem == system,
                         onClick = { viewModel.setUnits(system) },
-                        label = { Text(system.name.lowercase().replaceFirstChar { it.titlecase() }) }
+                        label = {
+                            Text(
+                                system.name.lowercase().replaceFirstChar { it.titlecase() },
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        modifier = Modifier.height(24.dp)
                     )
                 }
             }
@@ -224,6 +247,9 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             SettingSwitch(stringResource(R.string.settings_show_accuracy), state.settings.showAccuracyMarker) {
                 viewModel.setShowAccuracyMarker(it)
             }
+            SettingSwitch(stringResource(R.string.settings_show_fix_cloud), state.settings.showFixCloud) {
+                viewModel.setShowFixCloud(it)
+            }
             SettingSwitch(stringResource(R.string.settings_gnss_only), state.settings.gnssOnly) {
                 viewModel.setGnssOnly(it)
             }
@@ -246,7 +272,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             }
             Text(
                 text = stringResource(R.string.settings_recording_density),
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodySmall
             )
             EndpointSlider(
                 value = densityValue,
@@ -257,6 +283,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                 startLabel = stringResource(R.string.settings_density_smart),
                 endLabel = stringResource(R.string.settings_density_every_fix)
             )
+        }
         }
     }
 }
@@ -288,7 +315,7 @@ private fun EndpointSlider(
             onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
             steps = steps,
-            modifier = Modifier.weight(1f).height(28.dp)
+            modifier = Modifier.weight(1f).height(16.dp).scale(0.85f)
         )
         Text(
             text = endLabel,
@@ -299,23 +326,13 @@ private fun EndpointSlider(
     }
 }
 
-private fun usageIcon(type: UsageType): ImageVector {
-    return when (type) {
-        UsageType.AIRCRAFT -> Icons.Filled.Flight
-        UsageType.WATERCRAFT -> Icons.Filled.DirectionsBoat
-        UsageType.FOUR_WHEELERS -> Icons.Filled.DirectionsCar
-        UsageType.TWO_WHEELERS -> Icons.Filled.TwoWheeler
-        UsageType.RUNNER -> Icons.AutoMirrored.Filled.DirectionsRun
-        UsageType.WALKING_HIKE, UsageType.PEDESTRIAN -> Icons.AutoMirrored.Filled.DirectionsRun
-    }
-}
-
 private fun usageLabel(type: UsageType): Int {
     return when (type) {
         UsageType.AIRCRAFT -> R.string.usage_aircraft
         UsageType.WATERCRAFT -> R.string.usage_watercraft
         UsageType.FOUR_WHEELERS -> R.string.usage_four_wheelers
         UsageType.TWO_WHEELERS -> R.string.usage_two_wheelers
+        UsageType.BICYCLE -> R.string.usage_bicycle
         UsageType.RUNNER, UsageType.WALKING_HIKE, UsageType.PEDESTRIAN -> R.string.usage_runner
     }
 }
@@ -350,17 +367,21 @@ private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 36.dp),
+            .heightIn(min = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
             modifier = Modifier.weight(1f).padding(end = 8.dp),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 2
         )
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onChange,
+            modifier = Modifier.scale(0.68f)
+        )
     }
 }
 

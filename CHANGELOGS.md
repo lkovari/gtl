@@ -5,13 +5,36 @@ All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning matches `versionName` **2.0.4** / `versionCode` **22** (minSdk 24, targetSdk 36).
 
-Bilingual release note for this version: [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md). Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
+Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
 
+### Added
+
+- Settings **Show fix cloud** / **Pontfelhő** (off by default): pastel magenta dots of raw HUD fixes while you stand still, plus a CEP95 circle around the cloud centroid. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Use GNSS only is independent. GPS tab shows n, RMS, CEP95, and median reported accuracy, plus a standing / moving / wait caption. Pauses while moving. Engine `FixCloudBuffer`: 120 point / 120 s window, 0.15 m duplicate floor. Not stored in SQLite or KMZ.
+- Map usage silhouette (aircraft, boat, car, motorbike, bicycle, runner) at the live position; red, upright in portrait. A north marker stays on the map. Replaces the OSM start/now dots.
+- Each `gps_events` row stores `usageType`. START / PAUSE / STOP KMZ balloons show `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle, or Runner).
+- Settings **Bicycle** usage: GNSS only on, Smooth recorded track off, Every good, map simplify off (3 m if you turn it on), 0.5 m store floor, 45 m accuracy gate — so a slow curve or plaza loop stays on the map.
+- Saved tracks **Show on map** switches Settings to that session’s stored usage and draws Google Maps and OSM with those settings. After that, changing usage or sliders redraws the same log that way. Next Start uses the Settings that are then selected.
+- Map **Clear map** broom (top left, idle with a saved track shown): takes the polyline off the map without deleting the SQLite log. Start or Show on map draws again. Logging still draws even if the map was cleared.
+
 ### Changed
 
-- KMZ STOP balloon: session duration (`Duration: 45 min` if under 60 minutes, otherwise `HH:MM:SS`), plus labeled `Avg. speed:` and `Max. speed:` as whole numbers (metric `km/h`, imperial `mile/h`, ICAO `kt`) from `TrackStatsCalculator`. Instant `speed=` on START/PAUSE/STOP is unchanged.
+- CEP95 circle is magenta; claimed-accuracy circle stays pale purple so the two rings stay distinct.
+- OSM map start/now dots use a 2 m radius instead of 8 m.
+- Settings: more space between usage type and Units.
+- Settings rows, switches, chips, and sliders are shorter so the page still fits without a vertical scrollbar when both optional sliders are visible.
+- Help (EN/HU) spells out CEP = Circular Error Probable / körkörös hibavalószínűség.
+- KMZ STOP balloon: session duration (`Duration: 20 s` if 60 seconds or less, whole minutes if under 60 minutes, otherwise `HH:MM:SS`), plus labeled `Avg. speed:` and `Max. speed:` as whole numbers (metric `km/h`, imperial `mile/h`, ICAO `kt`) from `TrackStatsCalculator`. Instant `speed=` on START/PAUSE/STOP is unchanged.
+
+### Magyar
+
+- **Pontfelhő** (alapból ki): állóhelyen nyers GPS-pöttyök, magenta CEP95, világos lila jelentett pontosság. Bekapcsoláskor a pontossági jelzés is bekapcsol. A Csak GNSS független. GPS fül: n, RMS, CEP95, Reported, álló / mozgás / várakozás.
+- Térkép-sziluett (repülő, hajó, autó, motor, kerékpár, futó) és északjelző.
+- Minden GPS-pont `usageType`; KMZ balloon `usage=`.
+- **Kerékpár** használati mód: GNSS be, simítás ki, minden jó, térkép-egyszerűsítés ki.
+- Mentett track **Térképen**: a session usage-ét beírja a Beállításokba, és azzal rajzol (Google és OSM). A **Térképen** után a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot.
+- Térkép **Térkép ürítése** seprő (bal felső, idle, ha mentett track látszik): leveszi a vonalat, a logot nem törli. Indítás vagy Térképen újra kirajzol.
 
 ## [2.0.4] — 2026-09-09
 
@@ -35,6 +58,12 @@ Play production track **22 (2.0.4)** (signed AAB). GNSS-only option, runner spor
 ### Fixed
 
 - Street-scale runner loops were flattened by fused location plus constant-velocity Kalman even at Low strength.
+
+### Magyar
+
+- Beállítások **Csak GNSS**: műholdchip; fused tartalék. Futó előbeállítás bekapcsolja.
+- Futó: GNSS be, simítás ki, minden jó, térkép-egyszerűsítés ki. Ismétlődésküszöb 0,5 m.
+- Az utcai léptékű futóhurkokat a fused hely + Kalman még Alacsony erősségnél is ellapította.
 
 ## [2.0.3] — 2026-09-08
 
@@ -62,6 +91,11 @@ Play production track **21 (2.0.3)** (signed AAB). Kalman smoothing on stored po
 
 - Standing GPS wander is pinned when stationary lock is on (no 10 m scribble).
 - Poor-accuracy / low-satellite fixes never enter the Kalman filter.
+
+### Magyar
+
+- Kalman a rögzítési láncban, csúszkák a chippek helyett, usage előbeállítás (repülőnél ICAO).
+- Térkép-egyszerűsítés 1–20 m csúszka, csak a kirajzolt vonal. Álláskor a GPS kóborlása rögzül.
 
 ## [2.0.2] — 2026-09-05
 

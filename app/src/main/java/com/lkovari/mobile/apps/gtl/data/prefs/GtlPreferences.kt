@@ -40,6 +40,7 @@ data class GtlSettings(
     val showLastTrackOnMap: Boolean,
     val keepWholeTrackOnScreen: Boolean,
     val showAccuracyMarker: Boolean,
+    val showFixCloud: Boolean,
     val trackSmoothingEnabled: Boolean,
     val smoothingStrengthValue: Float,
     val stationaryLockEnabled: Boolean,
@@ -75,6 +76,7 @@ data class GtlSettings(
                 showLastTrackOnMap = true,
                 keepWholeTrackOnScreen = false,
                 showAccuracyMarker = true,
+                showFixCloud = false,
                 trackSmoothingEnabled = smoothing.trackSmoothingEnabled,
                 smoothingStrengthValue = smoothing.smoothingStrength.sliderValue(),
                 stationaryLockEnabled = smoothing.stationaryLockEnabled,
@@ -162,6 +164,15 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.showAccuracy] = value }
     }
 
+    suspend fun setShowFixCloud(value: Boolean) {
+        dataStore.edit {
+            it[Keys.showFixCloud] = value
+            if (value) {
+                it[Keys.showAccuracy] = true
+            }
+        }
+    }
+
     suspend fun setTrackSmoothingEnabled(value: Boolean) {
         dataStore.edit { it[Keys.trackSmoothing] = value }
     }
@@ -246,6 +257,7 @@ class GtlPreferences(context: Context) {
             showLastTrackOnMap = prefs[Keys.showTrack] ?: true,
             keepWholeTrackOnScreen = prefs[Keys.keepWholeTrack] ?: false,
             showAccuracyMarker = prefs[Keys.showAccuracy] ?: true,
+            showFixCloud = prefs[Keys.showFixCloud] ?: false,
             trackSmoothingEnabled = prefs[Keys.trackSmoothing] ?: smoothing.trackSmoothingEnabled,
             smoothingStrengthValue = readSmoothingStrength(prefs, smoothing),
             stationaryLockEnabled = prefs[Keys.stationaryLock] ?: smoothing.stationaryLockEnabled,
@@ -305,6 +317,7 @@ class GtlPreferences(context: Context) {
         val showTrack = booleanPreferencesKey("show_last_track")
         val keepWholeTrack = booleanPreferencesKey("keep_whole_track")
         val showAccuracy = booleanPreferencesKey("show_accuracy_marker")
+        val showFixCloud = booleanPreferencesKey("show_fix_cloud")
         val trackSmoothing = booleanPreferencesKey("track_smoothing")
         val smoothingStrength = stringPreferencesKey("smoothing_strength")
         val smoothingStrengthValue = floatPreferencesKey("smoothing_strength_value")

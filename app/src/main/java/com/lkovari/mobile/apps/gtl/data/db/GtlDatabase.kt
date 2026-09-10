@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [TrackSessionEntity::class, GpsEventEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class GtlDatabase : RoomDatabase() {
@@ -23,12 +23,24 @@ abstract class GtlDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE gps_events ADD COLUMN usageType TEXT")
+                db.execSQL(
+                    "UPDATE gps_events SET usageType = (" +
+                        "SELECT usageType FROM track_sessions " +
+                        "WHERE track_sessions.id = gps_events.sessionId" +
+                        ")"
+                )
+            }
+        }
+
         fun create(context: Context): GtlDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 GtlDatabase::class.java,
                 "gtl.db"
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         }
     }
 }

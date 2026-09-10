@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
@@ -72,7 +73,7 @@ fun MainTrackerScreen(
     onOpenAbout: () -> Unit,
     onOpenLocationSettings: () -> Unit
 ) {
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember { mutableIntStateOf(state.mainTab) }
     var menu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val previewLauncher = rememberLauncherForActivityResult(
@@ -113,6 +114,7 @@ fun MainTrackerScreen(
         val requested = state.requestedTab
         if (requested != null) {
             tab = requested
+            viewModel.setMainTab(requested)
             viewModel.consumeRequestedTab()
         }
     }
@@ -199,25 +201,37 @@ fun MainTrackerScreen(
             NavigationBar {
                 NavigationBarItem(
                     selected = tab == 0,
-                    onClick = { tab = 0 },
+                    onClick = {
+                        tab = 0
+                        viewModel.setMainTab(0)
+                    },
                     icon = { Icon(Icons.Default.SatelliteAlt, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_gps)) }
                 )
                 NavigationBarItem(
                     selected = tab == 1,
-                    onClick = { tab = 1 },
+                    onClick = {
+                        tab = 1
+                        viewModel.setMainTab(1)
+                    },
                     icon = { Icon(Icons.Default.Speed, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_route)) }
                 )
                 NavigationBarItem(
                     selected = tab == 2,
-                    onClick = { tab = 2 },
+                    onClick = {
+                        tab = 2
+                        viewModel.setMainTab(2)
+                    },
                     icon = { Icon(Icons.Default.Map, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_map)) }
                 )
                 NavigationBarItem(
                     selected = tab == 3,
-                    onClick = { tab = 3 },
+                    onClick = {
+                        tab = 3
+                        viewModel.setMainTab(3)
+                    },
                     icon = { Icon(Icons.Default.Explore, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_compass)) }
                 )
@@ -234,7 +248,7 @@ fun MainTrackerScreen(
             when (tab) {
                 0 -> GpsPane(state)
                 1 -> RoutePane(state)
-                2 -> MapPane(state)
+                2 -> MapPane(state, onClearMap = { viewModel.clearShownTrack() })
                 else -> CompassPane(state)
             }
         }
@@ -289,6 +303,9 @@ private fun GpsPane(state: GtlUiState) {
                 Modifier.weight(1f)
             )
         }
+        if (state.settings.showFixCloud) {
+            FixCloudMetrics(state)
+        }
         HudMetric(
             stringResource(R.string.gps_temperature),
             if (state.live.temperatureAvailable) {
@@ -296,6 +313,56 @@ private fun GpsPane(state: GtlUiState) {
             } else {
                 Units.formatTemperature(0f)
             }
+        )
+    }
+}
+
+@Composable
+private fun FixCloudMetrics(state: GtlUiState) {
+    val stats = state.fixCloud.stats
+    val n = stats.sampleCount
+    val dash = "—"
+    val rms = stats.rmsMeters?.let { String.format(Locale.US, "%.1f m", it) } ?: dash
+    val cep95 = stats.cep95Meters?.let { String.format(Locale.US, "%.1f m", it) } ?: dash
+    val reported = stats.reportedAccuracyMedianMeters?.let { String.format(Locale.US, "%.1f m", it) } ?: dash
+    val caption = when {
+        !stats.active -> stringResource(R.string.gps_fix_cloud_paused)
+        n < 8 -> stringResource(R.string.gps_fix_cloud_wait)
+        else -> stringResource(R.string.gps_fix_cloud_standing)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            CompactMetric(stringResource(R.string.gps_fix_cloud_n), n.toString(), Modifier.weight(1f))
+            CompactMetric(stringResource(R.string.gps_fix_cloud_rms), rms, Modifier.weight(1f))
+            CompactMetric(stringResource(R.string.gps_fix_cloud_cep95), cep95, Modifier.weight(1f))
+            CompactMetric(stringResource(R.string.gps_fix_cloud_reported), reported, Modifier.weight(1f))
+        }
+        Text(
+            text = caption,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun CompactMetric(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
         )
     }
 }

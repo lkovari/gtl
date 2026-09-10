@@ -437,6 +437,65 @@ class KmlExporterTest {
     }
 
     @Test
+    fun stopBalloonShowsSecondsWhenDurationIsAtMostOneMinute() {
+        val twenty = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 2.8f,
+            averageSpeedMps = 1.9f,
+            elapsedMillis = 20_000L
+        )
+        val fiftyEight = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 2.8f,
+            averageSpeedMps = 1.9f,
+            elapsedMillis = 58_000L
+        )
+        val sixty = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 2.8f,
+            averageSpeedMps = 1.9f,
+            elapsedMillis = 60_000L
+        )
+        assertTrue(twenty.contains("Duration: 20 s"))
+        assertFalse(twenty.contains("Duration: 0 min"))
+        assertTrue(fiftyEight.contains("Duration: 58 s"))
+        assertFalse(fiftyEight.contains("Duration: 0 min"))
+        assertTrue(sixty.contains("Duration: 60 s"))
+    }
+
+    @Test
+    fun stopBalloonShowsMinutesWhenDurationIsOverSixtySeconds() {
+        val stop = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 12.0f,
+            averageSpeedMps = 6.0f,
+            elapsedMillis = 61_000L
+        )
+        assertTrue(stop.contains("Duration: 1 min"))
+        assertFalse(stop.contains("Duration: 61 s"))
+    }
+
+    @Test
     fun stopBalloonUsesHmsWhenDurationIsAtLeastOneHour() {
         val stop = KmlDescriptions.balloon(
             kind = EventKind.STOP,
@@ -525,6 +584,65 @@ class KmlExporterTest {
             leanAngle = 12.4f
         )
         assertTrue(start.contains("lean=12.4"))
+    }
+
+    @Test
+    fun startPauseStopBalloonsIncludeUsageType() {
+        val start = KmlDescriptions.balloon(
+            kind = EventKind.START,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 5.5f,
+            tempCelsius = null,
+            usageType = "Motorbike"
+        )
+        val pause = KmlDescriptions.balloon(
+            kind = EventKind.PAUSE,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            usageType = "Runner"
+        )
+        val stop = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 12.0f,
+            averageSpeedMps = 6.0f,
+            elapsedMillis = 10 * 60 * 1000L,
+            usageType = "Aircraft"
+        )
+        val move = KmlDescriptions.balloon(
+            kind = EventKind.MOVE,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 8.3f,
+            tempCelsius = null,
+            usageType = "Car"
+        )
+        assertTrue(start.contains("usage=Motorbike"))
+        assertTrue(pause.contains("usage=Runner"))
+        assertTrue(stop.contains("usage=Aircraft"))
+        assertFalse(move.contains("usage="))
+    }
+
+    @Test
+    fun usageTypeKmlLabelsMatchSettingsNames() {
+        assertEquals("Aircraft", UsageType.AIRCRAFT.kmlLabel())
+        assertEquals("Watercraft", UsageType.WATERCRAFT.kmlLabel())
+        assertEquals("Car", UsageType.FOUR_WHEELERS.kmlLabel())
+        assertEquals("Motorbike", UsageType.TWO_WHEELERS.kmlLabel())
+        assertEquals("Bicycle", UsageType.BICYCLE.kmlLabel())
+        assertEquals("Runner", UsageType.RUNNER.kmlLabel())
+        assertEquals("Motorbike", UsageType.kmlLabelOf("TWO_WHEELERS"))
+        assertEquals(null, UsageType.kmlLabelOf(null))
     }
 
     @Test
@@ -622,8 +740,9 @@ class UsageTypeTest {
     @Test
     fun selectableModesIncludeRunnerAndDefaultMotorbike() {
         assertEquals(UsageType.TWO_WHEELERS, UsageType.selectable[3])
+        assertEquals(UsageType.BICYCLE, UsageType.selectable[4])
         assertTrue(UsageType.selectable.contains(UsageType.RUNNER))
-        assertEquals(5, UsageType.selectable.size)
+        assertEquals(6, UsageType.selectable.size)
     }
 
     @Test
@@ -638,6 +757,24 @@ class UsageTypeTest {
         assertTrue(defaults.gnssOnly)
         assertEquals(8.0, UsageType.RUNNER.processNoiseQ(), 0.0)
         assertEquals(10.0, UsageType.RUNNER.turnBoost(), 0.0)
+    }
+
+    @Test
+    fun bicycleSmoothingKeepsEveryFixAndDisablesMapSimplify() {
+        val defaults = UsageType.BICYCLE.defaultSmoothing()
+        assertFalse(defaults.trackSmoothingEnabled)
+        assertEquals(SmoothingStrength.LOW, defaults.smoothingStrength)
+        assertTrue(defaults.stationaryLockEnabled)
+        assertEquals(RecordingDensity.EVERY_FIX, defaults.recordingDensity)
+        assertFalse(defaults.optimizationActive)
+        assertEquals(3.0, defaults.optimizationToleranceMeters, 0.0)
+        assertTrue(defaults.gnssOnly)
+        assertTrue(UsageType.BICYCLE.isPedestrianMode())
+        assertEquals(UsageType.RUNNER.pauseSpeedMps(), UsageType.BICYCLE.pauseSpeedMps())
+        assertEquals(6.0, UsageType.BICYCLE.processNoiseQ(), 0.0)
+        assertEquals(8.0, UsageType.BICYCLE.turnBoost(), 0.0)
+        assertEquals(45, UsageType.BICYCLE.defaultFilter().minAccuracyMeters)
+        assertEquals(MeasurementSystem.METRIC, UsageType.BICYCLE.defaultMeasurementSystem())
     }
 
     @Test
@@ -698,6 +835,101 @@ class MapTrackVisibilityTest {
     @Test
     fun idleWithoutSelectionHidesTrack() {
         assertFalse(MapTrackVisibility.visible(logging = false, showLastTrackOnMap = false, selectedSessionId = null))
+    }
+
+    @Test
+    fun clearedMapHidesTrackEvenIfLastTrackSettingIsOn() {
+        assertFalse(
+            MapTrackVisibility.visible(
+                logging = false,
+                showLastTrackOnMap = true,
+                selectedSessionId = null,
+                mapCleared = true
+            )
+        )
+    }
+
+    @Test
+    fun loggingStillDrawsAfterMapWasCleared() {
+        assertTrue(
+            MapTrackVisibility.visible(
+                logging = true,
+                showLastTrackOnMap = true,
+                selectedSessionId = null,
+                mapCleared = true
+            )
+        )
+    }
+}
+
+class MapDisplayUsageTest {
+    @Test
+    fun selectedSavedTrackFollowsSettings() {
+        assertTrue(MapDisplayUsage.followsSettings(logging = false, selectedSessionId = 12L))
+        assertTrue(MapDisplayUsage.followsSettings(logging = true, selectedSessionId = null))
+        assertFalse(MapDisplayUsage.followsSettings(logging = false, selectedSessionId = null))
+    }
+
+    @Test
+    fun historicalTrackUsesSessionUsageEvenIfSettingsAreMotorbike() {
+        val usage = MapDisplayUsage.of(
+            logging = false,
+            followSettings = false,
+            settingsUsage = UsageType.TWO_WHEELERS,
+            sessionUsageName = "RUNNER"
+        )
+        val simplify = MapDisplayUsage.simplify(
+            usage = usage,
+            logging = false,
+            followSettings = false,
+            settingsActive = true,
+            settingsTolerance = 6.0
+        )
+        assertEquals(UsageType.RUNNER, usage)
+        assertFalse(simplify.first)
+        assertEquals(2.0, simplify.second, 0.0)
+    }
+
+    @Test
+    fun loggingUsesSettingsUsage() {
+        val usage = MapDisplayUsage.of(
+            logging = true,
+            followSettings = false,
+            settingsUsage = UsageType.TWO_WHEELERS,
+            sessionUsageName = "RUNNER"
+        )
+        assertEquals(UsageType.TWO_WHEELERS, usage)
+    }
+
+    @Test
+    fun followSettingsUsesSettingsSimplifyForPreview() {
+        val usage = MapDisplayUsage.of(
+            logging = false,
+            followSettings = true,
+            settingsUsage = UsageType.TWO_WHEELERS,
+            sessionUsageName = "RUNNER"
+        )
+        val simplify = MapDisplayUsage.simplify(
+            usage = usage,
+            logging = false,
+            followSettings = true,
+            settingsActive = true,
+            settingsTolerance = 6.0
+        )
+        assertEquals(UsageType.TWO_WHEELERS, usage)
+        assertTrue(simplify.first)
+        assertEquals(6.0, simplify.second, 0.0)
+    }
+
+    @Test
+    fun unknownSessionUsageFallsBackToSettings() {
+        val usage = MapDisplayUsage.of(
+            logging = false,
+            followSettings = false,
+            settingsUsage = UsageType.TWO_WHEELERS,
+            sessionUsageName = "NOT_A_USAGE"
+        )
+        assertEquals(UsageType.TWO_WHEELERS, usage)
     }
 }
 
@@ -1237,6 +1469,146 @@ class KalmanTrackFilterTest {
             bearing = bearing,
             accuracyMeters = accuracy,
             satellitesInFix = 8
+        )
+    }
+}
+
+class FixCloudBufferTest {
+    @Test
+    fun gaussianCloudHasExpectedRmsAndCep95() {
+        val buffer = FixCloudBuffer()
+        val originLat = 47.0
+        val originLon = 19.0
+        val random = java.util.Random(42)
+        val sigma = 1.0 / kotlin.math.sqrt(2.0)
+        repeat(20) { i ->
+            val east = random.nextGaussian() * sigma
+            val north = random.nextGaussian() * sigma
+            val ll = GeoProjection.latLon(originLat, originLon, east, north)
+            buffer.observe(
+                sample(1_000L * (i + 1), ll.first, ll.second, 4f, 0f),
+                pauseSpeedMps = 0.4f
+            )
+        }
+        val stats = buffer.snapshot().stats
+        assertEquals(20, stats.sampleCount)
+        val rms = stats.rmsMeters ?: 0.0
+        val cep95 = stats.cep95Meters ?: 0.0
+        assertTrue(rms in 0.7..1.3)
+        assertTrue(cep95 in 1.2..2.5)
+    }
+
+    @Test
+    fun tenCentimetreDuplicateDoesNotIncreaseCount() {
+        val buffer = FixCloudBuffer()
+        val origin = GeoProjection.latLon(47.0, 19.0, 0.0, 0.0)
+        val nearby = GeoProjection.latLon(47.0, 19.0, 0.10, 0.0)
+        buffer.observe(sample(1_000L, origin.first, origin.second, 4f, 0f), 0.4f)
+        buffer.observe(sample(2_000L, nearby.first, nearby.second, 4f, 0f), 0.4f)
+        assertEquals(1, buffer.snapshot().stats.sampleCount)
+    }
+
+    @Test
+    fun movingSamplesAreIgnoredThenThreeStationaryFixesClearBuffer() {
+        val buffer = FixCloudBuffer()
+        repeat(5) { i ->
+            val ll = GeoProjection.latLon(47.0, 19.0, i * 0.5, 0.0)
+            buffer.observe(sample(1_000L * (i + 1), ll.first, ll.second, 4f, 0f), 0.4f)
+        }
+        assertEquals(5, buffer.snapshot().stats.sampleCount)
+        repeat(3) { i ->
+            val ll = GeoProjection.latLon(47.0, 19.0, 10.0 + i, 0.0)
+            buffer.observe(sample(10_000L + i, ll.first, ll.second, 4f, 5f), 0.4f)
+        }
+        val paused = buffer.snapshot()
+        assertEquals(5, paused.stats.sampleCount)
+        assertFalse(paused.stats.active)
+        repeat(2) { i ->
+            val ll = GeoProjection.latLon(47.0, 19.0, 20.0 + i * 0.5, 0.0)
+            buffer.observe(sample(20_000L + i, ll.first, ll.second, 4f, 0f), 0.4f)
+        }
+        assertEquals(5, buffer.snapshot().stats.sampleCount)
+        val resume = GeoProjection.latLon(47.0, 19.0, 21.0, 0.0)
+        buffer.observe(sample(20_002L, resume.first, resume.second, 4f, 0f), 0.4f)
+        val afterClear = buffer.snapshot()
+        assertEquals(1, afterClear.stats.sampleCount)
+        assertTrue(afterClear.stats.active)
+        val next = GeoProjection.latLon(47.0, 19.0, 21.5, 0.0)
+        buffer.observe(sample(20_003L, next.first, next.second, 4f, 0f), 0.4f)
+        assertEquals(2, buffer.snapshot().stats.sampleCount)
+    }
+
+    @Test
+    fun sevenPointsHaveRmsButNoCep95() {
+        val buffer = FixCloudBuffer()
+        repeat(7) { i ->
+            val ll = GeoProjection.latLon(47.0, 19.0, i * 0.5, 0.0)
+            buffer.observe(sample(1_000L * (i + 1), ll.first, ll.second, 4f, 0f), 0.4f)
+        }
+        val stats = buffer.snapshot().stats
+        assertEquals(7, stats.sampleCount)
+        assertTrue(stats.rmsMeters != null)
+        assertTrue(stats.cep95Meters == null)
+    }
+
+    @Test
+    fun centroidIsNotTheLastFixAndCepIsFromCentroid() {
+        val buffer = FixCloudBuffer()
+        val cluster = listOf(
+            0.0 to 0.0,
+            0.4 to 0.2,
+            -0.3 to 0.1,
+            0.2 to -0.4,
+            -0.1 to -0.2,
+            0.3 to 0.3,
+            -0.2 to 0.4,
+            0.1 to -0.3
+        )
+        cluster.forEachIndexed { i, (east, north) ->
+            val ll = GeoProjection.latLon(47.0, 19.0, 40.0 + east, north)
+            buffer.observe(sample(1_000L * (i + 1), ll.first, ll.second, 4f, 0f), 0.4f)
+        }
+        val last = GeoProjection.latLon(47.0, 19.0, 0.0, 0.0)
+        buffer.observe(sample(20_000L, last.first, last.second, 4f, 0f), 0.4f)
+        val snap = buffer.snapshot()
+        val stats = snap.stats
+        val centroidLat = stats.centroidLatitude ?: 0.0
+        val centroidLon = stats.centroidLongitude ?: 0.0
+        val lastSample = snap.samples.last()
+        val centroidToLast = FixAcceptance.haversineMeters(
+            centroidLat,
+            centroidLon,
+            lastSample.latitude,
+            lastSample.longitude
+        )
+        assertTrue(centroidToLast > 20.0)
+        val cep95 = stats.cep95Meters ?: Double.MAX_VALUE
+        assertTrue(cep95 < 15.0)
+        val fromLast = snap.samples.map { sample ->
+            FixAcceptance.haversineMeters(
+                lastSample.latitude,
+                lastSample.longitude,
+                sample.latitude,
+                sample.longitude
+            )
+        }.sorted()
+        val cepFromLast = fromLast[((fromLast.size - 1) * 95) / 100]
+        assertTrue(cep95 < cepFromLast)
+    }
+
+    private fun sample(
+        time: Long,
+        lat: Double,
+        lon: Double,
+        accuracy: Float,
+        speedMps: Float
+    ): FixCloudSample {
+        return FixCloudSample(
+            timeMillis = time,
+            latitude = lat,
+            longitude = lon,
+            accuracyMeters = accuracy,
+            speedMps = speedMps
         )
     }
 }

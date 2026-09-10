@@ -4,14 +4,14 @@
 
 | Brief said | Shipped |
 |---|---|
-| Runner: Kalman on, LOW, EVERY_FIX, DP off | Runner: **Kalman off**, GNSS only on, EVERY_FIX, 0.5 m duplicate floor, DP off |
+| Runner: Kalman on, LOW, EVERY_FIX, DP off | Runner: **Kalman off**, GNSS only on, EVERY_FIX, 0.5 m duplicate floor, DP off. Bicycle: same idea, DP 3 m if turned on |
 | Location source always fused HIGH_ACCURACY | **Use GNSS only** → `GPS_PROVIDER`; fused fallback if that provider is disabled |
 | Strength / density as named chips | Continuous sliders (`smoothingStrengthValue`, `recordingDensityValue` in `[0, 1]`) |
 | Measurement σ = max(accuracy, 2.0) | Same (2 m, not 3 m) |
 | Position-only Kalman | Same; speed/bearing from filter velocity when ≥ 0.3 m/s |
-| Pedestrian extra process noise | Yes, when Kalman is on for runner / walk / hike |
+| Pedestrian extra process noise | Yes, when Kalman is on for runner / bicycle / walk / hike |
 | Heading from GPS bearing only | Curve detection can use heading from consecutive positions if bearing is 0 |
-| `WALKING_HIKE` / `PEDESTRIAN` in Settings | Engine enums exist and share runner defaults; Settings `selectable` is still the five usages |
+| `WALKING_HIKE` / `PEDESTRIAN` in Settings | Engine enums exist and share runner defaults; Settings `selectable` is the six usages including bicycle |
 | Settings cramped → keep read-only filter row | Read-only Fix filters row removed; gates still run |
 
 The sections below are the original brief (why DP 19.5 m looked wrong, algorithm, tests). Treat them as history.
@@ -78,11 +78,11 @@ Douglas–Peucker stays **map display only**. It is not the smoother. The smooth
 | `engine/.../FixAcceptance.kt` | Drop if accuracy or sat count fail; else require `SpeedAdaptiveSpacing` distance |
 | `engine/.../SpeedAdaptiveSpacing.kt` | Speed bands from the 2014 logger; half spacing if heading change > 15° |
 | `engine/.../DouglasPeucker.kt` | Polyline simplification in metres (local projection) |
-| `engine/.../UsageType.kt` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `RUNNER`; runner pause 0.25 m/s, others 0.4 m/s; runner accuracy 45 m vs 30 m |
+| `engine/.../UsageType.kt` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER`; runner/bicycle pause 0.25 m/s, others 0.4 m/s; runner/bicycle accuracy 45 m vs 30 m |
 | `app/.../TrackingForegroundService.kt` | `LocationClient.locations(minTime, 0f)` then `FixAcceptance` then insert `GpsEventEntity` |
 | `app/.../GtlViewModel.kt` | If `optimizationActive && points.size > 4` → `DouglasPeucker.simplify(points, optimizationTolerance)` for **map only**. Stats and KMZ use raw Room rows |
 | `app/.../GtlPreferences.kt` | DataStore. DP default: `optimizationActive = true`, `optimizationTolerance = 19.5`. **No setter and no Settings control for tolerance** |
-| `app/.../ui/screens/SecondaryScreens.kt` | Settings: usage, units, OSM, simplify-on-map switch, last-track, accuracy marker, read-only filter numbers |
+| `app/.../ui/screens/SecondaryScreens.kt` | Settings: usage, units, OSM, simplify-on-map switch, last-track, accuracy marker, fix cloud, read-only filter numbers |
 | `app/.../data/sensor/SensorSources.kt` | Accelerometer stored on rows; compass is HUD-only |
 
 **Why the map looks wrong today**
@@ -119,7 +119,7 @@ Fused Location (HIGH_ACCURACY, minTime ≥ 500 ms, minDistance 0)
          → KMZ from Room                                 // unchanged source
 ```
 
-HUD `lastLocation` may stay the **unfiltered** fused fix so the accuracy circle and live lat/lon match the phone GNSS. Stored / drawn track uses the Kalman output when smoothing is on.
+HUD `lastLocation` may stay the **unfiltered** fused fix so the pale purple accuracy circle and live lat/lon match the phone GNSS. **Show fix cloud** also samples that raw `lastLocation` (memory only); turning it on also enables the accuracy marker. Stored / drawn track uses the Kalman output when smoothing is on.
 
 Reset the Kalman filter when a new session starts (`lastAccepted == null` after `startSession`). If the service resumes an open session, seed the filter from `latestEvent` (position + speed/bearing) so the first new fix is not a jump.
 
@@ -242,7 +242,8 @@ Pass `usage` into spacing only if needed; do not break existing `SpeedAdaptiveSp
 | Units | `METRIC` | Unrelated |
 | Use downloaded OSM map | false | Unrelated |
 | Show last logged route | true | Unrelated |
-| Show accuracy marker | true | Unrelated |
+| Show accuracy marker | true | Pale purple claimed-accuracy circle on the raw HUD fix |
+| Show fix cloud | false | HUD raw samples, not Kalman. Turning it on also enables the accuracy marker |
 | Min distance / time / accuracy / sats | from `UsageType.defaultFilter()` | Still shown read-only unless you already had editors |
 
 ### Change existing DP defaults

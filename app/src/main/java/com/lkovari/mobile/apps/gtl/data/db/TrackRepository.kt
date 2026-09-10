@@ -37,6 +37,8 @@ class TrackRepository(
 
     suspend fun openSession(): TrackSessionEntity? = sessions.getOpenSession()
 
+    suspend fun sessionById(id: Long): TrackSessionEntity? = sessions.getById(id)
+
     suspend fun latestEvent(sessionId: Long): GpsEventEntity? = events.latestForSession(sessionId)
 
     suspend fun insertEvent(event: GpsEventEntity): Long = events.insert(event)

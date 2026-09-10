@@ -21,7 +21,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - **Start / Stop** records a session as a visible foreground service with a notification.
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Runner default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
-- Usage modes: aircraft, watercraft, car, motorbike (default), runner. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Runner uses a looser accuracy filter and a lower pause threshold.
+- Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, runner. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Runner and bicycle use a looser accuracy filter and a lower pause threshold.
 - Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
 
 
@@ -31,6 +31,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - Live satellite counts: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC.
 - SNR quality (excellent / good / fair / poor / none).
 - Latitude, longitude, accuracy, provider, altitude, ambient temperature, logging status.
+- When **Show fix cloud** is on: n, RMS, CEP95, median reported accuracy, and a standing / moving / wait caption (same in-memory window as the map dots; CEP95 needs 8 samples).
 
 
 
@@ -44,7 +45,9 @@ Session totals after Start: elapsed time, odometer, time moving, time waiting, s
 - Red polyline from Room (live session, last saved track, or a track chosen in Saved tracks). The Map line **is** the stored log; there is no separate sketch. See [How logging works](#how-logging-works).
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM.
-- Light purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
+- Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
+- Small red usage silhouette at your position (same icons as Settings). Stays upright in portrait. A north marker stays on the map.
+- When a saved track is shown and logging is off, a broom at the top left takes the line off the map without deleting the log. Start or Saved tracks → Show on map draws it again.
 - Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on (see below). SQLite, Route totals, and KMZ are never simplified.
 
 
@@ -56,7 +59,7 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 ### Saved tracks
 
 - List of sessions with date, usage, units.
-- **Show on map** opens the Map tab on that session (Google Maps or OSM).
+- **Show on map** opens the Map tab on that session (Google Maps or OSM), switches Settings to the usage stored on the session, and draws it with those settings. After that, changing usage or sliders redraws the same log that way. Next Start uses the Settings then selected. The Map broom takes that line off without deleting the session.
 - Delete.
 - Checkboxes, **Select all**, **Share selected**:
   - one session → one KMZ named `GTL_yyyyMMdd_HHmmss.kmz`
@@ -69,9 +72,9 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 - Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0).
 - Every stored GPS point is on a `gx:Track` (`when`, lon/lat/alt, speed).
 - START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth):
-  - All three: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`, and `lean=` when a lean angle was stored.
+  - All three: `time=` (UTC), `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle, or Runner), `lat=`, `lon=`, `speed=`, `temp=`, and `lean=` when a lean angle was stored.
   - Pause and stop force `speed=0`.
-  - Stop also: `Duration:` (whole minutes if under 60 minutes, otherwise `HH:MM:SS`), `Avg. speed:` and `Max. speed:` as whole numbers from `TrackStatsCalculator` (metric `km/h`, imperial `mile/h`, ICAO `kt`).
+  - Stop also: `Duration:` (`20 s` if 60 seconds or less, whole minutes if under 60 minutes, otherwise `HH:MM:SS`), `Avg. speed:` and `Max. speed:` as whole numbers from `TrackStatsCalculator` (metric `km/h`, imperial `mile/h`, ICAO `kt`).
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
 - Help **Viewing KMZ/KML** lists these balloon fields (EN/HU) and the SQLite `gps_events` fields.
 
@@ -85,6 +88,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 | Usage               | Units  | GNSS only | Smooth recorded track | Strength | Hold still | Density    | Simplify on map | Tolerance |
 | ------------------- | ------ | --------- | --------------------- | -------- | ---------- | ---------- | --------------- | --------- |
 | Runner              | Metric | on        | off                   | Low      | on         | Every good | off             | 2 m       |
+| Bicycle             | Metric | on        | off                   | Low      | on         | Every good | off             | 3 m       |
 | Motorbike (default) | Metric | off       | on                    | Medium   | on         | Smart      | on              | 6 m       |
 | Car                 | Metric | off       | on                    | Medium   | on         | Smart      | on              | 8 m       |
 | Watercraft          | ICAO   | off       | on                    | Medium   | on         | Smart      | on              | 8 m       |
@@ -93,14 +97,15 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 
 **What each control does**
 
-- **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
+- **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
 - **Use downloaded OSM map** — Mapsforge file versus Google Maps.
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
-- **Show last logged route on map** — after Stop, the last (or selected) track stays on Map.
+- **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
 - **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
-- **Show accuracy marker** — purple circle; radius is GPS accuracy. HUD stays on the raw location (chip or fused).
-- **Use GNSS only** — satellite-chip positions instead of fused location. On for runner; off for vehicles.
+- **Show accuracy marker** — pale purple circle; radius is GPS accuracy. HUD stays on the raw location (chip or fused).
+- **Show fix cloud** — pastel magenta dots of raw GPS fixes while you stand still, plus a magenta CEP95 circle around the cloud centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while you move. Not written to the log or KMZ.
+- **Use GNSS only** — satellite-chip positions instead of fused location. On for runner and bicycle; off for vehicles.
 - **Smooth recorded track**, **Smoothing strength**, **Hold still when stopped**, **Recording density** — these change what is **written into the tracklog**. Details below.
 
 Existing installs that still have the old **19.5 m** simplify default migrate to the usage table the first time the new Kalman keys are written. A custom tolerance that is not 19.5 is kept.
@@ -124,7 +129,7 @@ Two Gradle modules:
 
 | Module    | Role                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Pure JVM: GNSS classification, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, map-visibility rules. JUnit tests live here. |
+| `:engine` | Pure JVM: GNSS classification, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, map-visibility rules, fix-cloud buffer. JUnit tests live here. |
 | `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
 
 
@@ -139,7 +144,7 @@ docs/    Privacy policy, Play assets, renewal notes
 ### Data
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
-- **DataStore:** disclaimer, usage, units, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify settings.
+- **DataStore:** disclaimer, usage, units, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
 - **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
 
@@ -153,7 +158,8 @@ The red line on Map is the stored tracklog, not a second sketch. `GtlViewModel` 
 Start
   → foreground service (visible location notification)
   → location updates (GNSS chip or fused)
-  → HUD always gets the raw fix (purple accuracy circle)
+  → HUD always gets the raw fix (pale purple accuracy circle)
+  → optional Fix cloud (memory only: pastel magenta dots + CEP95 while standing)
   → drop poor accuracy / too few satellites
   → optional Kalman (moves lat/lon; does not drop the point)
   → density gate (Smart / Every good / mix) — this is what writes or skips
@@ -167,9 +173,9 @@ Stop
 
 **Source.** **Use GNSS only** on → Android `GPS_PROVIDER` (the satellite chip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — the provider name is historical). Off → Play Services fused `PRIORITY_HIGH_ACCURACY` (satellites mixed with Wi-Fi, cell, and IMU). If the GPS provider is disabled, fused is used either way. Runner default is GNSS only so a 5–10 m on-road loop is not flattened by the phone’s “where is the user?” filter before GTL ever sees it.
 
-**HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
+**HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The pale purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. **Show fix cloud** samples the same `lastLocation` into an in-memory window (centroid RMS / CEP95) and does not write SQLite. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
 
-**Gate 1 — accuracy and satellites.** A fix worse than the usage accuracy (30 m, runner 45 m) or with fewer than 4 satellites in the fix is discarded. It never enters Kalman and never becomes a row. The HUD still updates.
+**Gate 1 — accuracy and satellites.** A fix worse than the usage accuracy (30 m, runner and bicycle 45 m) or with fewer than 4 satellites in the fix is discarded. It never enters Kalman and never becomes a row. The HUD still updates.
 
 **Gate 2 — optional Kalman.** If **Smooth recorded track** is on, `KalmanTrackFilter.observe` runs on every accuracy-passed fix (one filter instance per Start→Stop session; resume seeds from the last stored point). It outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s; otherwise they stay with the GPS fix (or last bearing). Kalman **moves** points and **keeps the same candidate count**. It is not map-matching and it does not drop vertices. Vehicles default this on so roundabouts look round and cruise is a clean line. Runner defaults it **off** so a small figure-8 is not treated as measurement noise.
 
@@ -177,7 +183,7 @@ Stop
 
 - First fix of the session → always stored as `START`.
 - **Smart** (vehicles): write when haversine distance from the last **stored** point reaches the 2014 speed band; half that band in a curve (heading change > 15°). Runner Smart uses half of that band again (min 1 m).
-- **Every good** (runner default): write when `minTimeMillis` (500 ms) has elapsed **or** the heading is in a curve, and distance is at least **1 m** (vehicles) or **0.5 m** (runner).
+- **Every good** (runner default): write when `minTimeMillis` (500 ms) has elapsed **or** the heading is in a curve, and distance is at least **1 m** (vehicles) or **0.5 m** (runner and bicycle).
 - Slider positions between the ends mix Smart spacing with the Every-good floor; the min-time / curve path can still accept a point.
 - If GPS `bearing` is 0 (common when jogging), curve detection can use heading from consecutive positions.
 
@@ -185,14 +191,14 @@ Stop
 
 **Stop.** Always writes a `STOP` placemark (`isPlacemark` true) even if density would have dropped the point. With smoothing on, that row uses the last Kalman output so the track end matches the smoothed line.
 
-**Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected. If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (runner default), every stored vertex is on the map — that is why a small on-road loop stays visible.
+**Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected — unless the Map broom set `mapCleared` (idle only; logging still draws). If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (runner and bicycle default), every stored vertex is on the map — that is why a small on-road loop stays visible.
 
 **Why the map looks like your log**
 
 
 | Layer                | What it does               | Map effect                                                                              |
 | -------------------- | -------------------------- | --------------------------------------------------------------------------------------- |
-| GNSS chip vs fused   | Who answers “where am I?”  | Runner: chip track, street-scale shape kept. Vehicles: fused, less Wi-Fi/cell jump.     |
+| GNSS chip vs fused   | Who answers “where am I?”  | Runner and bicycle: chip track, street-scale shape kept. Vehicles: fused, less Wi-Fi/cell jump.     |
 | Accuracy / sat gates | Drop junk before Kalman    | No 200 m teleport spikes in the line.                                                   |
 | Kalman (optional)    | Move points, keep count    | Vehicle roundabouts and cruise look smooth; standing lock stops a 10 m scribble.        |
 | Density              | How many points are stored | Smart: fewer points at highway speed. Every good: ~2 Hz, tight loops keep vertices.     |
@@ -227,8 +233,8 @@ Accuracy and satellite gates still drop bad fixes. This does **not** store fewer
 
 **Where it sits in the pipeline.** One `KalmanTrackFilter` per Start→Stop session, in `:engine`. `TrackingForegroundService` does this for every location update:
 
-1. Copy the fix to the HUD (`lastLocation`). The purple accuracy circle always follows this **raw** point.
-2. Drop the fix if accuracy is worse than the usage gate (30 m, runner 45 m) or satellites-in-fix is below 4. Rejected fixes never reach Kalman or SQLite.
+1. Copy the fix to the HUD (`lastLocation`). The pale purple accuracy circle always follows this **raw** point.
+2. Drop the fix if accuracy is worse than the usage gate (30 m, runner and bicycle 45 m) or satellites-in-fix is below 4. Rejected fixes never reach Kalman or SQLite.
 3. If **Smooth recorded track** is on, run `KalmanTrackFilter.observe`. The filter outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s. Runner/pedestrian adds extra position process noise so a 5 m loop is not pulled onto the chord.
 4. **Recording density** (`FixAcceptance`) decides whether to **write** that (possibly smoothed) point. If the gap is too small, the Kalman state is still updated, but Room does not get a row.
 5. On Stop, the last Kalman output is stored as the STOP point when smoothing is on.
@@ -243,7 +249,7 @@ So Kalman changes **where** stored points sit. Density changes **how many** of t
 4. **Jump** — if the innovation is larger than `max(50 m, 8 × accuracy)` (tunnel exit, GPS teleport), re-initialize at the new fix. The gap is **not** interpolated.
 5. **Stationary lock** (if enabled) — when GPS speed or predicted speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles) and displacement is under 1.5 m, freeze the last output, zero velocity, shrink position covariance.
 
-Base `q` at mid slider (old Medium): runner 8.0, motorbike 2.5, car/watercraft 1.5, aircraft 0.8. Turn boost: runner 10, motorbike 5, car/water 3, aircraft 2. Strength slider `t` in `[0, 1]` (Low→High) multiplies `q` by `4^(1 − 2t)`: Low ×4, mid ×1, High ×0.25.
+Base `q` at mid slider (old Medium): runner 8.0, bicycle 6.0, motorbike 2.5, car/watercraft 1.5, aircraft 0.8. Turn boost: runner 10, bicycle 8, motorbike 5, car/water 3, aircraft 2. Strength slider `t` in `[0, 1]` (Low→High) multiplies `q` by `4^(1 − 2t)`: Low ×4, mid ×1, High ×0.25.
 
 **Not implemented (on purpose).** OSM/Google snap-to-road, RTS forward–backward smoother, IMU dead reckoning / Suunto FusedTrack gap-fill, display splines.
 
@@ -260,20 +266,21 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | **Hold still when stopped**                                       | Yes (only if smoothing is on) | Below pause speed the stored coordinate does not wander. A 6 m GPS cluster at a red light collapses toward one point. Does not drop rows by itself — density still decides writes.                                                                                                                                                                                                                   |
 | **Recording density** (Smart–Every good slider)                   | Yes                           | **Smart:** write when distance from the last **stored** point reaches the 2014 speed band (half in a curve; runner Smart half again, min 1 m). Highway stores fewer points; walking stores more. **Every good:** write about once per `minTime` (500 ms) or sooner in a curve. Vehicles drop stacks closer than **1 m**; runner closer than **0.5 m**. Positions between the ends mix the two rules. |
 | **Simplify track on map** (1–20 m slider)                         | **No**                        | Fewer vertices on the Map tab only. Stored points, odometer, and KMZ are unchanged.                                                                                                                                                                                                                                                                                                                  |
-| **Show accuracy marker**                                          | **No**                        | Purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                        |
+| **Show accuracy marker**                                          | **No**                        | Pale purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                       |
+| **Show fix cloud**                                                | **No**                        | Pastel magenta dots of raw HUD fixes while standing, CEP95 around the centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while moving. Not stored.                                                                                                                                                                    |
 | **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons. Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
-| Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
+| Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
 
 
-**Practical result.** Motorbike default: fused + smoothed street track, Smart spacing, Map line thinned at 6 m. Runner default: GNSS chip, no Kalman, almost every good fix stored (0.5 m floor), Map shows every stored vertex so a small on-road loop stays visible. Aircraft default: stronger smoothing, Smart spacing, 15 m Map thinning, speed/distance in knots and nautical miles.
+**Practical result.** Motorbike default: fused + smoothed street track, Smart spacing, Map line thinned at 6 m. Runner and bicycle default: GNSS chip, no Kalman, almost every good fix stored (0.5 m floor), Map shows every stored vertex so a small on-road loop stays visible. Aircraft default: stronger smoothing, Smart spacing, 15 m Map thinning, speed/distance in knots and nautical miles.
 
 ### Recording density
 
 Separate from Kalman. Kalman always sees every accuracy-passed fix while smoothing is on; density only gates **storage**.
 
 - **Smart** (vehicles): write a point when haversine distance from the last **stored** fix reaches the 2014 speed band; half that in a curve. Runner Smart uses half of that band again (walk/jog was too coarse for a small figure-8).
-- **Every good** (runner default): accept when `minTimeMillis` has elapsed or heading is in a curve. Vehicles drop stacks closer than 1 m; runner drops closer than 0.5 m.
-- **Between the slider ends:** required distance is a mix of the Smart band and the Every-good floor (1 m vehicles, 0.5 m runner); the min-time / curve path can also accept a point.
+- **Every good** (runner and bicycle default): accept when `minTimeMillis` has elapsed or heading is in a curve. Vehicles drop stacks closer than 1 m; runner and bicycle drop closer than 0.5 m.
+- **Between the slider ends:** required distance is a mix of the Smart band and the Every-good floor (1 m vehicles, 0.5 m runner and bicycle); the min-time / curve path can also accept a point.
 
 
 
@@ -283,7 +290,7 @@ Separate from Kalman. Kalman always sees every accuracy-passed fix while smoothi
 
 This is **display-only**. `gps_events`, Route odometer / speeds, and KMZ export always use the Room rows (already Kalman-smoothed when that setting is on). Douglas–Peucker does not smooth GPS noise: remaining corners stay sharp. It only discards points that are close enough to a chord.
 
-**When it runs.** Settings → **Simplify track on map** (`optimizationActive`; on for vehicles, off for runner). `GtlViewModel` calls `DouglasPeucker.simplify(points, clampTolerance(optimizationTolerance))` when that switch is on and `points.size > 4`. Tolerance is a **1–20 m** slider (1 m steps; motorbike default 6 m, car 8 m). `DouglasPeucker.clampTolerance` still snaps and clamps on write.
+**When it runs.** Settings → **Simplify track on map** (`optimizationActive`; on for vehicles, off for runner and bicycle). While logging, `GtlViewModel` uses that switch. **Show on map** copies the session usage into Settings first, then the drawn line follows the current Settings sliders, so changing usage after load previews another simplify mode. Tolerance is a **1–20 m** slider (1 m steps; motorbike default 6 m, car 8 m). `DouglasPeucker.clampTolerance` still snaps and clamps on write.
 
 **How it works.** Classic Ramer–Douglas–Peucker, with distances in metres on a local tangent plane (`111_320` m per degree of latitude; longitude scaled by `cos(lat)`):
 
@@ -340,9 +347,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 | Document                                                                       | What it is                                                                                                          |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| [CHANGELOGS.md](CHANGELOGS.md)                                                 | Version history (2.0.0 rewrite through 2.0.4)                                                                       |
-| [docs/CHANGELOG-2026-09-09.md](docs/CHANGELOG-2026-09-09.md)                   | 2.0.4 release notes (English and Hungarian)                                                                         |
-| [docs/CHANGELOG-2026-09-08.md](docs/CHANGELOG-2026-09-08.md)                   | 2.0.3 release notes (English and Hungarian)                                                                         |
+| [CHANGELOGS.md](CHANGELOGS.md)                                                 | Canonical version history (2.0.0 rewrite through Unreleased, English and Hungarian)                                 |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console release name and EN/HU what’s-new text                                                                 |
 | [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md)                               | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups                                      |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page)                                                                 |
@@ -364,7 +369,9 @@ Engine entry points worth reading:
 - `engine/.../TrackStats.kt` — odometer, moving vs waiting
 - `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ with local icons
 - `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR
-- `engine/.../MapTrackVisibility.kt` — when the map must draw a track
+- `engine/.../FixCloud.kt` — in-memory standing-fix cloud / CEP95
+- `engine/.../MapDisplayUsage.kt` — which usage and simplify the map follows
+- `engine/.../MapTrackVisibility.kt` — when the map must draw a track (logging always; otherwise last-track or a selected session, unless cleared)
 - `app/.../LocationClient.kt` — fused HIGH_ACCURACY or `GPS_PROVIDER` when Use GNSS only is on
 
 ---
