@@ -95,7 +95,7 @@
     <string name="help_compass_title">Compass</string>
     <string name="help_compass_body">Magnetic heading in degrees and a live compass dial. Works without Start, using the phone rotation sensor.</string>
     <string name="help_kml_title">Viewing KMZ/KML</string>
-    <string name="help_kml_body">Menu → Share KMZ sends the current track as a KMZ file (KML plus play, pause, and stop icons). Open it with an external app such as Google Earth. If Google Earth is not installed, get it from Play Store, then open the shared file. Tap the play, pause, or stop icons on the map to see that point’s details.</string>
+    <string name="help_kml_body">Menu → Share KMZ sends the current track as a KMZ file (KML plus play, pause, and stop icons). Open it with an external app such as Google Earth. If Google Earth is not installed, get it from Play Store, then open the shared file.\n\nTap an icon on the map for that point’s details.\n\nPlay (start): UTC time, latitude, longitude, speed, and temperature. Lean angle if the phone was on a motorbike tank.\n\nPause: the same fields, with speed shown as 0.\n\nStop: the same fields as pause, plus session duration (minutes if under 60 minutes, otherwise HH:MM:SS), average speed, and maximum speed. Speed units follow Settings (km/h, mile/h, or knots).</string>
     <string name="help_privacy_policy">Privacy policy</string>
     <string name="help_privacy_url" translatable="false">https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html</string>
     <string name="help_trackpoint_title">A stored trackpoint</string>

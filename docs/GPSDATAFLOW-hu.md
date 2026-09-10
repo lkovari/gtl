@@ -110,7 +110,7 @@ A `GtlViewModel` a `gps_events`-et figyeli: élő session, Saved tracks választ
 
 - **Route** összesítők: `TrackStatsCalculator`, logolás közben (nyers Room minták).
 - **Map** polyline Room-ból; opcionális Douglas–Peucker (lent); csak logoláskor, last-track-nél vagy kijelölt sessionnél (`MapTrackVisibility`).
-- **Megosztás** ugyanebből a KMZ-t építi (`gx:Track` + balloonok). A KMZ soha nem egyszerűsített.
+- **Megosztás** ugyanebből a KMZ-t építi (`gx:Track` + balloonok). A KMZ soha nem egyszerűsített. A STOP balloon időtartama, átlag- és maxsebessége a session eseményein futtatott `TrackStatsCalculator`-ból jön, nem a STOP sor `speed` mezőjéből.
 
 Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 

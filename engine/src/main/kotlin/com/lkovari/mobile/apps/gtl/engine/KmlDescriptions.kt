@@ -17,6 +17,7 @@ object KmlDescriptions {
         tempCelsius: Float?,
         maxSpeedMps: Float? = null,
         averageSpeedMps: Float? = null,
+        elapsedMillis: Long = 0L,
         system: MeasurementSystem = MeasurementSystem.METRIC,
         leanAngle: Float? = null
     ): String {
@@ -37,8 +38,9 @@ object KmlDescriptions {
             lines.add("lean=${String.format(Locale.US, "%.1f", leanAngle)}")
         }
         if (kind == EventKind.STOP) {
-            lines.add("maxSpeed=${formatSpeed(maxSpeedMps ?: 0f, system)}")
-            lines.add("avgSpeed=${formatSpeed(averageSpeedMps ?: 0f, system)}")
+            lines.add("Duration: ${formatSessionDuration(elapsedMillis)}")
+            lines.add("Avg. speed: ${formatIntegerSpeed(averageSpeedMps ?: 0f, system)}")
+            lines.add("Max. speed: ${formatIntegerSpeed(maxSpeedMps ?: 0f, system)}")
         }
         return lines.joinToString("\n")
     }
@@ -56,6 +58,27 @@ object KmlDescriptions {
             MeasurementSystem.METRIC -> String.format(Locale.US, "%.1f km/h", metersPerSecond * 3.6f)
             MeasurementSystem.IMPERIAL -> String.format(Locale.US, "%.1f mph", metersPerSecond * 2.2369363f)
             MeasurementSystem.ICAO -> String.format(Locale.US, "%.1f kt", metersPerSecond * 1.9438445f)
+        }
+    }
+
+    private fun formatSessionDuration(elapsedMillis: Long): String {
+        val totalSeconds = (elapsedMillis / 1000).coerceAtLeast(0)
+        val totalMinutes = totalSeconds / 60
+        return if (totalMinutes < 60) {
+            "$totalMinutes min"
+        } else {
+            Units.formatDuration(elapsedMillis)
+        }
+    }
+
+    private fun formatIntegerSpeed(metersPerSecond: Float, system: MeasurementSystem): String {
+        return when (system) {
+            MeasurementSystem.METRIC ->
+                "${Math.round(metersPerSecond * 3.6f)} km/h"
+            MeasurementSystem.IMPERIAL ->
+                "${Math.round(metersPerSecond * 2.2369363f)} mile/h"
+            MeasurementSystem.ICAO ->
+                "${Math.round(metersPerSecond * 1.9438445f)} kt"
         }
     }
 }

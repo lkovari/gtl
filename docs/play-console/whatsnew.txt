@@ -21,3 +21,23 @@ Futó módban sportóra-szerű naplózás. A kis úttest-hurkok megmaradnak a t�
 • 0,5 m küszöb, hogy a szűk hurok csúcsai megmaradjanak
 • Beállítások és Súgó (magyar és angol)
 </hu-HU>
+
+Date: 2026-09-10
+
+<en-US>
+Shared KMZ: tap the stop icon in Google Earth for session duration, average speed, and maximum speed.
+
+• Duration in minutes if under 60 minutes, otherwise HH:MM:SS
+• Average and max speed as whole numbers
+• Units follow Settings (km/h, mile/h, or knots)
+• Play and pause still show time, position, speed, and temperature
+</en-US>
+
+<hu-HU>
+Megosztott KMZ: a Google Earth stop ikonjára koppintva megjelenik a session időtartama, az átlag- és a maximális sebesség.
+
+• Időtartam percben 60 perc alatt, különben HH:MM:SS
+• Átlag- és maxsebesség egész számként
+• Mértékegység a Beállításokat követi (km/h, mile/h vagy csomó)
+• Play és szünet továbbra is időt, helyzetet, sebességet és hőmérsékletet mutat
+</hu-HU>

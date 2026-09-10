@@ -75,6 +75,7 @@ class KmlExportUseCase(private val context: Context) {
                             tempCelsius = event.ambientTemperature,
                             maxSpeedMps = if (kind == EventKind.STOP) stats.maxSpeedMps else null,
                             averageSpeedMps = if (kind == EventKind.STOP) stats.averageSpeedMps else null,
+                            elapsedMillis = if (kind == EventKind.STOP) stats.elapsedMillis else 0L,
                             system = system,
                             leanAngle = event.leanAngle
                         )

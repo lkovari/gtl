@@ -95,7 +95,7 @@
     <string name="help_compass_title">Iránytű</string>
     <string name="help_compass_body">Mágneses irány fokban és élő iránytű. Indítás nélkül is működik, a telefon forgásérzékelőjével.</string>
     <string name="help_kml_title">KMZ/KML megtekintése</string>
-    <string name="help_kml_body">Menü → KMZ megosztása elküldi az aktuális nyomvonalat KMZ-fájlként (KML plusz indítás, szünet és stop ikonok). Nyisd meg külső alkalmazással, például Google Earth-tel. Ha nincs telepítve, töltsd le a Play Áruházból, majd nyisd meg a megosztott fájlt. A térképen a play, szünet és stop ikonokra koppintva megjelennek az adott pont adatai.</string>
+    <string name="help_kml_body">Menü → KMZ megosztása elküldi az aktuális nyomvonalat KMZ-fájlként (KML plusz indítás, szünet és stop ikonok). Nyisd meg külső alkalmazással, például Google Earth-tel. Ha nincs telepítve, töltsd le a Play Áruházból, majd nyisd meg a megosztott fájlt.\n\nA térképen egy ikonra koppintva az adott pont adatai jelennek meg.\n\nPlay (indítás): UTC idő, szélesség, hosszúság, sebesség és hőmérséklet. Dőlésszög, ha a telefon motorkerékpár tankján volt.\n\nSzünet: ugyanezek a mezők, a sebesség 0.\n\nStop: ugyanezek, mint szünetnél, plusz a session időtartama (perc, ha 60 perc alatt, különben HH:MM:SS), átlagsebesség és maximális sebesség. A sebesség mértékegysége a Beállításokat követi (km/h, mile/h vagy csomó).</string>
     <string name="help_privacy_policy">Adatvédelmi tájékoztató</string>
     <string name="help_trackpoint_title">Egy letárolt trackpont</string>
     <string name="help_trackpoint_intro">Egy GPS-pont a SQLite gps_events táblában.</string>

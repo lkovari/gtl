@@ -419,15 +419,71 @@ class KmlExporterTest {
             speedMps = 4.1f,
             tempCelsius = 18.5f,
             maxSpeedMps = 12.0f,
-            averageSpeedMps = 6.0f
+            averageSpeedMps = 6.0f,
+            elapsedMillis = 45 * 60 * 1000L
         )
         assertTrue(pause.contains("speed=0.0 km/h"))
-        assertFalse(pause.contains("maxSpeed="))
+        assertFalse(pause.contains("Duration:"))
+        assertFalse(pause.contains("Avg. speed:"))
+        assertFalse(pause.contains("Max. speed:"))
         assertTrue(stop.contains("speed=0.0 km/h"))
-        assertTrue(stop.contains("maxSpeed=43.2 km/h"))
-        assertTrue(stop.contains("avgSpeed=21.6 km/h"))
+        assertTrue(stop.contains("Duration: 45 min"))
+        assertTrue(stop.contains("Avg. speed: 22 km/h"))
+        assertTrue(stop.contains("Max. speed: 43 km/h"))
         assertTrue(stop.contains("temp=18.5"))
         assertFalse(stop.contains("lean="))
+        assertFalse(stop.contains("maxSpeed="))
+        assertFalse(stop.contains("avgSpeed="))
+    }
+
+    @Test
+    fun stopBalloonUsesHmsWhenDurationIsAtLeastOneHour() {
+        val stop = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 12.0f,
+            averageSpeedMps = 6.0f,
+            elapsedMillis = 60 * 60 * 1000L
+        )
+        assertTrue(stop.contains("Duration: 01:00:00"))
+        assertFalse(stop.contains("Duration: 60 min"))
+    }
+
+    @Test
+    fun stopBalloonUsesImperialAndIcaoIntegerSpeeds() {
+        val imperial = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 12.0f,
+            averageSpeedMps = 6.0f,
+            elapsedMillis = 10 * 60 * 1000L,
+            system = MeasurementSystem.IMPERIAL
+        )
+        val icao = KmlDescriptions.balloon(
+            kind = EventKind.STOP,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            speedMps = 0f,
+            tempCelsius = null,
+            maxSpeedMps = 12.0f,
+            averageSpeedMps = 6.0f,
+            elapsedMillis = 10 * 60 * 1000L,
+            system = MeasurementSystem.ICAO
+        )
+        assertTrue(imperial.contains("Avg. speed: 13 mile/h"))
+        assertTrue(imperial.contains("Max. speed: 27 mile/h"))
+        assertTrue(imperial.contains("speed=0.0 mph"))
+        assertTrue(icao.contains("Avg. speed: 12 kt"))
+        assertTrue(icao.contains("Max. speed: 23 kt"))
     }
 
     @Test

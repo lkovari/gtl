@@ -68,9 +68,12 @@ Magnetic heading and a live dial from the rotation sensor. Works without Start.
 
 - Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0).
 - Every stored GPS point is on a `gx:Track` (`when`, lon/lat/alt, speed).
-- START / PAUSE / STOP balloons: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`. Pause and stop force `speed=0`. STOP also `maxSpeed=` / `avgSpeed=`.
+- START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth):
+  - All three: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`, and `lean=` when a lean angle was stored.
+  - Pause and stop force `speed=0`.
+  - Stop also: `Duration:` (whole minutes if under 60 minutes, otherwise `HH:MM:SS`), `Avg. speed:` and `Max. speed:` as whole numbers from `TrackStatsCalculator` (metric `km/h`, imperial `mile/h`, ICAO `kt`).
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
-- Help documents this flow (EN/HU) and lists SQLite `gps_events` fields.
+- Help **Viewing KMZ/KML** lists these balloon fields (EN/HU) and the SQLite `gps_events` fields.
 
 
 

@@ -68,9 +68,12 @@ Mágneses irány és élő tárcsa a forgásérzékelőből. Indítás nélkül 
 
 - Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0).
 - Minden letárolt GPS-pont egy `gx:Track`-en van (`when`, lon/lat/alt, speed).
-- START / PAUSE / STOP balloonok: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`. Pause és stop `speed=0`-t kényszerít. STOP-nál `maxSpeed=` / `avgSpeed=` is.
+- START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva):
+  - Mindhárom: `time=` (UTC), `lat=`, `lon=`, `speed=`, `temp=`, és `lean=` ha volt dőlésszög.
+  - Pause és stop `speed=0`-t kényszerít.
+  - Stop-nál még: `Duration:` (egész perc 60 perc alatt, különben `HH:MM:SS`), `Avg. speed:` és `Max. speed:` egész számként a `TrackStatsCalculator`-ból (metrikus `km/h`, angolszász `mile/h`, ICAO `kt`).
 - MIME `application/vnd.google-earth.kmz`. Nyisd meg Google Earth-tel (ha kell, telepítsd a Play Áruházból).
-- A súgó dokumentálja ezt a folyamatot (EN/HU), és felsorolja a SQLite `gps_events` mezőit.
+- A súgó **KMZ/KML megtekintése** felsorolja ezeket a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
 
 
 

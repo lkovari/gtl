@@ -9,6 +9,10 @@ Bilingual release note for this version: [docs/CHANGELOG-2026-09-09.md](docs/CHA
 
 ## [Unreleased]
 
+### Changed
+
+- KMZ STOP balloon: session duration (`Duration: 45 min` if under 60 minutes, otherwise `HH:MM:SS`), plus labeled `Avg. speed:` and `Max. speed:` as whole numbers (metric `km/h`, imperial `mile/h`, ICAO `kt`) from `TrackStatsCalculator`. Instant `speed=` on START/PAUSE/STOP is unchanged.
+
 ## [2.0.4] — 2026-09-09
 
 Play production track **22 (2.0.4)** (signed AAB). GNSS-only option, runner sports-watch logging, 0.5 m pedestrian store floor.

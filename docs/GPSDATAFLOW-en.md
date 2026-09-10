@@ -110,7 +110,7 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 
 - **Route** totals from `TrackStatsCalculator` while logging (raw Room samples).
 - **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`).
-- **Share** builds KMZ (`gx:Track` + balloons) from the same Room rows. KMZ is never simplified.
+- **Share** builds KMZ (`gx:Track` + balloons) from the same Room rows. KMZ is never simplified. STOP balloon duration, average speed, and max speed come from `TrackStatsCalculator` over the session events, not from the STOP row’s `speed`.
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
