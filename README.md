@@ -1,4 +1,4 @@
-# GTL GPS Track Logger
+# GPS Track Logger
 
 On-device GPS track logger. Route points stay in SQLite on the phone. Share a KMZ (KML + icons) to Google Earth or another map app. Nothing is uploaded to our servers.
 

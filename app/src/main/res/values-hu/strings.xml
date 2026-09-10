@@ -37,7 +37,7 @@
     <string name="route_temp_range">Hőmérséklet-tartomány</string>
     <string name="compass_heading">Irány</string>
     <string name="map_missing_key">Add a MAPS_API_KEY értéket a local.properties fájlhoz, majd fordítsd újra. Az OSM offline térképek letöltés után működnek.</string>
-    <string name="brand_title">GTL GPS Track Logger</string>
+    <string name="brand_title">GPS Track Logger</string>
     <string name="settings_title">Beállítások</string>
     <string name="settings_usage">Használat</string>
     <string name="usage_aircraft">Repülő</string>

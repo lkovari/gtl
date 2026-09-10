@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **GTL GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
+All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning matches `versionName` **2.0.4** / `versionCode` **22** (minSdk 24, targetSdk 36).

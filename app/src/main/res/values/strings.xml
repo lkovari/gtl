@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GTL GPS Track Logger</string>
+    <string name="app_name">GPS Track Logger</string>
     <string name="disclaimer_title">Drive safely</string>
     <string name="disclaimer_body">GTL records your route on this phone only. It does not send location, IMEI, or SIM identifiers to any server. Do not interact with the app while driving. You use it at your own risk. Logging runs as a visible foreground service with a notification.</string>
     <string name="action_accept">Accept</string>
@@ -37,7 +37,7 @@
     <string name="route_temp_range">Temperature range</string>
     <string name="compass_heading">Heading</string>
     <string name="map_missing_key">Add MAPS_API_KEY to local.properties, then rebuild. OSM offline maps still work after download.</string>
-    <string name="brand_title">GTL GPS Track Logger</string>
+    <string name="brand_title">GPS Track Logger</string>
     <string name="settings_title">Settings</string>
     <string name="settings_usage">Usage</string>
     <string name="usage_aircraft">Aircraft</string>
