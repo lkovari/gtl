@@ -6,7 +6,7 @@ Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. 
 
 A 2014-es Eclipse-app (`gtl-e`) Kotlin + Jetpack Compose újraírása. Alkalmazásazonosító: `com.lkovari.mobile.apps.gtl`.
 
-**Verzió:** 2.0.4 (versionCode 22)  
+**Verzió:** 2.0.5 (versionCode 23)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** angol és magyar, Material 3, álló (portrait)
 

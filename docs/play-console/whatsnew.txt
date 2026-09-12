@@ -1,34 +1,27 @@
 Release name (Play, not shown to users):
-2.0.4 (22)
+2.0.5 (23)
 
 What's new — max 500 characters per language.
-Date: 2026-09-09
-
-<en-US>
-Runner mode records like a sports watch. Small on-road loops stay on the map.
-
-• Use GNSS only: satellite chip (GPS, Galileo, GLONASS, BeiDou), not fused Wi-Fi/cell
-• Runner preset: GNSS on, smoothing off, every good fix, no map simplify
-• 0.5 m store floor so tight loops keep vertices
-• Settings and Help (English and Hungarian)
-</en-US>
-
-<hu-HU>
-Futó módban sportóra-szerű naplózás. A kis úttest-hurkok megmaradnak a térképen.
-
-• Csak GNSS: műholdchip (GPS, Galileo, GLONASS, BeiDou), nem fused Wi-Fi/cella
-• Futó előbeállítás: GNSS be, simítás ki, minden jó fix, térkép-egyszerűsítés ki
-• 0,5 m küszöb, hogy a szűk hurok csúcsai megmaradjanak
-• Beállítások és Súgó (magyar és angol)
-</hu-HU>
-
 Date: 2026-09-10
 
 <en-US>
-Shared KMZ: view session duration, average speed, and max speed from the Google Earth stop icon. Duration displays in seconds (under 60s), minutes (under 60m), or HH:MM:SS format. Fix cloud dots display raw GPS with magenta CEP95 accuracy ring while standing still. KMZ play, pause, and stop details now include usage type (Aircraft, Watercraft, Car, Motorbike, Bicycle, or Runner). Saved tracks open in their recorded usage mode and automatically switch Settings to match. Broom button clears the drawn track without deleting the log. New Bicycle mode keeps slow curves with GNSS-only tracking.
+Fix cloud, bicycle usage, KMZ session stats, map broom.
+
+• KMZ stop: duration (s / min / HH:MM:SS), avg and max speed
+• Play/pause/stop balloons include usage type
+• Fix cloud: raw GPS dots, magenta CEP95 while standing still
+• Saved tracks open in recorded usage and switch Settings
+• Broom clears the drawn line without deleting the log
+• Bicycle: GNSS only, slow curves stay on the map
 </en-US>
 
 <hu-HU>
-Megosztott KMZ: a Google Earth stop ikonjánál megtekinthető az időtartam, átlagsebesség és maximális sebesség másodpercben (60 mp-ig), percben (60 perc alatt), vagy HH:MM:SS formátumban. Pontfelhő nyers GPS-pontokat mutat magenta CEP95 körrel állóhelyzetben. KMZ play, szünet és stop részletekben megjelenik a használati mód (Aircraft, Watercraft, Car, Motorbike, Bicycle vagy Runner). Mentett track-ek a felvétel módjában nyílnak meg és automatikusan a Beállításokat is arra állítják. Seprő gomb leveszi a kirajzolt vonalat anélkül, hogy törlené a naplót. Új Kerékpár mód megtartja a lassú íveket GNSS-csak követéssel.
-</hu-HU>
+Pontfelhő, kerékpár mód, KMZ session adatok, seprő.
 
+• KMZ stop: időtartam (mp / perc / HH:MM:SS), átlag- és maxsebesség
+• Play/szünet/stop balloon: használati mód
+• Pontfelhő: nyers GPS-pöttyök, magenta CEP95 állóhelyen
+• Mentett track a felvétel módjában nyílik, Beállítások követik
+• Seprő leveszi a vonalat, a naplót nem törli
+• Kerékpár: csak GNSS, a lassú ívek megmaradnak
+</hu-HU>
