@@ -49,7 +49,7 @@ Every new feature should strengthen that, or **unlock** it (GPX: take the data o
 - Usage presets (aircraft, watercraft, car, motorbike, bicycle, runner) in one DataStore edit
 - Filter chain: accuracy / satellites → optional Kalman → density → Room → Map / Route / KMZ
 - GPS tab: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR
-- KMZ `gx:Track` plus Start / Pause / Stop balloons on the stored line (`clampToGround`; Stop is the last accepted point)
+- KMZ tessellated `LineString` (visible, height 0) plus hidden `gx:Track` for timed data; Start / Pause / Stop balloons on the stored line (Stop is the last accepted point)
 - OSM Mapsforge region download; Google Maps when `MAPS_API_KEY` is set
 - Compose palette: light sage/paper, dark **Cockpit** (`Theme.kt`); dark follows the system theme
 

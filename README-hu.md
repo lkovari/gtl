@@ -71,13 +71,13 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 
 ### KMZ export
 
-- Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0). A vonal és az ikonok `clampToGround`, hogy a Google Earth-ben ugyanazon a tracken üljenek.
+- Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0). A **látható** vonal KML `LineString`, `tessellate` és `clampToGround`, magasság 0, hogy a Google Earth a terepre feszítse (a `gx:Track` GPS-magassággal a 3. `gx:coord`-on közeli zoomnál az utca mellé emelkedik, és a kamera alá tűnhet). A Start / Pause / Stop Point magassága is 0. Egy rejtett `gx:Track` tárolja a `when`, speed, odometer, GPS `alt` és `baro` adatot.
 - A vonal a letárolt log; a session végét jelölő STOP sor nem lesz extra horog. A Stop ikon az utolsó path-csúcson van. A Pause ikon a pauza-csúcson van (állásonként egy; Start/Stop átfedésnél elmarad).
 - START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva). A placemark neve **Start**, **Pause**, **Stop**. A leírás HTML (`<br/>`), hogy az Earth details minden mezőt mutasson. Az idő UTC, nincs `time=` előtag és nincs `UTC` utótag. A mértékegység a Beállításokat követi (metrikus: km/h, m / km, °C; angolszász: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). A balloonban **nincs** `usage=` és `lean=`.
   - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A`, ha nincs szenzorminta), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA a barométerből, vagy `N/A`). Nincs Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** ugyanazok a sorok, plusz `Speed:` (pillanatnyi GPS-sebesség a pauza-soron), `duration=` (másodperc, ha 60 s vagy kevesebb, egész perc 60 perc alatt, különben `HH:MM:SS` a Starttól), és `distance=` az addigi út a kiválasztott mértékegységben. Nincs Avg. Speed / Max speed.
   - **Stop:** ugyanazok a sorok, plusz `Avg. Speed:` és `Max speed:` (egy tizedes) a `TrackStatsCalculator`-ból a pathon, majd `duration=` és `distance=` a teljes sessionre. Nincs pillanatnyi `Speed:`.
-- Minden `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `baro` (ISA méter, üres ha nincs minta). A `gx:coord` magasság GPS marad.
+- Minden rejtett `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `alt` (GPS méter), `baro` (ISA méter, üres ha nincs minta). A `gx:coord` magasság 0.
 - MIME `application/vnd.google-earth.kmz`. Nyisd meg Google Earth-tel (ha kell, telepítsd a Play Áruházból).
 - A súgó **KMZ és GPX megosztása** felsorolja a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
 

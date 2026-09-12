@@ -386,7 +386,10 @@ class KmlExporterTest {
         val kml = sampleKml()
         assertTrue(kml.contains("xmlns:gx="))
         assertTrue(kml.contains("<when>2024-09-05T01:33:20Z</when>"))
-        assertTrue(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
+        assertTrue(kml.contains("<LineString>"))
+        assertTrue(kml.contains("<tessellate>1</tessellate>"))
+        assertTrue(kml.contains("19.05,47.5,0"))
+        assertTrue(kml.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"speed\">"))
         assertTrue(kml.contains("<gx:value>5.5</gx:value>"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"odometer\">"))
@@ -395,6 +398,8 @@ class KmlExporterTest {
         assertTrue(kml.contains("Distance (m)"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"baro\">"))
         assertTrue(kml.contains("Baro (m)"))
+        assertTrue(kml.contains("<gx:SimpleArrayData name=\"alt\">"))
+        assertTrue(kml.contains("GPS altitude (m)"))
     }
 
     @Test
@@ -416,10 +421,16 @@ class KmlExporterTest {
                 )
             )
         )
-        assertTrue(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
-        assertTrue(kml.contains("<gx:coord>19.06 47.51 125.0</gx:coord>"))
+        assertTrue(kml.contains("<gx:SimpleArrayData name=\"alt\">"))
+        assertTrue(kml.contains("GPS altitude (m)"))
+        assertTrue(kml.contains("<gx:value>120.0</gx:value>"))
+        assertTrue(kml.contains("<gx:value>125.0</gx:value>"))
+        assertTrue(kml.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
+        assertTrue(kml.contains("<gx:coord>19.06 47.51 0</gx:coord>"))
+        assertTrue(kml.contains("19.05,47.5,0"))
         assertTrue(kml.contains("<gx:value>108.0</gx:value>"))
         assertTrue(kml.contains("<gx:value></gx:value>"))
+        assertFalse(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
         assertFalse(kml.contains("<gx:coord>19.05 47.5 108.0</gx:coord>"))
     }
 
@@ -643,10 +654,14 @@ class KmlExporterTest {
     fun drapesTrackAndPointIconsOnTheGround() {
         val kml = sampleKml()
         assertTrue(kml.contains("<gx:Track>"))
+        assertTrue(kml.contains("<LineString>"))
+        assertTrue(kml.contains("<tessellate>1</tessellate>"))
         assertTrue(kml.contains("<altitudeMode>clampToGround</altitudeMode>"))
         assertFalse(kml.contains("<altitudeMode>absolute</altitudeMode>"))
         assertTrue(kml.contains("<Point>"))
-        assertTrue(kml.contains("<coordinates>19.05,47.5,120.0</coordinates>"))
+        assertTrue(kml.contains("<coordinates>19.05,47.5,0</coordinates>"))
+        assertTrue(kml.contains("<styleUrl>#trackData</styleUrl>"))
+        assertTrue(kml.contains("<visibility>0</visibility>"))
     }
 
     @Test

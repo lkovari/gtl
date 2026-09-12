@@ -26,11 +26,12 @@ Map HUD, GPX 1.1 export, elevation profile, compass rose, barometric altitude co
 ### Changed
 
 - Saved tracks **Delete** wraps onto a second row on a phone (it sat off-screen after Elevation). Confirm dialog before cascade-delete.
-- KMZ Earth details match the Start / Pause / Stop field spec. Datetime is UTC `YYYY:MM:DD HH:MM:SS` (no `time=` prefix, no `UTC` suffix). Then `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (ISA, or `N/A`) in session units. Pause adds `Speed:` (instant GPS speed at that row), `duration=` (≤60 s as `N s`, under 60 min as whole `N min`, otherwise `HH:MM:SS` from Start), and `distance=` so far. Stop adds `Avg. Speed:` and `Max speed:` (one decimal from `TrackStatsCalculator`; metric `km/h`, imperial `mph`, ICAO `kt`; imperial/ICAO altitude `ft`; imperial temp `°F`), then session `duration=` and `distance=`. KMZ `gx:Track` ExtendedData includes `baro` metres; `gx:coord` altitude stays GPS. Dropped from balloons: `usage=`, `lean=`, `Distance:`, `Duration:`, forced `speed=0`, `Avg. speed:` / `Max. speed:`. Start has no duration/distance.
+- KMZ Earth details match the Start / Pause / Stop field spec. Datetime is UTC `YYYY:MM:DD HH:MM:SS` (no `time=` prefix, no `UTC` suffix). Then `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (ISA, or `N/A`) in session units. Pause adds `Speed:` (instant GPS speed at that row), `duration=` (≤60 s as `N s`, under 60 min as whole `N min`, otherwise `HH:MM:SS` from Start), and `distance=` so far. Stop adds `Avg. Speed:` and `Max speed:` (one decimal from `TrackStatsCalculator`; metric `km/h`, imperial `mph`, ICAO `kt`; imperial/ICAO altitude `ft`; imperial temp `°F`), then session `duration=` and `distance=`. KMZ `gx:Track` ExtendedData includes `baro` metres and GPS `alt`; `gx:coord` height is 0. The visible line is a tessellated `LineString`. Dropped from balloons: `usage=`, `lean=`, `Distance:`, `Duration:`, forced `speed=0`, `Avg. speed:` / `Max. speed:`. Start has no duration/distance.
 
 ### Fixed
 
 - KMZ/Google Earth: Start / Pause / Stop icons sit on the stored track (`clampToGround` on the `gx:Track` and Point placemarks). Stop is the last **accepted** log point, not the raw HUD fix. A trailing STOP row is not drawn as an off-track hook. Pause icons that overlap Start or Stop are omitted; consecutive standing PAUSE rows collapse to one icon.
+- Google Earth close zoom: the visible path is a tessellated `LineString` clamped to ground at height 0. `gx:Track` with GPS altitude as `gx:coord` Z was ignored as clamp by Earth Android — the line floated (~GPS alt), slid off the road around 80 m eye altitude, and vanished below ~50 m under the camera. Timed `gx:Track` is hidden; GPS altitude is ExtendedData `alt`.
 - Stop balloon title is **Stop** (not Pause). Details use HTML line breaks and a KML `BalloonStyle` so Start / Pause / Stop fields show in Earth (Pause was blank when Earth ignored plain newlines). Missing temperature is `temp=N/A`.
 
 ### Magyar
@@ -42,7 +43,8 @@ Map HUD, GPX 1.1 export, elevation profile, compass rose, barometric altitude co
 - Iránytű: MAG / TRUE a fülön (alap MAG), forgó rózsa, deklináció a last GPS-fixből, 8-as figyelmeztetés LOW pontosságnál.
 - Barometrikus magasság oszlop (Room 4), ha van nyomásszenzor.
 - KMZ **Distance**: minden trackponton kumulatív táv (ExtendedData, méter), plusz `baro` (ISA méter). Pause / Stop balloon: `distance=` a session mértékegységében.
-- KMZ ikonok a letárolt vonalon (clampToGround); Stop az utolsó elfogadott pont; Pause nem takarja a Stopot. Balloon címe Start / Pause / Stop. Pause details nem üres (HTML + BalloonStyle); `temp=N/A`. Earth details: UTC `YYYY:MM:DD HH:MM:SS`, `temp=`, `lon=`, `lat=`, `Altitude:`, `Baro:`; Pause: `Speed:`, `duration=`, `distance=`; Stop: `Avg. Speed:`, `Max speed:`, `duration=`, `distance=`. KMZ ExtendedData `baro` (ISA m); a `gx:coord` GPS. Nincs usage / lean a balloonban.
+- KMZ ikonok a letárolt vonalon (clampToGround); Stop az utolsó elfogadott pont; Pause nem takarja a Stopot. Balloon címe Start / Pause / Stop. Pause details nem üres (HTML + BalloonStyle); `temp=N/A`. Earth details: UTC `YYYY:MM:DD HH:MM:SS`, `temp=`, `lon=`, `lat=`, `Altitude:`, `Baro:`; Pause: `Speed:`, `duration=`, `distance=`; Stop: `Avg. Speed:`, `Max speed:`, `duration=`, `distance=`. KMZ ExtendedData `baro` (ISA m) és GPS `alt`; a `gx:coord` magasság 0. A látható vonal `LineString`. Nincs usage / lean a balloonban.
+- Google Earth közeli zoom: a látható vonal terepre feszített `LineString` (magasság 0). A `gx:Track` GPS-Z-je Earth Androidon 3D vonal volt — 80 m-nél az utca mellett, 50 m alatt eltűnt.
 
 ## [2.0.5] — 2026-09-10
 

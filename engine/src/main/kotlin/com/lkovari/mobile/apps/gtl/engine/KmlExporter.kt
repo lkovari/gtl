@@ -45,6 +45,21 @@ object KmlExporter {
                 builder.appendLine("<Placemark>")
                 builder.appendLine("<name>${escape(track.name)}</name>")
                 builder.appendLine("<styleUrl>#track</styleUrl>")
+                builder.appendLine("<LineString>")
+                builder.appendLine("<tessellate>1</tessellate>")
+                builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
+                builder.appendLine("<coordinates>")
+                track.points.forEach { vertex ->
+                    val p = vertex.point
+                    builder.appendLine("${p.longitude},${p.latitude},0")
+                }
+                builder.appendLine("</coordinates>")
+                builder.appendLine("</LineString>")
+                builder.appendLine("</Placemark>")
+                builder.appendLine("<Placemark>")
+                builder.appendLine("<name>${escape(track.name)}</name>")
+                builder.appendLine("<styleUrl>#trackData</styleUrl>")
+                builder.appendLine("<visibility>0</visibility>")
                 builder.appendLine("<gx:Track>")
                 builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
                 track.points.forEach { vertex ->
@@ -52,7 +67,7 @@ object KmlExporter {
                 }
                 track.points.forEach { vertex ->
                     val p = vertex.point
-                    builder.appendLine("<gx:coord>${p.longitude} ${p.latitude} ${p.altitude}</gx:coord>")
+                    builder.appendLine("<gx:coord>${p.longitude} ${p.latitude} 0</gx:coord>")
                 }
                 builder.appendLine("<ExtendedData>")
                 builder.appendLine("<SchemaData schemaUrl=\"#trackPoint\">")
@@ -64,6 +79,11 @@ object KmlExporter {
                 builder.appendLine("<gx:SimpleArrayData name=\"odometer\">")
                 track.points.forEach { vertex ->
                     builder.appendLine("<gx:value>${vertex.odometerMeters}</gx:value>")
+                }
+                builder.appendLine("</gx:SimpleArrayData>")
+                builder.appendLine("<gx:SimpleArrayData name=\"alt\">")
+                track.points.forEach { vertex ->
+                    builder.appendLine("<gx:value>${vertex.point.altitude}</gx:value>")
                 }
                 builder.appendLine("</gx:SimpleArrayData>")
                 builder.appendLine("<gx:SimpleArrayData name=\"baro\">")
@@ -91,7 +111,7 @@ object KmlExporter {
                 }
                 builder.appendLine("<Point>")
                 builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
-                builder.appendLine("<coordinates>${mark.point.longitude},${mark.point.latitude},${mark.point.altitude}</coordinates>")
+                builder.appendLine("<coordinates>${mark.point.longitude},${mark.point.latitude},0</coordinates>")
                 builder.appendLine("</Point>")
                 builder.appendLine("</Placemark>")
             }
@@ -104,6 +124,7 @@ object KmlExporter {
 
     private fun appendStyles(builder: StringBuilder, color: String, width: Int) {
         builder.appendLine("""<Style id="track"><LineStyle><color>$color</color><width>$width</width></LineStyle></Style>""")
+        builder.appendLine("""<Style id="trackData"><LineStyle><color>00000000</color><width>0</width></LineStyle></Style>""")
         appendIconStyle(builder, "start", "icons/play.png")
         appendIconStyle(builder, "pause", "icons/pause.png")
         appendIconStyle(builder, "stop", "icons/stop.png")
@@ -112,7 +133,7 @@ object KmlExporter {
 
     private fun appendTrackPointSchema(builder: StringBuilder) {
         builder.appendLine(
-            """<Schema id="trackPoint"><gx:SimpleArrayField name="speed" type="float"><displayName>Speed (m/s)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="odometer" type="float"><displayName>Distance (m)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="baro" type="float"><displayName>Baro (m)</displayName></gx:SimpleArrayField></Schema>"""
+            """<Schema id="trackPoint"><gx:SimpleArrayField name="speed" type="float"><displayName>Speed (m/s)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="odometer" type="float"><displayName>Distance (m)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="alt" type="float"><displayName>GPS altitude (m)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="baro" type="float"><displayName>Baro (m)</displayName></gx:SimpleArrayField></Schema>"""
         )
     }
 

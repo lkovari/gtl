@@ -71,13 +71,13 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 
 ### KMZ export
 
-- Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0). The line and icons use `clampToGround` so they sit on the same track in Google Earth.
+- Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0). The **visible** line is a KML `LineString` with `tessellate` and `clampToGround` at height 0, so Google Earth drapes it on the terrain (a `gx:Track` with GPS altitude as the 3rd `gx:coord` floats beside the road at close zoom and can vanish under the camera). Start / Pause / Stop Points also use height 0. A hidden `gx:Track` still stores `when`, speed, odometer, GPS `alt`, and `baro`.
 - Path vertices are the stored log; a trailing STOP row that is only a session marker is not drawn as an extra hook. The Stop icon is on the last path vertex. Pause icons sit on pause vertices (one icon per standstill; omitted if they overlap Start or Stop).
 - START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth). Placemark names are **Start**, **Pause**, **Stop**. Description is HTML (`<br/>`) so every field shows in Earth details. Time is UTC with no `time=` prefix and no `UTC` suffix. Units follow Settings (metric: km/h, m / km, °C; imperial: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). Balloons do **not** include `usage=` or `lean=`.
   - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA from the barometer, or `N/A`). No Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** the same lines, plus `Speed:` (instantaneous GPS speed at that pause row), `duration=` (seconds if 60 s or less, whole minutes under 60 min, otherwise `HH:MM:SS` from Start), and `distance=` so far in the selected unit. No Avg. Speed / Max speed.
   - **Stop:** the same lines, plus `Avg. Speed:` and `Max speed:` (one decimal) from `TrackStatsCalculator` on the path, then `duration=` and `distance=` for the full session. No instant `Speed:`.
-- Each `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), and `baro` (ISA metres, empty if no sample). `gx:coord` altitude stays GPS.
+- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (ISA metres, empty if no sample). `gx:coord` height is 0 so Earth does not lift the timed track.
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
 - Help **Sharing KMZ and GPX** lists balloon fields (EN/HU) and the SQLite `gps_events` fields.
 

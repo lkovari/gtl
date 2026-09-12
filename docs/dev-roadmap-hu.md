@@ -49,7 +49,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (GPX: ki tudod
 - Használati előbeállítások (repülő, hajó, autó, motor, kerékpár, futó) egy DataStore-szerkesztésben
 - Szűrőlánc: pontosság / műhold → opcionális Kalman → sűrűség → Room → Térkép / Útvonal / KMZ
 - GPS fül: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR
-- KMZ `gx:Track` + Start / Pause / Stop balloon a letárolt vonalon (`clampToGround`; a Stop az utolsó elfogadott pont)
+- KMZ terepre feszített `LineString` (látható, magasság 0) plusz rejtett `gx:Track` az idősorhoz; Start / Pause / Stop balloon a letárolt vonalon (a Stop az utolsó elfogadott pont)
 - OSM Mapsforge régióletöltés, Google Maps ha van `MAPS_API_KEY`
 - Compose paletta: világos sage/papír, sötét **Cockpit** (`Theme.kt`); a sötét a rendszer témáját követi
 

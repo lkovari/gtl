@@ -7,7 +7,7 @@ Date: 2026-09-12
 <en-US>
 KMZ Earth details.
 
-• Start / Pause / Stop sit on the stored line
+• Start / Pause / Stop sit on the stored line; close zoom stays on the road
 • Details: UTC datetime, temp=, lon, lat, Altitude, Baro
 • Pause: Speed, duration, distance; Stop: Avg. Speed, Max speed, duration, distance
 • temp=N/A if no sensor; units from Settings
@@ -17,7 +17,7 @@ KMZ Earth details.
 <hu-HU>
 KMZ Earth details.
 
-• Start / Pause / Stop a letárolt vonalon
+• Start / Pause / Stop a letárolt vonalon; közeli zoom az utcán marad
 • Details: UTC datetime, temp=, lon, lat, Altitude, Baro
 • Pause: Speed, duration, distance; Stop: Avg. Speed, Max speed, duration, distance
 • Ha nincs hőmérséklet: temp=N/A; mértékegység a Beállításokból
