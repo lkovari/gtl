@@ -59,7 +59,7 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 
 ### What is weak for listing and for use
 
-- **Map at night:** HUD is there, tiles stay daylight. Listing shots in `docs/screenshots/` may still be the pre-HUD empty map.
+- **Map at night:** HUD is there, tiles stay daylight. Listing shots in `docs/screenshots/` (2026-09-12) show GPS skyplot, Route elevation, Compass MAG rose, Settings QNH, Saved-track elevation, and Map with S/E. Map HUD is still missing from the listing (HUD is hidden when a saved track is shown).
 - **Route tab:** 2×4 `HudMetric` cards plus an elevation profile. Speed is not *the* number.
 - **Saved tracks:** date + raw `usageType` enum + `METRIC`. Elevation, delete confirm, and KMZ/GPX share exist. No name, distance, or mini-map.
 - **Theme:** cockpit colours exist, but the **map stays daylight**, there is no in-app System / Light / Dark control, and `themes.xml` keeps a light status bar.
@@ -97,7 +97,7 @@ What makes the feature graphic honest:
 2. **Skyplot** on the GPS tab — done
 3. **Speed-coloured** line on a dark map — the remaining visual
 
-Play screenshots should be the Map tab with HUD, not the Route number grid. Replace the feature graphic with a **real UI crop** once dark tiles and the coloured line match it.
+Play listing (2026-09-12) has GPS skyplot, Route elevation, Compass, Settings QNH, Saved tracks, and Map with S/E — not the HUD Map (HUD is hidden on a shown saved track). Recapture a logging HUD Map and replace the feature graphic with a **real UI crop** once dark tiles and the coloured line match it.
 
 Default usage is motorbike: the eye-catcher must work **day and night, in gloves, at a glance** (large digits, few taps, dark map).
 
@@ -265,7 +265,9 @@ Goal: night does not glare, the notification shows the same numbers, listing is 
 | 2 | Notification with live numbers | 1–2 days |
 | — | Play screenshots + feature graphic from the **real** HUD map | 0.5 day |
 
-**Done when:** dark mode uses dark tiles; the notification shows km/h and km; the new 9:16 listing shot is the HUD Map, not the old empty map.
+GPS / Route / Compass / Settings / Saved tracks / Map S/E listing shots recaptured 2026-09-12 (1080×1920, bottom tabs kept). Remaining: HUD Map while logging, and the feature graphic.
+
+**Done when:** dark mode uses dark tiles; the notification shows km/h and km; the new 9:16 listing shot is the HUD Map, not the idle S/E track.
 
 ### Wave 2 — “archive and the line tell a story” (about 7–10 days)
 
@@ -316,7 +318,7 @@ Not optional wrap-up:
 - [docs/play-console/whatsnew.txt](play-console/whatsnew.txt) (500 characters per language)
 - Help EN/HU for new controls
 - README feature list if the user can see it
-- Screenshots 1080×1920, 24-bit, no alpha; recapture Map and GPS so HUD and skyplot are on the listing
+- Screenshots 1080×1920, 24-bit, no alpha; GPS skyplot, Route elevation, Compass, Settings QNH, Saved tracks, and Map S/E recaptured 2026-09-12. Recapture HUD Map (logging) and the feature graphic after dark tiles.
 
 [GPSDATAFLOW](GPSDATAFLOW-en.md) only changes if the write chain changes. Session name: [DBSTRUCT](DBSTRUCT-en.md) migration 4→5.
 

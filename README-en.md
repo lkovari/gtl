@@ -426,18 +426,21 @@ Engine entry points worth reading:
 
 `docs/screenshots/`
 
-- `gps-idle.png`, `gps-logging.png` — GPS tab (recapture so the skyplot is visible)
-- `route.png` — Route totals
-- `map.png`, `tracking.png` — Map while recording
+- `gps-idle.png` — GPS tab: constellation chips, SNR, polar skyplot, GPS / Baro altitude, bottom tabs (idle, waiting for a fix). Recaptured 2026-09-12.
+- `gps-logging.png` — older GPS tab while logging (pre-skyplot layout, 460×1024)
+- `route.png` — Route totals, lean, GPS/baro elevation profile, bottom tabs. Recaptured 2026-09-12.
+- `map.png` — Map with a shown track, green S / red E, Google Maps, bottom tabs (idle; HUD is hidden when a saved track is shown). Recaptured 2026-09-12.
+- `tracking.png` — older Map while recording (pre-S/E, 460×1024)
 - `googleearth.png` — shared KMZ in Google Earth
-- `compass.png`, `about.png`
-- `settings.png` — Settings with six usage types (Watercraft selected), Show fix cloud, GNSS only, and recording density at Every good
-- `saved-tracks.png` — Saved tracks (select, share, show on map)
+- `compass.png` — Compass MAG / TRUE rose, bottom tabs. Recaptured 2026-09-12.
+- `about.png`
+- `settings.png` — Settings: six usage types (Runner selected), QNH 900–1100 hPa, Keep screen on while logging, GNSS only, recording density Every good. Recaptured 2026-09-12.
+- `saved-tracks.png` — Saved tracks: Show on map, Elevation, Delete, GPS/baro profile. Recaptured 2026-09-12.
 - `settings-density.png` — Older Settings layout with simplify / smoothing sliders (2.0.3)
 - `help.png` — Help topics (2.0.3)
 - `app-icon.png`
 
-Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Upload `settings.png`, `saved-tracks.png`, and `help.png` with this release.
+Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Status bar and home indicator cropped; bottom GPS / Route / Map / Compass tabs kept. Upload `gps-idle.png`, `route.png`, `map.png`, `compass.png`, `settings.png`, and `saved-tracks.png` with this release. HUD Map listing and the feature graphic wait on dark tiles (see the roadmap).
 
 ---
 

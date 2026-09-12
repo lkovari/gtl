@@ -12,6 +12,7 @@ import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmCatalog
 import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
+import com.lkovari.mobile.apps.gtl.data.prefs.GoogleMapLayer
 import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.GpxExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
@@ -580,6 +581,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setQnhHpa(value: Float) {
         viewModelScope.launch { app.preferences.setQnhHpa(value) }
+    }
+
+    fun setGoogleMapLayer(value: GoogleMapLayer) {
+        viewModelScope.launch { app.preferences.setGoogleMapLayer(value) }
     }
 
     fun downloadRegion(region: OsmRegion) {

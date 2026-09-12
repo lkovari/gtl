@@ -52,7 +52,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun ConstellationStrip(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
+fun ConstellationStrip(
+    snapshot: GnssSnapshot?,
+    provider: String? = null,
+    modifier: Modifier = Modifier
+) {
     val items = listOf(
         ChipSpec("GPS L1", snapshot?.gpsL1, GnssConstellation.GPS),
         ChipSpec("GPS L5", snapshot?.gpsL5, GnssConstellation.GPS),
@@ -62,11 +66,12 @@ fun ConstellationStrip(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
         ChipSpec("QZSS", snapshot?.byConstellation?.get(GnssConstellation.QZSS), GnssConstellation.QZSS),
         ChipSpec("NavIC", snapshot?.byConstellation?.get(GnssConstellation.IRNSS), GnssConstellation.IRNSS)
     )
+    val rows = items.chunked(4)
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        items.chunked(4).forEach { rowItems ->
+        rows.forEachIndexed { rowIndex, rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -80,8 +85,16 @@ fun ConstellationStrip(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
                         modifier = Modifier.weight(1f)
                     )
                 }
-                repeat(4 - rowItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
+                val empty = 4 - rowItems.size
+                if (rowIndex == rows.lastIndex && empty > 0) {
+                    ProviderChip(provider = provider, modifier = Modifier.weight(1f))
+                    repeat(empty - 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                } else {
+                    repeat(empty) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -149,6 +162,59 @@ private fun ConstellationChip(
 }
 
 @Composable
+private fun ProviderChip(provider: String?, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .height(52.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = stringResource(R.string.gps_provider).uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.4.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = shortProvider(provider),
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+private fun shortProvider(raw: String?): String {
+    if (raw.isNullOrBlank()) {
+        return "—"
+    }
+    val lower = raw.lowercase()
+    return when {
+        lower == "gps" -> "GPS"
+        "fused" in lower -> "Fused"
+        "network" in lower -> "NET"
+        "passive" in lower -> "PAS"
+        raw.length <= 5 -> raw
+        else -> raw.take(5)
+    }
+}
+
+@Composable
 fun SnrMeter(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
     val quality = snapshot?.signalQuality ?: SignalQuality.NONE
     val cn0 = snapshot?.usedAverageCn0 ?: snapshot?.averageCn0 ?: 0.0
@@ -171,8 +237,8 @@ fun SnrMeter(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -188,15 +254,15 @@ fun SnrMeter(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
                 text = qualityLabel,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 color = qualityColor
             )
         }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(12.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
                 .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
         ) {
             Box(
@@ -218,31 +284,66 @@ fun SnrMeter(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
                 )
             },
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            minLines = 2
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
-fun HudMetric(label: String, value: String, modifier: Modifier = Modifier) {
+fun HudMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    labelSuffix: String? = null
+) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(if (compact) 10.dp else 14.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .padding(12.dp)
+            .padding(
+                horizontal = if (compact) 8.dp else 12.dp,
+                vertical = if (compact) 4.dp else 12.dp
+            )
     ) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label.uppercase(),
+                style = if (compact) {
+                    MaterialTheme.typography.labelSmall
+                } else {
+                    MaterialTheme.typography.labelLarge
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
+            )
+            if (labelSuffix != null) {
+                Text(
+                    text = labelSuffix,
+                    fontSize = if (compact) 9.sp else 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
         Text(
             text = value,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Medium,
-            fontSize = 20.sp,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = if (compact) 15.sp else 20.sp,
+            lineHeight = if (compact) 18.sp else 24.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

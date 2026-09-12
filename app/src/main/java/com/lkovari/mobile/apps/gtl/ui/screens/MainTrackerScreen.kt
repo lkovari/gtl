@@ -267,7 +267,8 @@ fun MainTrackerScreen(
                             .fillMaxSize()
                             .alpha(if (tab == 2) 1f else 0f),
                         mapActive = tab == 2,
-                        onOsmFailed = { viewModel.onOsmMapFailed() }
+                        onOsmFailed = { viewModel.onOsmMapFailed() },
+                        onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) }
                     )
                 }
                 when (tab) {
@@ -277,7 +278,8 @@ fun MainTrackerScreen(
                         MapPane(
                             state,
                             onClearMap = { viewModel.clearShownTrack() },
-                            onOsmFailed = { viewModel.onOsmMapFailed() }
+                            onOsmFailed = { viewModel.onOsmMapFailed() },
+                            onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) }
                         )
                     }
                     else -> CompassPane(
@@ -300,68 +302,53 @@ private fun GpsPane(state: GtlUiState) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ConstellationStrip(state.live.gnss)
+        ConstellationStrip(state.live.gnss, state.live.provider)
         SnrMeter(state.live.gnss)
         GnssSkyplot(state.live.gnss)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            HudMetric(
-                stringResource(R.string.gps_latitude),
-                location?.let { String.format(Locale.US, "%.6f", it.latitude) } ?: "—",
-                Modifier.weight(1f)
-            )
-            HudMetric(
-                stringResource(R.string.gps_longitude),
-                location?.let { String.format(Locale.US, "%.6f", it.longitude) } ?: "—",
-                Modifier.weight(1f)
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            HudMetric(
-                stringResource(R.string.gps_accuracy),
-                location?.let { String.format(Locale.US, "%.1f m", it.accuracy) } ?: "—",
-                Modifier.weight(1f)
-            )
-            HudMetric(
-                stringResource(R.string.route_altitude),
-                location?.let { loc ->
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                HudMetric(
+                    stringResource(R.string.gps_latitude),
+                    location?.let { String.format(Locale.US, "%.6f", it.latitude) } ?: "—",
+                    Modifier.weight(1f),
+                    compact = true
+                )
+                HudMetric(
+                    stringResource(R.string.gps_longitude),
+                    location?.let { String.format(Locale.US, "%.6f", it.longitude) } ?: "—",
+                    Modifier.weight(1f),
+                    compact = true
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                HudMetric(
+                    stringResource(R.string.gps_accuracy),
+                    location?.let { String.format(Locale.US, "%.1f m", it.accuracy) } ?: "—",
+                    Modifier.weight(1f),
+                    compact = true
+                )
+                val gpsAltitude = location?.let { loc ->
                     if (loc.hasAltitude()) {
                         Units.formatAltitude(loc.altitude, state.settings.measurementSystem)
                     } else {
                         "—"
                     }
-                } ?: "—",
-                Modifier.weight(1f)
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            HudMetric(
-                stringResource(R.string.gps_provider),
-                state.live.provider ?: "—",
-                Modifier.weight(1f)
-            )
-            HudMetric(
-                stringResource(R.string.gps_status),
-                if (state.live.logging) stringResource(R.string.status_logging) else stringResource(R.string.status_idle),
-                Modifier.weight(1f)
-            )
-        }
-        if (state.live.pressureAvailable) {
-            HudMetric(
-                stringResource(R.string.gps_baro),
-                state.live.baroAltitude?.let { Units.formatAltitude(it, state.settings.measurementSystem) } ?: "—"
-            )
-        }
-        if (state.settings.showFixCloud) {
-            FixCloudMetrics(state)
-        }
-        HudMetric(
-            stringResource(R.string.gps_temperature),
-            if (state.live.temperatureAvailable) {
-                Units.formatTemperature(state.live.temperatureCelsius)
-            } else {
-                Units.formatTemperature(0f)
+                } ?: "—"
+                val baroAltitude = state.live.baroAltitude?.let {
+                    Units.formatAltitude(it, state.settings.measurementSystem)
+                } ?: "—"
+                HudMetric(
+                    stringResource(R.string.route_altitude),
+                    "$gpsAltitude / $baroAltitude",
+                    Modifier.weight(1f),
+                    compact = true,
+                    labelSuffix = stringResource(R.string.gps_altitude_sources)
+                )
             }
-        )
+            if (state.settings.showFixCloud) {
+                FixCloudMetrics(state)
+            }
+        }
     }
 }
 
@@ -462,6 +449,22 @@ private fun RoutePane(state: GtlUiState) {
             HudMetric(
                 stringResource(R.string.route_bearing),
                 location?.let { String.format(Locale.US, "%.0f°", it.bearing) } ?: "—",
+                Modifier.weight(1f)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            HudMetric(
+                stringResource(R.string.gps_status),
+                if (state.live.logging) stringResource(R.string.status_logging) else stringResource(R.string.status_idle),
+                Modifier.weight(1f)
+            )
+            HudMetric(
+                stringResource(R.string.gps_temperature),
+                if (state.live.temperatureAvailable) {
+                    Units.formatTemperature(state.live.temperatureCelsius ?: 0f, units)
+                } else {
+                    Units.formatTemperature(0f, units)
+                },
                 Modifier.weight(1f)
             )
         }

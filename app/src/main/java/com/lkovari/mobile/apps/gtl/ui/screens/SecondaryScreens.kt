@@ -4,11 +4,12 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -65,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
@@ -75,6 +77,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
@@ -177,7 +181,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 0.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(stringResource(R.string.settings_usage), style = MaterialTheme.typography.titleSmall)
             Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
@@ -203,7 +207,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                 Icon(
                                     imageVector = usageIcon(type),
                                     contentDescription = stringResource(usageLabel(type)),
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(16.dp),
                                     tint = if (selected) TitleMagenta else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
@@ -232,13 +236,18 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                 style = MaterialTheme.typography.labelSmall
                             )
                         },
-                        modifier = Modifier.height(24.dp)
+                        modifier = Modifier.height(22.dp)
                     )
                 }
             }
             Text(
                 text = stringResource(R.string.settings_qnh, qnhValue.toInt()),
                 style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = stringResource(R.string.settings_qnh_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             EndpointSlider(
                 value = qnhValue,
@@ -355,7 +364,7 @@ private fun EndpointSlider(
             onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
             steps = steps,
-            modifier = Modifier.weight(1f).height(16.dp).scale(0.85f)
+            modifier = Modifier.weight(1f).height(12.dp).scale(0.75f)
         )
         Text(
             text = endLabel,
@@ -407,7 +416,7 @@ private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 20.dp),
+            .heightIn(min = 22.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -417,11 +426,16 @@ private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -
             style = MaterialTheme.typography.bodySmall,
             maxLines = 2
         )
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            modifier = Modifier.scale(0.68f)
-        )
+        Box(
+            modifier = Modifier.size(width = 38.dp, height = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Switch(
+                checked = checked,
+                onCheckedChange = onChange,
+                modifier = Modifier.scale(0.62f)
+            )
+        }
     }
 }
 
@@ -478,7 +492,7 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TracksScreen(
     state: GtlUiState,
@@ -551,10 +565,9 @@ fun TracksScreen(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .combinedClickable(
-                                    onClick = {},
-                                    onLongClick = { viewModel.inspectSession(session.id) }
-                                )
+                                .holdStill(session.id, 3_000L) {
+                                    viewModel.inspectSession(session.id)
+                                }
                         ) {
                             Text(format.format(Date(session.startedAt)), style = MaterialTheme.typography.titleLarge)
                             Text(
@@ -652,6 +665,39 @@ fun TracksScreen(
                 }
             }
         )
+    }
+}
+
+private fun Modifier.holdStill(
+    key: Any,
+    durationMillis: Long,
+    onHold: () -> Unit
+): Modifier = pointerInput(key, durationMillis) {
+    val slop = viewConfiguration.touchSlop
+    awaitEachGesture {
+        val down = awaitFirstDown()
+        try {
+            withTimeout(durationMillis) {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.first()
+                    if (!change.pressed || change.isConsumed) {
+                        return@withTimeout
+                    }
+                    if ((change.position - down.position).getDistance() > slop) {
+                        return@withTimeout
+                    }
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            onHold()
+            while (true) {
+                val event = awaitPointerEvent()
+                if (event.changes.all { !it.pressed }) {
+                    break
+                }
+            }
+        }
     }
 }
 

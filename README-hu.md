@@ -427,18 +427,21 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 `docs/screenshots/`
 
-- `gps-idle.png`, `gps-logging.png` — GPS fül (újra kell venni, hogy a skyplot látszódjon)
-- `route.png` — Útvonal összesítők
-- `map.png`, `tracking.png` — Térkép felvétel közben
+- `gps-idle.png` — GPS fül: konstelláció-chippek, SNR, polar skyplot, GPS / Baro magasság, alsó fülek (idle, GNSS-fixre vár). Újra véve 2026-09-12.
+- `gps-logging.png` — régebbi GPS fül naplózás közben (skyplot előtti elrendezés, 460×1024)
+- `route.png` — Útvonal összesítők, dőlés, GPS/baro magasságprofil, alsó fülek. Újra véve 2026-09-12.
+- `map.png` — Térkép kirajzolt trackkel, zöld S / piros E, Google Maps, alsó fülek (idle; a HUD rejtve, ha mentett track látszik). Újra véve 2026-09-12.
+- `tracking.png` — régebbi Térkép felvétel közben (S/E előtt, 460×1024)
 - `googleearth.png` — megosztott KMZ a Google Earth-ben
-- `compass.png`, `about.png`
-- `settings.png` — Beállítások hat használati móddal (Hajó kiválasztva), Pontfelhővel, Csak GNSS-szel, rögzítés sűrűsége Minden jónál
-- `saved-tracks.png` — Mentett útvonalak (kijelölés, megosztás, térképen)
+- `compass.png` — Iránytű MAG / TRUE rózsa, alsó fülek. Újra véve 2026-09-12.
+- `about.png`
+- `settings.png` — Beállítások: hat használati mód (Futó kiválasztva), QNH 900–1100 hPa, Képernyő bekapcsolva naplózáskor, Csak GNSS, rögzítés sűrűsége Minden jónál. Újra véve 2026-09-12.
+- `saved-tracks.png` — Mentett útvonalak: Térképen, Magasság, Törlés, GPS/baro profil. Újra véve 2026-09-12.
 - `settings-density.png` — Régebbi Beállítások elrendezés egyszerűsítő / simító csúszkákkal (2.0.3)
 - `help.png` — Súgótémák (2.0.3)
 - `app-icon.png`
 
-Telefon listing méret: 1080×1920, 24 bites PNG, nincs alfa (Play 9:16). Ezzel a kiadással töltsd fel a `settings.png`, `saved-tracks.png` és `help.png` fájlokat.
+Telefon listing méret: 1080×1920, 24 bites PNG, nincs alfa (Play 9:16). Status bar és home indicator levágva; az alsó GPS / Útvonal / Térkép / Iránytű fülek megmaradnak. Ezzel a kiadással töltsd fel a `gps-idle.png`, `route.png`, `map.png`, `compass.png`, `settings.png` és `saved-tracks.png` fájlokat. A HUD-os Térkép listing és a feature graphic a sötét csempére vár (lásd a roadmapet).
 
 ---
 

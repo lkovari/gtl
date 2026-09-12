@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,12 +50,15 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.data.prefs.GoogleMapLayer
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.FixCloudStats
@@ -111,7 +118,8 @@ fun MapPane(
     onClearMap: () -> Unit,
     modifier: Modifier = Modifier.fillMaxSize(),
     mapActive: Boolean = true,
-    onOsmFailed: () -> Unit = {}
+    onOsmFailed: () -> Unit = {},
+    onGoogleMapLayer: (GoogleMapLayer) -> Unit = {}
 ) {
     Box(modifier = modifier) {
         val points = state.displayPoints
@@ -148,7 +156,7 @@ fun MapPane(
                 )
             }
         } else {
-            GoogleMapContent(state, points)
+            GoogleMapContent(state, points, onGoogleMapLayer)
         }
         if (state.selectedSessionId != null && !state.live.logging) {
             ClearMapButton(
@@ -200,7 +208,11 @@ fun MapPane(
 }
 
 @Composable
-private fun GoogleMapContent(state: GtlUiState, points: List<GeoPoint>) {
+private fun GoogleMapContent(
+    state: GtlUiState,
+    points: List<GeoPoint>,
+    onGoogleMapLayer: (GoogleMapLayer) -> Unit
+) {
     val live = state.live.lastLocation?.let { LatLng(it.latitude, it.longitude) }
     val start = live
         ?: points.lastOrNull()?.let { LatLng(it.latitude, it.longitude) }
@@ -215,7 +227,12 @@ private fun GoogleMapContent(state: GtlUiState, points: List<GeoPoint>) {
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
         cameraPositionState = camera,
-        uiSettings = MapUiSettings(zoomControlsEnabled = true, compassEnabled = false)
+        properties = MapProperties(mapType = state.settings.googleMapLayer.toComposeType()),
+        uiSettings = MapUiSettings(
+            zoomControlsEnabled = true,
+            compassEnabled = false,
+            mapToolbarEnabled = false
+        )
     ) {
         if (latLngs.size >= 2) {
             Polyline(points = latLngs, color = CarmineTrack, width = 10f)
@@ -316,6 +333,13 @@ private fun GoogleMapContent(state: GtlUiState, points: List<GeoPoint>) {
         modifier = Modifier
             .align(Alignment.TopEnd)
             .padding(10.dp)
+    )
+    MapLayerButton(
+        selected = state.settings.googleMapLayer,
+        onSelect = onGoogleMapLayer,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 60.dp, bottom = 12.dp)
     )
     }
     var centeredOnce by remember { mutableStateOf(false) }
@@ -441,6 +465,80 @@ private fun NorthIndicator(mapBearingDegrees: Float, modifier: Modifier = Modifi
                 .align(Alignment.TopCenter)
                 .padding(top = 3.dp)
         )
+    }
+}
+
+@Composable
+private fun MapLayerButton(
+    selected: GoogleMapLayer,
+    onSelect: (GoogleMapLayer) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    CircleShape
+                )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Layers,
+                contentDescription = stringResource(R.string.map_layers),
+                tint = UsageMarkerRed,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            GoogleMapLayer.entries.forEach { layer ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(layer.labelRes()),
+                            fontWeight = if (layer == selected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    },
+                    onClick = {
+                        onSelect(layer)
+                        expanded = false
+                    },
+                    trailingIcon = if (layer == selected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null
+                            )
+                        }
+                    } else {
+                        null
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun GoogleMapLayer.toComposeType(): MapType {
+    return when (this) {
+        GoogleMapLayer.NORMAL -> MapType.NORMAL
+        GoogleMapLayer.SATELLITE -> MapType.SATELLITE
+        GoogleMapLayer.HYBRID -> MapType.HYBRID
+        GoogleMapLayer.TERRAIN -> MapType.TERRAIN
+    }
+}
+
+private fun GoogleMapLayer.labelRes(): Int {
+    return when (this) {
+        GoogleMapLayer.NORMAL -> R.string.map_layer_normal
+        GoogleMapLayer.SATELLITE -> R.string.map_layer_satellite
+        GoogleMapLayer.HYBRID -> R.string.map_layer_hybrid
+        GoogleMapLayer.TERRAIN -> R.string.map_layer_terrain
     }
 }
 

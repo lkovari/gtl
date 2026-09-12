@@ -24,6 +24,21 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
+enum class GoogleMapLayer {
+    NORMAL,
+    SATELLITE,
+    HYBRID,
+    TERRAIN;
+
+    companion object {
+        fun fromStored(raw: String?): GoogleMapLayer {
+            return runCatching {
+                valueOf(raw ?: NORMAL.name)
+            }.getOrDefault(NORMAL)
+        }
+    }
+}
+
 data class GtlSettings(
     val disclaimerAccepted: Boolean,
     val usageType: UsageType,
@@ -49,7 +64,8 @@ data class GtlSettings(
     val recordingDensityValue: Float,
     val gnssOnly: Boolean,
     val compassTrueNorth: Boolean,
-    val qnhHpa: Float
+    val qnhHpa: Float,
+    val googleMapLayer: GoogleMapLayer
 ) {
     fun toFilter(): FixFilter {
         return FixFilter(
@@ -88,7 +104,8 @@ data class GtlSettings(
                 recordingDensityValue = smoothing.recordingDensity.sliderValue(),
                 gnssOnly = smoothing.gnssOnly,
                 compassTrueNorth = false,
-                qnhHpa = BaroAltitude.StandardAtmosphereHpa
+                qnhHpa = BaroAltitude.StandardAtmosphereHpa,
+                googleMapLayer = GoogleMapLayer.NORMAL
             )
         }
     }
@@ -212,6 +229,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.qnhHpa] = BaroAltitude.clampQnh(value) }
     }
 
+    suspend fun setGoogleMapLayer(value: GoogleMapLayer) {
+        dataStore.edit { it[Keys.googleMapLayer] = value.name }
+    }
+
     private suspend fun migrateSmoothingIfNeeded() {
         dataStore.edit { prefs ->
             if (prefs.contains(Keys.trackSmoothing)) {
@@ -286,7 +307,8 @@ class GtlPreferences(context: Context) {
             compassTrueNorth = prefs[Keys.compassTrueNorth] ?: false,
             qnhHpa = BaroAltitude.clampQnh(
                 prefs[Keys.qnhHpa] ?: BaroAltitude.StandardAtmosphereHpa
-            )
+            ),
+            googleMapLayer = GoogleMapLayer.fromStored(prefs[Keys.googleMapLayer])
         )
     }
 
@@ -352,6 +374,7 @@ class GtlPreferences(context: Context) {
         val gnssOnly = booleanPreferencesKey("gnss_only")
         val compassTrueNorth = booleanPreferencesKey("compass_true_north")
         val qnhHpa = floatPreferencesKey("qnh_hpa")
+        val googleMapLayer = stringPreferencesKey("google_map_layer")
     }
 
     companion object {

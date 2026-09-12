@@ -2225,6 +2225,16 @@ class BaroAltitudeTest {
     }
 
     @Test
+    fun metarQ1022VersusIsaClosesASeventyMetreGap() {
+        val stationHpa = 1004.8f
+        val isa = BaroAltitude.metersFromPressureHpa(stationHpa, 1013.25f) ?: 0.0
+        val metar = BaroAltitude.metersFromPressureHpa(stationHpa, 1022f) ?: 0.0
+        assertEquals(70.0, isa, 2.0)
+        assertEquals(143.0, metar, 5.0)
+        assertTrue(metar - isa > 60.0)
+    }
+
+    @Test
     fun clampQnhStaysInRange() {
         assertEquals(BaroAltitude.MinQnhHpa, BaroAltitude.clampQnh(800f))
         assertEquals(BaroAltitude.MaxQnhHpa, BaroAltitude.clampQnh(1200f))

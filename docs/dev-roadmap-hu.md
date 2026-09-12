@@ -59,7 +59,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 
 ### Ami gyenge a listinghez és a használathoz
 
-- **Térkép éjjel:** HUD van, a csempe nappali. A listing `docs/screenshots/` képei lehet, hogy a HUD előtti üres térképek.
+- **Térkép éjjel:** HUD van, a csempe nappali. A listing `docs/screenshots/` képei (2026-09-12) a GPS skyplotot, az Útvonal magasságprofilt, az Iránytű MAG rózsát, a Beállítások QNH-ját, a Mentett track Magasságot és a Térkép S/E-t mutatják. A HUD-os Térkép még hiányzik a listingről (a HUD rejtve, ha mentett track látszik).
 - **Útvonal fül:** 2×4 `HudMetric` kártya plusz magasságprofil. A sebesség nem *a* szám.
 - **Mentett útvonalak:** dátum + nyers `usageType` enum + `METRIC`. Van Magasság, törlés-megerősítés, KMZ/GPX. Nincs név, táv, mini-térkép.
 - **Téma:** a cockpit paletta kész, a **térkép nappali marad**, nincs in-app Rendszer / Világos / Sötét, a `themes.xml` status bar light.
@@ -97,7 +97,7 @@ Ami a feature graphicot igazzá teszi:
 2. **Skyplot** a GPS fülön — kész
 3. **Sebesség-színezett** vonal sötét térképen — következő látvány
 
-A Play screenshot a Térkép HUD-os állapota, nem a számkártyás Útvonal. A feature graphicot cseréld **valódi UI-kivágásra**, ha a sötét csempe és a színezett vonal már egyezik.
+A Play listing (2026-09-12) GPS skyplotot, Útvonal magasságprofilt, Iránytűt, Beállítások QNH-ját, Mentett trackeket és Térkép S/E-t mutat — nem a HUD-os Térképet (a HUD rejtve a kirajzolt mentett tracken). Vegyél HUD-os Térképet naplózás közben, és cseréld a feature graphicot **valódi UI-kivágásra**, ha a sötét csempe és a színezett vonal már egyezik.
 
 Motor az alap usage: az eye-catchernek **nappal és éjjel, kesztyűben, villantásra** is működnie kell (nagy szám, kevés koppintás, sötét térkép).
 
@@ -265,7 +265,9 @@ Cél: éjjel nem vakít, az értesítésben ugyanazok a számok, a listing a val
 | 2 | Értesítés élő számokkal | 1–2 nap |
 | — | Play screenshot + feature graphic frissítés a **valódi** HUD-os térképről | 0,5 nap |
 
-**Kész, ha:** sötét módban a csempe sötét; az értesítésben van km/h és km; a listing új 9:16 képe a HUD-os Térkép, nem a régi üres térkép.
+GPS / Útvonal / Iránytű / Beállítások / Mentett trackek / Térkép S/E listing képek újra véve 2026-09-12 (1080×1920, alsó fülek megmaradnak). Hátravan: HUD-os Térkép naplózás közben, és a feature graphic.
+
+**Kész, ha:** sötét módban a csempe sötét; az értesítésben van km/h és km; a listing új 9:16 képe a HUD-os Térkép, nem az idle S/E track.
 
 ### Hullám 2 — „az archívum és a vonal mesél” (kb. 7–10 nap)
 
@@ -316,7 +318,7 @@ Nem opcionális toldalék:
 - [docs/play-console/whatsnew.txt](play-console/whatsnew.txt) (500 karakter / nyelv)
 - Súgó EN/HU a új vezérlőkre
 - README funkciólista, ha a felhasználó látja
-- Screenshot 1080×1920, 24 bit, nincs alfa; vedd újra a Térkép és GPS képeket, hogy a HUD és a skyplot a listingen legyen
+- Screenshot 1080×1920, 24 bit, nincs alfa; GPS skyplot, Útvonal magasságprofil, Iránytű, Beállítások QNH, Mentett trackek és Térkép S/E újra véve 2026-09-12. HUD-os Térkép (naplózás) és feature graphic a sötét csempe után.
 
 A [GPSDATAFLOW](GPSDATAFLOW-hu.md) csak akkor változik, ha a lánc írása változik. Session név: [DBSTRUCT](DBSTRUCT-en.md) migráció 4→5.
 

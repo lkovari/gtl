@@ -5,21 +5,23 @@ What's new — max 500 characters per language.
 Date: 2026-09-12
 
 <en-US>
-OSM maps, GPS altitude, skyplot.
+Skyplot, elevation, compass, OSM.
 
-• Invalid OSM map no longer crashes or blocks the next launch
-• OSM camera stays on the downloaded region when GPS is outside it
-• GPS altitude prefers MSL then GNSS; implausible fused heights are hidden
-• Baro on the GPS tab; Settings QNH 900–1100 hPa
-• Polar skyplot under SNR; green S / red E on Map
+• Polar skyplot under SNR; GPS / Baro altitude; Settings QNH 900–1100 hPa
+• Elevation profile on Route and Saved tracks (GPS solid, baro dashed)
+• Compass MAG / TRUE rose
+• Green S / red E on Map; HUD while logging
+• Share KMZ or GPX 1.1
+• Invalid OSM map no longer crashes; camera stays on the downloaded region
 </en-US>
 
 <hu-HU>
-OSM térkép, GPS magasság, skyplot.
+Skyplot, magasságprofil, iránytű, OSM.
 
-• Érvénytelen OSM térkép nem lövi ki az appot, a következő indítás sem áll le
-• OSM kamera a letöltött régión marad, ha a GPS azon kívül van
-• GPS magasság: MSL, majd GNSS; fused szemét rejtve
-• Baro a GPS fülön; QNH 900–1100 hPa a Beállításokban
-• Polar skyplot az SNR alatt; zöld S / piros E a Térképen
+• Polar skyplot az SNR alatt; GPS / Baro magasság; QNH 900–1100 hPa
+• Magasságprofil az Útvonalon és a Mentett trackeken (GPS folytonos, baro szaggatott)
+• Iránytű MAG / TRUE rózsa
+• Zöld S / piros E a Térképen; HUD naplózáskor
+• KMZ vagy GPX 1.1 megosztás
+• Érvénytelen OSM térkép nem lövi ki az appot; a kamera a letöltött régión marad
 </hu-HU>

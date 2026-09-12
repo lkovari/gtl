@@ -11,7 +11,7 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ### 2026-09-12
 
-OSM map robustness, GPS altitude pick, QNH, GNSS skyplot, map S/E, Map HUD, GPX 1.1, elevation profile, compass rose, barometric column.
+OSM map robustness, GPS altitude pick, QNH, GNSS skyplot, map S/E, Map HUD, GPX 1.1, elevation profile, compass rose, barometric column, Play listing screenshots.
 
 ### Added
 
@@ -23,12 +23,20 @@ OSM map robustness, GPS altitude pick, QNH, GNSS skyplot, map S/E, Map HUD, GPX 
 - GPS tab **skyplot**: north-up polar plot under SNR (zenith at centre, horizon outer ring, 30°/60° rings). Colour by constellation; filled = used in fix; hollow = in view; inner ring = L5-class carrier. Dual-frequency L1+L5 of the same SVID is one marker. Live without Start; not stored in SQLite, KMZ, or GPX. Constellation chips stay above and use the same colours.
 - `gps_events.baroAltitude` and `pressureHpa` (Room schema **4**). Written from `TYPE_PRESSURE` via `BaroAltitude.metersFromPressureHpa` using Settings QNH at insert (900–1100 hPa, default ISA 1013.25) when the sensor exists; otherwise null. GPX `ele` stays GPS altitude.
 - KMZ **Distance** on every `gx:Track` point (cumulative metres in ExtendedData), plus `baro` (metres at the QNH in force when the row was stored, empty if no sample). Pause / Stop balloons also show `distance=` in session units.
-- Settings **QNH** (900–1100 hPa, default 1013.25). Live baro and the elevation-profile dashed line use the current slider. Stored `pressureHpa` is unchanged so you can recalibrate; `baroAltitude` at insert uses the QNH in force then. GPS altitude is independent (`GpsAltitude.pick`).
+- Settings **QNH** (900–1100 hPa, default 1013.25). Use METAR sea-level QNH (Qxxxx), not station pressure. Live baro and the elevation-profile dashed line use the current slider. Stored `pressureHpa` is unchanged so you can recalibrate; `baroAltitude` at insert uses the QNH in force then. GPS altitude is independent (`GpsAltitude.pick`). ISA 1013 vs LHBP Q1022 is about 70 m on the baro line.
 - Map **Start / End** markers on Google Maps and OSM: green **S** at the first drawn point, red **E** at the last when idle (`TrackEndpoints`). While logging the usage silhouette is “now”.
+- Google Maps **layers** button left of zoom: Map, Satellite, Hybrid, Terrain. Remembered. Hidden on OSM. Directions / Open in Maps toolbar stays off.
 - Engine tests for skyplot merge, `GpsAltitude`, `OsmMapFile`, `OsmMapCamera`, `OsmMapViewRedraw`, `MapFitZoom`, `TrackEndpoints`, and elevation plot scale.
+- Play listing phone shots recaptured 2026-09-12 as 1080×1920 RGB PNG (no alpha, 9:16; status bar and home indicator cropped, bottom tabs kept): `gps-idle.png` (skyplot), `route.png` (elevation), `map.png` (S/E track), `compass.png` (MAG rose), `settings.png` (QNH, Runner), `saved-tracks.png` (Elevation). HUD Map listing and the feature graphic still wait on dark tiles.
 
 ### Changed
 
+- GPS tab **Latitude / Longitude / Accuracy / Altitude** cards use less vertical space (tighter padding, smaller type).
+- GPS tab **Provider** sits in the constellation strip, to the right of NavIC (under GLO). Long provider names shorten (GPS, Fused, NET).
+- GPS tab **Altitude** card shows **GPS / Baro** after the label and `GPS / baro` values (baro is — when there is no pressure sample).
+- Route tab has **Status** and **Ambient** in the same-size metric cards as elapsed and speed.
+- GPS tab **Signal SNR** and **skyplot** use less vertical space. SNR padding and the meter bar are tighter, and the waiting line no longer reserves two rows. Skyplot title and legend sit on the four corners of the circle: SKYPLOT / In view on the top edge, Used / L5 on the bottom.
+- Settings rows, switches, sliders, and usage icons are shorter so more controls fit without scrolling.
 - Saved tracks **Delete** wraps onto a second row on a phone (it sat off-screen after Elevation). Confirm dialog before cascade-delete.
 - Settings is vertically scrollable again so the QNH slider fits with the other controls.
 - KMZ Earth details match the Start / Pause / Stop field spec. Datetime is UTC `YYYY:MM:DD HH:MM:SS` (no `time=` prefix, no `UTC` suffix). Then `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (stored baro at insert QNH, or `N/A`) in session units. Pause adds `Speed:` (instant GPS speed at that row), `duration=` (≤60 s as `N s`, under 60 min as whole `N min`, otherwise `HH:MM:SS` from Start), and `distance=` so far. Stop adds `Avg. Speed:` and `Max speed:` (one decimal from `TrackStatsCalculator`; metric `km/h`, imperial `mph`, ICAO `kt`; imperial/ICAO altitude `ft`; imperial temp `°F`), then session `duration=` and `distance=`. KMZ `gx:Track` ExtendedData includes `baro` metres and GPS `alt`; `gx:coord` height is 0. The visible line is a tessellated `LineString`. Dropped from balloons: `usage=`, `lean=`, `Distance:`, `Duration:`, forced `speed=0`, `Avg. speed:` / `Max. speed:`. Start has no duration/distance.
@@ -48,15 +56,22 @@ OSM map robustness, GPS altitude pick, QNH, GNSS skyplot, map S/E, Map HUD, GPX 
 
 ### Magyar
 
+- GPS fül **Szélesség / Hosszúság / Pontosság / Magasság** kártyái alacsonyabbak.
+- GPS fül **Forrás** a konstelláció-sávban, a NavIC mellett (a GLO alatt). Hosszú provider-név rövidül (GPS, Fused, NET).
+- GPS fül **Magasság** kártyán **GPS / Baro** a címke után, az érték `GPS / baro` (baro — ha nincs nyomásminta).
+- Útvonal fülön **Állapot** és **Környezeti hőmérséklet** ugyanakkora kártyában, mint az eltelt idő és a sebesség.
+- GPS fül **Jel SNR** és **skyplot** alacsonyabb: tömörebb SNR sáv, a skyplot cím és jelmagyarázat a kör négy sarkán (SKYPLOT / Látható fent, Használatban / L5 lent).
+- Beállítások sorai, kapcsolói, csúszkái és használati ikonjai alacsonyabbak.
 - Magasságprofil Y-címkéi GPS min/max voltak, a rajz GPS+baro skálán: QNH-váltáskor a vonalak cseréltek, a ~8 m maradt. A címke a tényleges skála, legalább 50 m, a jelmagyarázat az utolsó GPS/baro érték. Mentett Elevation QNH-váltáskor újraszámol.
 - Mentett útvonalak **Törlés** gombja keskeny kijelzőn a Magasság alá tör (eddig kilógott). Megerősítés a cascade-törlés előtt.
 - Beállítás: **Képernyő bekapcsolva naplózáskor** (alapból ki). A Beállítások újra görgethető a QNH csúszka miatt.
 - **GPX 1.1** megosztás a Mentett útvonalakon (KMZ vagy GPX).
 - **Magasságprofil** a mentett trackeken és az Útvonal fülön. Route-stat mentett sessionre is.
 - Iránytű: MAG / TRUE a fülön (alap MAG), forgó rózsa, deklináció a last GPS-fixből, 8-as figyelmeztetés LOW pontosságnál.
+- Play listing telefonképek újra véve 2026-09-12, 1080×1920 RGB PNG (nincs alfa, 9:16; status bar és home indicator levágva, alsó fülek megmaradnak): `gps-idle.png` (skyplot), `route.png` (magasságprofil), `map.png` (S/E track), `compass.png` (MAG rózsa), `settings.png` (QNH, Futó), `saved-tracks.png` (Magasság). A HUD-os Térkép listing és a feature graphic a sötét csempére vár.
 - GPS fül **skyplot**: észak-fent polar plot az SNR alatt (zenit középen, horizon kívül, 30°/60° gyűrűk). Szín konstellációnként; kitöltött = used; üres = in view; belső gyűrű = L5. Ugyanannak a holdnak az L1+L5 egy pont. Idle-ben is él; nem kerül SQLite-ba, KMZ-be, GPX-be. A chippek ugyanazt a színt használják.
 - Barometrikus magasság oszlop (Room 4), ha van nyomásszenzor. Íráskor a Beállítások QNH-ja; a `pressureHpa` nyers marad.
-- Beállítás **QNH** (900–1100 hPa, alap 1013,25). Élő baro és magasságprofil a jelenlegi csúszkát használja. A GPS-magasság ettől független (`GpsAltitude.pick`).
+- Beállítás **QNH** (900–1100 hPa, alap 1013,25). METAR tengerszinti QNH (Qxxxx), nem állomásnyomás. Élő baro és magasságprofil a jelenlegi csúszkát használja. A GPS-magasság ettől független (`GpsAltitude.pick`). ISA 1013 vs LHBP Q1022 kb. 70 m a baro vonalon.
 - Térkép **S** / **E** a track elején és végén (Google és OSM).
 - OSM **Térképen** crash: a MapView mérete még null volt az első Compose update-nél, NPE, az app kilépett. Most megvárja a layoutot, a zoom 3–20, destroyAll release-kor.
 - GPS fül magasság kb. **−1787 m** jó fused lat/lon mellett: a fused gyakran hibás ellipszoidot ad. `GpsAltitude.pick`: GNSS MSL, fused MSL, GNSS ellipszoid, fused ellipszoid; −430…9000 m-en kívül eldobva. Élő **Baro**, ha van nyomásszenzor.
