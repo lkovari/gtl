@@ -23,7 +23,7 @@ erDiagram
         INTEGER timestamp "epoch ms"
         REAL latitude
         REAL longitude
-        REAL altitude "GPS m, Location.altitude"
+        REAL altitude "GPS m, GpsAltitude.pick on Location"
         REAL speed "m/s"
         REAL bearing "degrees"
         REAL accuracy "GPS accuracy m"
@@ -63,7 +63,7 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `sessionId` | Parent session |
 | `timestamp` | Fix time |
 | `latitude` / `longitude` | WGS84. Source is `GPS_PROVIDER` when **Use GNSS only** is on, otherwise fused HIGH_ACCURACY. If **Smooth recorded track** is on, these are the Kalman output, not the raw HUD fix. |
-| `altitude` | metres, from the same `Location` object (GPS altitude) |
+| `altitude` | metres from the same `Location` after `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid; drop outside −430…9000 m). Missing if none remain. |
 | `speed` | metres per second (Kalman velocity when smoothing is on and speed ≥ 0.3 m/s) |
 | `bearing` | heading degrees (same Kalman rule as speed) |
 | `accuracy` | horizontal accuracy metres (raw GPS, even when Kalman moved lat/lon) |
@@ -74,16 +74,15 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `usageType` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER` copied at insert (session usage); backfilled from `track_sessions` on migrate 2→3 |
 | `isPlacemark` | `true` for START / PAUSE / STOP (KMZ icons) |
 | `eventKind` | `START`, `MOVE`, `PAUSE`, `STOP` |
-| `baroAltitude` | metres, ISA from `TYPE_PRESSURE` via `BaroAltitude.metersFromPressureHpa` (standard 1013.25 hPa); **null** if the phone has no barometer or no sample yet |
-| `pressureHpa` | raw hectopascals at insert; **null** if no sensor. Kept so later QNH calibration can recompute altitude without rewriting history |
+| `baroAltitude` | metres from `TYPE_PRESSURE` via `BaroAltitude.metersFromPressureHpa` using Settings QNH at insert (default ISA 1013.25 hPa); **null** if the phone has no barometer or no sample yet |
+| `pressureHpa` | raw hectopascals at insert; **null** if no sensor. Elevation profile and live baro recompute with the current Settings QNH |
 
-`MOVE` rows are the dense track. START / PAUSE / STOP are also stored as points and marked as placemarks. KMZ export places Start / Pause / Stop icons on the path (`TrackLogExport`); a trailing STOP that would sit off the log is snapped to the last path vertex. Earth balloons: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (ISA, or `N/A`); Pause adds `Speed:`, `duration=` from Start, and `distance=` so far; Stop adds `Avg. Speed:`, `Max speed:`, session `duration=` and `distance=`. KMZ ExtendedData `baro` is ISA metres and `alt` is GPS metres; the visible line is a ground-draped `LineString`. Missing `ambientTemperature` is `temp=N/A`.
+`MOVE` rows are the dense track. START / PAUSE / STOP are also stored as points and marked as placemarks. KMZ export places Start / Pause / Stop icons on the path (`TrackLogExport`); a trailing STOP that would sit off the log is snapped to the last path vertex. Earth balloons: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (stored baro at insert QNH, or `N/A`); Pause adds `Speed:`, `duration=` from Start, and `distance=` so far; Stop adds `Avg. Speed:`, `Max speed:`, session `duration=` and `distance=`. KMZ ExtendedData `baro` is stored baro metres and `alt` is GPS metres; the visible line is a ground-draped `LineString`. Missing `ambientTemperature` is `temp=N/A`.
 
 ## Not stored
 
-- QNH / sea-level calibration for baro (column exists; ISA only at insert).
-- Raw GNSS constellation mix (HUD only, in memory).
-- Map / OSM settings, Kalman / density / GNSS-only switches (DataStore, not SQLite).
+- Raw GNSS constellation mix and skyplot samples (HUD / GPS tab only, in memory).
+- Map / OSM settings, Kalman / density / GNSS-only / QNH switches (DataStore, not SQLite).
 - The raw HUD fix when Kalman is on (only the filter output is stored).
 - Fix cloud / Pontfelhő samples (in-memory sliding window only). Turning **Show fix cloud** on also writes Show accuracy marker in DataStore; turning it off only clears the in-memory cloud.
 - Map-cleared flag (ViewModel memory). The Map broom hides the drawn line; it does not delete `gps_events`.

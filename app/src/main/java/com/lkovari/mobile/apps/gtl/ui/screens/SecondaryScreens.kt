@@ -79,6 +79,7 @@ import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
+import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
@@ -154,6 +155,9 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
     var densityValue by remember {
         mutableFloatStateOf(state.settings.recordingDensityValue)
     }
+    var qnhValue by remember {
+        mutableFloatStateOf(state.settings.qnhHpa)
+    }
     LaunchedEffect(state.settings.optimizationTolerance) {
         dpValue = state.settings.optimizationTolerance.toFloat()
     }
@@ -163,11 +167,15 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
     LaunchedEffect(state.settings.recordingDensityValue) {
         densityValue = state.settings.recordingDensityValue
     }
+    LaunchedEffect(state.settings.qnhHpa) {
+        qnhValue = state.settings.qnhHpa
+    }
     SecondaryScaffold(stringResource(R.string.settings_title), onBack, compactTopBar = true) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -228,6 +236,19 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                     )
                 }
             }
+            Text(
+                text = stringResource(R.string.settings_qnh, qnhValue.toInt()),
+                style = MaterialTheme.typography.bodySmall
+            )
+            EndpointSlider(
+                value = qnhValue,
+                onValueChange = { qnhValue = it },
+                onValueChangeFinished = { viewModel.setQnhHpa(qnhValue) },
+                valueRange = BaroAltitude.MinQnhHpa..BaroAltitude.MaxQnhHpa,
+                steps = 199,
+                startLabel = BaroAltitude.MinQnhHpa.toInt().toString(),
+                endLabel = BaroAltitude.MaxQnhHpa.toInt().toString()
+            )
             SettingSwitch(stringResource(R.string.settings_offline), state.settings.useOfflineMap) {
                 viewModel.setUseOfflineMap(it)
             }

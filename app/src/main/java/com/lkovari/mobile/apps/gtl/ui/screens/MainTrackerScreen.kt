@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,18 +47,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.CompassHeading
+import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
 import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.ui.components.CompassDial
 import com.lkovari.mobile.apps.gtl.ui.components.ConstellationStrip
 import com.lkovari.mobile.apps.gtl.ui.components.ElevationProfile
+import com.lkovari.mobile.apps.gtl.ui.components.GnssSkyplot
 import com.lkovari.mobile.apps.gtl.ui.components.HudMetric
 import com.lkovari.mobile.apps.gtl.ui.components.SnrMeter
 import com.lkovari.mobile.apps.gtl.ui.theme.AmberFix
@@ -253,14 +257,34 @@ fun MainTrackerScreen(
                 .background(gtlWash(dark))
                 .padding(padding)
         ) {
-            when (tab) {
-                0 -> GpsPane(state)
-                1 -> RoutePane(state)
-                2 -> MapPane(state, onClearMap = { viewModel.clearShownTrack() })
-                else -> CompassPane(
-                    state = state,
-                    onTrueNorth = { viewModel.setCompassTrueNorth(it) }
-                )
+            val keepOsmMap = state.settings.useOfflineMap && state.osmFile != null
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (keepOsmMap) {
+                    MapPane(
+                        state = state,
+                        onClearMap = { viewModel.clearShownTrack() },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(if (tab == 2) 1f else 0f),
+                        mapActive = tab == 2,
+                        onOsmFailed = { viewModel.onOsmMapFailed() }
+                    )
+                }
+                when (tab) {
+                    0 -> GpsPane(state)
+                    1 -> RoutePane(state)
+                    2 -> if (!keepOsmMap) {
+                        MapPane(
+                            state,
+                            onClearMap = { viewModel.clearShownTrack() },
+                            onOsmFailed = { viewModel.onOsmMapFailed() }
+                        )
+                    }
+                    else -> CompassPane(
+                        state = state,
+                        onTrueNorth = { viewModel.setCompassTrueNorth(it) }
+                    )
+                }
             }
         }
     }
@@ -278,6 +302,7 @@ private fun GpsPane(state: GtlUiState) {
     ) {
         ConstellationStrip(state.live.gnss)
         SnrMeter(state.live.gnss)
+        GnssSkyplot(state.live.gnss)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             HudMetric(
                 stringResource(R.string.gps_latitude),
@@ -298,7 +323,13 @@ private fun GpsPane(state: GtlUiState) {
             )
             HudMetric(
                 stringResource(R.string.route_altitude),
-                location?.let { Units.formatAltitude(it.altitude, state.settings.measurementSystem) } ?: "—",
+                location?.let { loc ->
+                    if (loc.hasAltitude()) {
+                        Units.formatAltitude(loc.altitude, state.settings.measurementSystem)
+                    } else {
+                        "—"
+                    }
+                } ?: "—",
                 Modifier.weight(1f)
             )
         }
@@ -312,6 +343,12 @@ private fun GpsPane(state: GtlUiState) {
                 stringResource(R.string.gps_status),
                 if (state.live.logging) stringResource(R.string.status_logging) else stringResource(R.string.status_idle),
                 Modifier.weight(1f)
+            )
+        }
+        if (state.live.pressureAvailable) {
+            HudMetric(
+                stringResource(R.string.gps_baro),
+                state.live.baroAltitude?.let { Units.formatAltitude(it, state.settings.measurementSystem) } ?: "—"
             )
         }
         if (state.settings.showFixCloud) {
@@ -413,7 +450,13 @@ private fun RoutePane(state: GtlUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             HudMetric(
                 stringResource(R.string.route_altitude),
-                location?.let { Units.formatAltitude(it.altitude, units) } ?: "—",
+                location?.let { loc ->
+                    if (loc.hasAltitude()) {
+                        Units.formatAltitude(loc.altitude, units)
+                    } else {
+                        "—"
+                    }
+                } ?: "—",
                 Modifier.weight(1f)
             )
             HudMetric(
@@ -432,7 +475,8 @@ private fun RoutePane(state: GtlUiState) {
                 "${Units.formatTemperature(range.minCelsius)} / ${Units.formatTemperature(range.maxCelsius)}"
             )
         }
-        val elevation = remember(state.events) {
+        val qnh = state.settings.qnhHpa
+        val elevation = remember(state.events, qnh) {
             ElevationSeries.downsample(
                 ElevationSeries.fromPoints(
                     state.events.map { event ->
@@ -440,7 +484,11 @@ private fun RoutePane(state: GtlUiState) {
                             latitude = event.latitude,
                             longitude = event.longitude,
                             gpsAltitude = event.altitude,
-                            baroAltitude = event.baroAltitude
+                            baroAltitude = BaroAltitude.displayedMeters(
+                                event.pressureHpa,
+                                event.baroAltitude,
+                                qnh
+                            )
                         )
                     }
                 )

@@ -28,26 +28,29 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### GPS fül
 
-- Élő műholdszámok: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC.
+- Élő műholdszámok: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC. A chippek színe megegyezik a skyplotéval.
+- Polar **skyplot** az SNR alatt (észak fent, used vs in view, L5 gyűrű). Lásd [GNSS skyplot](#gnss-skyplot).
 - SNR minőség (kiváló / jó / közepes / gyenge / nincs jel).
-- Szélesség, hosszúság, pontosság, forrás, magasság, környezeti hőmérséklet, naplózási állapot.
+- Szélesség, hosszúság, pontosság, forrás, magasság, naplózási állapot. **Baro**, ha van nyomásszenzor (QNH a Beállításokban). Környezeti hőmérséklet.
+- A **magasság** először MSL, aztán GNSS ellipszoid, aztán fused ellipszoid (`GpsAltitude.pick`). A −430…9000 m-en kívüli érték (néhány telefonon fused −1800 m körüli szemét) hiányzik.
 - Ha a **Pontfelhő** be van: n, RMS, CEP95, medián jelentett pontosság, plusz álló / mozgás / várakozás felirat (ugyanaz a memóriabeli ablak, mint a térkép pöttyei; a CEP95-höz 8 minta kell).
 
 
 
 ### Útvonal fül
 
-Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta).
+Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját használja.
 
 ### Térkép fül
 
 - A jelenlegi helyre centrál; naplózáskor követ. A **Teljes útvonal a képernyőn** minden GPS-frissítés után a teljes nyomvonalat a képernyőre illeszti (a nagyítás és mozgatás a következő fixig megengedett).
 - Piros polyline a Room-ból (élő munkamenet, utoljára mentett track, vagy a Mentett útvonalakban választott track). A térképvonal **maga** a letárolt log; nincs külön vázlat. Lásd [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
-- **OSM Mapsforge**, ha letöltöttél egy régiót, és bekapcsoltad a **Letöltött OSM térkép használata** kapcsolót. Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re.
+- **OSM Mapsforge**, ha letöltöttél egy régiót, és bekapcsoltad a **Letöltött OSM térkép használata** kapcsolót. Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re. Hiányzó vagy nem Mapsforge fájl üzenetet mutat, és kikapcsolja a kapcsolót, hogy a következő indítás ne crash-loop legyen. A letöltés csak `mapsforge binary OSM` mágiájú, egyező header-méretű fájlt tart meg. A kamera a `.map` start/bounds pontját használja, ha a GPS a fájlon kívül van; élő követés csak a fájlon belül. Az OSM `MapView` mérete megmarad, ha elhagyod a Térkép fület.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
 - **HUD** mindkét térképmotor fölött: nagy sebesség (a Beállítások mértékegysége), pontosság, GNSS used/in view. Naplózáskor: út, eltelt idő, pulzáló REC. Idle GPS-fixszel: halkított panel bal lent. Mentett tracknél, ha nincs naplózás, rejtve.
 - Kis piros sziluett a helyeden (repülő, hajó, autó, motor, kerékpár, futó — ugyanaz, mint a Beállításokban). Álló portrén vízszintesen marad. Az északjelző mindig a térképen van.
+- Zöld **S** a kirajzolt track elején; piros **E** a végén, ha nincs naplózás (naplózáskor a sziluett a most).
 - Ha mentett track látszik és nincs naplózás, a bal felső seprő leveszi a vonalat a térképről, a logot nem törli. Indítás vagy Mentett útvonalak → Térképen újra kirajzol.
 - Douglas–Peucker egyszerűsítés a kirajzolt vonalon, ha az **Útvonal egyszerűsítése a térképen** be van (lásd lent). Az SQLite, az Útvonal összesítők és a KMZ soha nem egyszerűsödik.
 
@@ -74,10 +77,10 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 - Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0). A **látható** vonal KML `LineString`, `tessellate` és `clampToGround`, magasság 0, hogy a Google Earth a terepre feszítse (a `gx:Track` GPS-magassággal a 3. `gx:coord`-on közeli zoomnál az utca mellé emelkedik, és a kamera alá tűnhet). A Start / Pause / Stop Point magassága is 0. Egy rejtett `gx:Track` tárolja a `when`, speed, odometer, GPS `alt` és `baro` adatot.
 - A vonal a letárolt log; a session végét jelölő STOP sor nem lesz extra horog. A Stop ikon az utolsó path-csúcson van. A Pause ikon a pauza-csúcson van (állásonként egy; Start/Stop átfedésnél elmarad).
 - START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva). A placemark neve **Start**, **Pause**, **Stop**. A leírás HTML (`<br/>`), hogy az Earth details minden mezőt mutasson. Az idő UTC, nincs `time=` előtag és nincs `UTC` utótag. A mértékegység a Beállításokat követi (metrikus: km/h, m / km, °C; angolszász: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). A balloonban **nincs** `usage=` és `lean=`.
-  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A`, ha nincs szenzorminta), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA a barométerből, vagy `N/A`). Nincs Speed / Avg. Speed / Max speed / duration / distance.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A`, ha nincs szenzorminta), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (a letárolt nyomásminta az akkor kiválasztott QNH-val, vagy `N/A`). Nincs Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** ugyanazok a sorok, plusz `Speed:` (pillanatnyi GPS-sebesség a pauza-soron), `duration=` (másodperc, ha 60 s vagy kevesebb, egész perc 60 perc alatt, különben `HH:MM:SS` a Starttól), és `distance=` az addigi út a kiválasztott mértékegységben. Nincs Avg. Speed / Max speed.
   - **Stop:** ugyanazok a sorok, plusz `Avg. Speed:` és `Max speed:` (egy tizedes) a `TrackStatsCalculator`-ból a pathon, majd `duration=` és `distance=` a teljes sessionre. Nincs pillanatnyi `Speed:`.
-- Minden rejtett `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `alt` (GPS méter), `baro` (ISA méter, üres ha nincs minta). A `gx:coord` magasság 0.
+- Minden rejtett `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `alt` (GPS méter), `baro` (méter a sor írásakor érvényes QNH-val, üres ha nincs minta). A `gx:coord` magasság 0.
 - MIME `application/vnd.google-earth.kmz`. Nyisd meg Google Earth-tel (ha kell, telepítsd a Play Áruházból).
 - A súgó **KMZ és GPX megosztása** felsorolja a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
 
@@ -110,7 +113,8 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 
 - **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (futó és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
 - **Mértékegység** — metrikus, angolszász vagy ICAO az Útvonalon (km/h és méter; mph és láb/mérföld; csomó, tengeri mérföld és láb). A letárolt koordinátákat nem mozgatja.
-- **Letöltött OSM térkép használata** — Mapsforge fájl a Google Maps helyett.
+- **QNH** — tengerszinti nyomás a barométerhez, **900–1100 hPa** (alap ISA 1013,25). Az élő baro és a magasságprofil szaggatott vonala a jelenlegi értéket használja. A letárolt `pressureHpa` változatlan; a `baroAltitude` íráskor az akkor kiválasztott QNH-t használja.
+- **Letöltött OSM térkép használata** — Mapsforge fájl a Google Maps helyett. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót.
 - **Útvonal egyszerűsítése a térképen** — kevesebb csúcs csak a Térképen. A kapcsoló bekapcsolva **1–20 m** csúszka (1 m-es lépés). A KMZ és az odométer minden letárolt pontot megtart.
 - **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad. A seprő leveszi a kirajzolt mentett tracket, a logot nem törli.
 - **Teljes útvonal a képernyőn** — naplózáskor minden GPS-frissítés a teljes nyomvonalat a képernyőre illeszti. A nagyítás és mozgatás a következő fixig megengedett.
@@ -127,7 +131,7 @@ A meglévő telepítések, amelyeknél még a régi **19,5 m** egyszerűsítési
 - Első indításkori biztonságos vezetés nyilatkozat.
 - OSM térkép letöltése (Mapsforge v5 régiók: Európa, válogatott Ázsia / Amerika / Ausztrália).
 - Helymeghatározás beállításai (megnyitja a rendszer GPS-panelét).
-- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS, Útvonal, Térkép, Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
+- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal, Térkép (OSM fájl, S/E), Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
 - Adatvédelmi tájékoztató hivatkozás.
 
 ---
@@ -141,7 +145,7 @@ Két Gradle-modul:
 
 | Modul     | Szerep                                                                                                                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Tiszta JVM: GNSS-osztályozás, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, iránytű MAG/TRUE heading, magasságprofil, térkép-láthatósági szabályok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
+| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
 | `:app`    | Android: Compose UI, Room, DataStore, hely/GNSS/szenzorok, előtér-szolgáltatás, Google Maps, Mapsforge, WorkManager OSM-letöltés, FileProvider megosztás.                            |
 
 
@@ -156,7 +160,7 @@ docs/    Adatvédelmi tájékoztató, Play-anyagok, renewal jegyzetek
 ### Adatok
 
 - **Room:** `track_sessions` + `gps_events` (kaszkád törlés). A Map polyline mindig a Room-ból olvasódik, nem memóriabeli vázlatból. Ezért a látott vonal az a log, amit eltároltál.
-- **DataStore:** nyilatkozat, használat, mértékegység, szűrők, OSM-fájlútvonal, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
+- **DataStore:** nyilatkozat, használat, mértékegység, QNH, szűrők, OSM-fájlútvonal, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
 - **Fájlok:** OSM `.map` letöltések; KMZ a `files/gtltracklogs/` alatt (FileProvider).
 - **RemoteTrackSync:** no-op csonk egy későbbi backendhez. Nincs élő helyfeltöltés.
 
@@ -185,7 +189,7 @@ Leállít
 
 **Forrás.** **Csak GNSS** be → Android `GPS_PROVIDER` (a műholdchip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — a szolgáltató neve történeti). Ki → Play Services fused `PRIORITY_HIGH_ACCURACY` (műholdak Wi-Fi-vel, cellával és IMU-val keverve). Ha a GPS-szolgáltató ki van kapcsolva, fused megy mindkét esetben. Futónál az alap a csak GNSS, hogy egy 5–10 m-es úttest-hurkot ne lapítson el a telefon „hol van a felhasználó?” szűrője, mielőtt a GTL egyáltalán látná.
 
-**HUD vs letárolt track.** Minden frissítés a **nyers** `Location`-t másolja a `lastLocation`-be. A világos lila pontossági kör, az élő szélesség/hosszúság, a forrás és a pontosság ez a nyers fix. A **Pontfelhő** ugyanezt a `lastLocation`-t mintavételezi egy memóriabeli ablakba (centroid RMS / CEP95), és nem ír SQLite-ot. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. A piros polyline az, ami **a Roomba bekerült** (Kalman-simítva, ha az a kapcsoló be van). Szándékosan lehetnek pár méterre egymástól.
+**HUD vs letárolt track.** Minden frissítés a **nyers** `Location`-t másolja a `lastLocation`-be. A világos lila pontossági kör, az élő szélesség/hosszúság, a forrás és a pontosság ez a nyers fix. A **magasság** ezen az objektumon már `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipszoid, fused ellipszoid; −430…9000 m-en kívül eldobva). A **Pontfelhő** ugyanezt a `lastLocation`-t mintavételezi egy memóriabeli ablakba (centroid RMS / CEP95), és nem ír SQLite-ot. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. A piros polyline az, ami **a Roomba bekerült** (Kalman-simítva, ha az a kapcsoló be van). Szándékosan lehetnek pár méterre egymástól.
 
 **1. kapu — pontosság és műholdak.** A usage pontosságánál rosszabb (30 m, futónál és kerékpárnál 45 m) vagy 4-nél kevesebb műholdas fix eldobódik. Nem megy Kalmanba, és nem lesz sor. A HUD ettől még frissül.
 
@@ -221,6 +225,22 @@ Leállít
 Semmi nem kerül fel. A Stop utáni `RemoteTrackSync` no-op.
 
 Pipeline mermaid (ugyanaz a folyamat, több dobozzal): [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
+
+### GNSS skyplot
+
+A GPS fül polar plotja **az égbolt térképe, ahogy a chip látja**, nem 3D földgömb és nem második tracklog. Az SNR alatt van, a konstelláció-chippek után. A chippek maradnak: ezek a villantható `used/in view` számok (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). A skyplot azt mutatja, **hol** vannak ezek a holdak. Mi a különbség a rendszerek és sávok között: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md).
+
+**Geometria.** A közép a zenit (90° eleváció). A külső gyűrű a horizon (0°). A belső gyűrűk 30° és 60° eleváció. A 12 óra észak (azimut 0°); kelet, dél, nyugat óramutató szerint. A plot **nem** forog a telefonnal — azt az Iránytű fül csinálja. A horizon alatti hold kimarad.
+
+**Jelölés.** A szín a konstelláció (GPS kék, Galileo lime, GLONASS carmine, BeiDou borostyán, QZSS magenta, NavIC cián; SBAS/ismeretlen halk). A **kitöltött** korong a jelenlegi helyfixben használt. Az **üres** kör látható, de nincs a fixben. A **belső gyűrű** L5-osztályú vivő (ugyanaz a ~1176,45 MHz ablak, mint a GPS L5 chip; a Galileo E5a is számít). A marker mérete fix; az SNR a felette lévő sávon marad.
+
+**Kétfrekvenciás.** Az Android ugyanannak az SVID-nek az L1 és L5 sorát két `GnssStatus` sorként adja, azonos azimuttal/elevációval. A plot egy ponttá vonja össze, hogy ne legyen két egymásra tett pötty. A chippek ezeket a sorokat továbbra is külön számolják (`satellitesInView` a nyers sorszám, mint a Térkép HUD `used/in view`).
+
+**Adatút.** `GnssStatus.Callback` → holdankénti `SatelliteSample` (azimut, eleváció, CN0, used, konstelláció, vivő) → `GnssSnapshot.satellites` memóriában → polar canvas. Sem a `gps_events`, sem a KMZ, sem a GPX nem kapja. A Kalman, a sűrűség és a **Csak GNSS** azt változtatja, *honnan jön a fix*, nem ezt a plotot. A skyplot a chip aktuális egét mutatja, fused-től függetlenül.
+
+**Mikor él.** Amint van helyengedély, mint az iránytű és a GPS számok. Indítás nem kell. Üres gyűrűk, amíg nincs hold (vagy ha nincs engedély). Alagútban nem cache-eli az utolsó „szép” eget.
+
+Engine: `Gnss.kt` (minta + snapshot) és `Skyplot.kt` (projekció + L1/L5 összevonás). UI: `GnssSkyplot` a GPS fülön. A Térkép HUD változatlan.
 
 ### Hogyan naplóz a Futó, mint egy sportóra
 
@@ -281,6 +301,7 @@ Ezek a vezérlők változtatják a SQLite `gps_events` táblát, az Útvonal odo
 | **Pontossági jelzés megjelenítése**                                    | **Nem**                         | Világos lila kör a **nyers** GPS-fixen, akkor is, ha a Kalman be van.                                                                                                                                                                                                                                                                                                                                     |
 | **Pontfelhő**                                                          | **Nem**                         | Pasztell magenta pöttyök a nyers HUD-fixekből állva, CEP95 a centroid körül. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem tárolódik.                                                                                                                                                                          |
 | **Mértékegység**                                                       | Csak címkék                     | Metrikus / angolszász / ICAO formázza az Útvonalat és a KMZ balloonokat (metrikus km/h, m, °C; angolszász mph, ft, °F; ICAO kt, ft, °C). A koordináták WGS-84 maradnak. A repülő és hajó előbeállítás ICAO-t választ.                                                                                                                                                                                                                                                |
+| **QNH** (900–1100 hPa)                                                 | Baro íráskor                    | Az élő baro és a magasságprofil szaggatott vonala a jelenlegi csúszkát használja. A sorra írt `baroAltitude` az akkor kiválasztott QNH; a `pressureHpa` változatlan, később újraszámolható. Alap ISA 1013,25.                                                                                                                                                                                     |
 | Pontossági / műhold kapuk                                              | Igen (elutasítás)               | A 30 m-nél (futónál és kerékpárnál 45 m) rosszabb, vagy 4-nél kevesebb műholdas fix Kalman előtt eldobódik. Nincs Settings-csúszkaként megjelenítve.                                                                                                                                                                                                                                                                |
 
 
@@ -368,6 +389,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | [docs/DBSTRUCT-en.md](docs/DBSTRUCT-en.md)                                     | SQLite séma (`gtl.db`) mermaid                                                                                      |
 | [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md)                               | GPS figyelés → szűrés → Room → UI / KMZ (EN); a naplózási lánc mermaidje                                           |
 | [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md)                               | GPS figyelés → szűrés → Room → UI / KMZ (HU)                                                                        |
+| [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md)                       | GNSS rendszerek és sávok: GPS L1/L5, Galileo, BeiDou, GLONASS, QZSS, NavIC (HU, webes referencia)                   |
 | [docs/dp-kalman-smoothing-en.md](docs/dp-kalman-smoothing-en.md)               | Eredeti Kalman implementációs brief; **as-built jegyzetek felül** (a jelenlegi viselkedés ez a README)              |
 
 
@@ -383,11 +405,19 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (dátumidő, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
 - `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markerek KMZ-hez és GPX-hez
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
-- `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR
+- `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR / holdlista
+- `engine/.../Skyplot.kt` — polar projekció / kétfrekvenciás összevonás
+- `engine/.../GpsAltitude.kt` — MSL, majd GNSS, majd fused; −430…9000 m-en kívül eldobva
+- `engine/.../BaroAltitude.kt` — ISA / QNH méter a `pressureHpa`-ból
+- `engine/.../OsmMapFile.kt` — Mapsforge mágia + header fájlméret
+- `engine/.../OsmMapCamera.kt` — OSM közép/zoom a `.map` boundsön belül
+- `engine/.../OsmMapViewRedraw.kt` — mikor kell a Compose-nak OSM csempét invalidálni
+- `engine/.../MapFitZoom.kt` — zoom szorítás / fit méretellenőrzés
+- `engine/.../TrackEndpoints.kt` — zöld S / piros E (vég rejtve naplózáskor)
 - `engine/.../FixCloud.kt` — memóriabeli állóhelyi pontfelhő / CEP95
 - `engine/.../MapDisplayUsage.kt` — melyik usage és egyszerűsítés szerint rajzol a térkép
 - `engine/.../MapTrackVisibility.kt` — mikor kell a térképnek tracket rajzolnia (naplózáskor mindig; különben last-track vagy kijelölt session, hacsak nem ürítették)
-- `app/.../LocationClient.kt` — fused HIGH_ACCURACY vagy `GPS_PROVIDER`, ha a Csak GNSS be van
+- `app/.../LocationClient.kt` — fused HIGH_ACCURACY vagy `GPS_PROVIDER`, ha a Csak GNSS be van; fused mellett a `GPS_PROVIDER` a magassághoz is figyel
 
 ---
 
@@ -397,7 +427,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 
 `docs/screenshots/`
 
-- `gps-idle.png`, `gps-logging.png` — GPS fül
+- `gps-idle.png`, `gps-logging.png` — GPS fül (újra kell venni, hogy a skyplot látszódjon)
 - `route.png` — Útvonal összesítők
 - `map.png`, `tracking.png` — Térkép felvétel közben
 - `googleearth.png` — megosztott KMZ a Google Earth-ben

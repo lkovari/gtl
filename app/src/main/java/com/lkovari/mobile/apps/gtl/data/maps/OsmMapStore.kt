@@ -1,12 +1,14 @@
 package com.lkovari.mobile.apps.gtl.data.maps
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
@@ -24,19 +26,25 @@ class OsmMapStore(private val context: Context) {
 
     fun downloadedFile(regionId: String): File? {
         val file = File(mapsDir, "$regionId.map")
-        return if (file.exists() && file.length() > 0L) file else null
+        return file.takeIf { OsmMapFile.isReadable(it) }
     }
 
     fun listDownloaded(): List<File> {
         if (!mapsDir.exists()) {
             return emptyList()
         }
-        return mapsDir.listFiles { file -> file.extension == "map" }?.toList().orEmpty()
+        return mapsDir.listFiles { file -> file.extension == "map" }
+            ?.filter { OsmMapFile.isReadable(it) }
+            .orEmpty()
     }
 
     fun enqueue(region: OsmRegion) {
         val request = OneTimeWorkRequestBuilder<OsmDownloadWorker>()
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
             .setInputData(
                 workDataOf(
                     OsmDownloadWorker.KEY_REGION_ID to region.id,

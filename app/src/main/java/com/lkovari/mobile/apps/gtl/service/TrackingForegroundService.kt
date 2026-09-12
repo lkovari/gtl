@@ -28,6 +28,7 @@ import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
 import com.lkovari.mobile.apps.gtl.engine.TrackFix
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -129,11 +130,16 @@ class TrackingForegroundService : LifecycleService() {
                 }
             }
             launch {
-                app.pressureSource.pressures().collectLatest { value ->
+                combine(
+                    app.pressureSource.pressures(),
+                    app.preferences.settings
+                ) { value, prefs ->
+                    value to prefs.qnhHpa
+                }.collectLatest { (value, qnh) ->
                     app.trackingState.update {
                         it.copy(
                             pressureHpa = value,
-                            baroAltitude = BaroAltitude.metersFromPressureHpa(value),
+                            baroAltitude = BaroAltitude.metersFromPressureHpa(value, qnh),
                             pressureAvailable = true
                         )
                     }

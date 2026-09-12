@@ -43,8 +43,7 @@ fun ElevationProfile(
         )
         return
     }
-    val minGps = samples.minOf { it.gpsAltitude }
-    val maxGps = samples.maxOf { it.gpsAltitude }
+    val scale = ElevationSeries.plotScale(samples)
     val baroSamples = if (ElevationSeries.hasBaroLine(samples)) {
         samples.mapNotNull { sample ->
             val baro = sample.baroAltitude
@@ -57,18 +56,11 @@ fun ElevationProfile(
     } else {
         emptyList()
     }
-    val minAlt = if (baroSamples.isEmpty()) {
-        minGps
-    } else {
-        minOf(minGps, baroSamples.minOf { it.second })
-    }
-    val maxAlt = if (baroSamples.isEmpty()) {
-        maxGps
-    } else {
-        maxOf(maxGps, baroSamples.maxOf { it.second })
-    }
-    val span = (maxAlt - minAlt).coerceAtLeast(1.0)
     val maxDistance = samples.last().distanceMeters.coerceAtLeast(1.0)
+    val lastGps = Units.formatAltitude(samples.last().gpsAltitude, system)
+    val lastBaro = samples.lastOrNull { it.baroAltitude != null }?.baroAltitude?.let { baro ->
+        Units.formatAltitude(baro, system)
+    }
     Column(modifier = modifier.fillMaxWidth()) {
         Box {
             Canvas(
@@ -81,7 +73,7 @@ fun ElevationProfile(
                 val fillPath = Path()
                 samples.forEachIndexed { index, sample ->
                     val x = (sample.distanceMeters / maxDistance).toFloat() * size.width
-                    val y = size.height - ((sample.gpsAltitude - minAlt) / span).toFloat() * size.height
+                    val y = size.height - scale.yFraction(sample.gpsAltitude).toFloat() * size.height
                     if (index == 0) {
                         gpsPath.moveTo(x, y)
                         fillPath.moveTo(x, size.height)
@@ -103,7 +95,7 @@ fun ElevationProfile(
                     val baroPath = Path()
                     baroSamples.forEachIndexed { index, pair ->
                         val x = (pair.first / maxDistance).toFloat() * size.width
-                        val y = size.height - ((pair.second - minAlt) / span).toFloat() * size.height
+                        val y = size.height - scale.yFraction(pair.second).toFloat() * size.height
                         if (index == 0) {
                             baroPath.moveTo(x, y)
                         } else {
@@ -128,23 +120,23 @@ fun ElevationProfile(
                 )
             }
             Text(
-                text = Units.formatAltitude(maxGps, system),
+                text = Units.formatAltitude(scale.plotMax, system),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.TopEnd)
             )
             Text(
-                text = Units.formatAltitude(minGps, system),
+                text = Units.formatAltitude(scale.plotMin, system),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )
         }
         Text(
-            text = if (baroSamples.size >= 2) {
-                stringResource(R.string.elevation_legend_both)
+            text = if (lastBaro != null && baroSamples.size >= 2) {
+                stringResource(R.string.elevation_legend_both, lastGps, lastBaro)
             } else {
-                stringResource(R.string.elevation_legend_gps)
+                stringResource(R.string.elevation_legend_gps, lastGps)
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant

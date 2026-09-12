@@ -2,6 +2,7 @@ package com.lkovari.mobile.apps.gtl.engine
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -333,13 +334,13 @@ class GnssClassifierTest {
     @Test
     fun classifiesGpsL1AndL5() {
         val samples = listOf(
-            SatelliteSample(GnssConstellation.GPS, 1, true, 32f, GnssClassifier.GPS_L1_HZ),
-            SatelliteSample(GnssConstellation.GPS, 2, false, 28f, GnssClassifier.GPS_L5_HZ),
-            SatelliteSample(GnssConstellation.GALILEO, 11, true, 30f, null),
-            SatelliteSample(GnssConstellation.GLONASS, 21, true, 26f, null),
-            SatelliteSample(GnssConstellation.BEIDOU, 31, false, 22f, null),
-            SatelliteSample(GnssConstellation.QZSS, 41, true, 24f, null),
-            SatelliteSample(GnssConstellation.IRNSS, 51, false, 18f, null)
+            skySat(GnssConstellation.GPS, 1, true, 32f, GnssClassifier.GPS_L1_HZ),
+            skySat(GnssConstellation.GPS, 2, false, 28f, GnssClassifier.GPS_L5_HZ),
+            skySat(GnssConstellation.GALILEO, 11, true, 30f, null),
+            skySat(GnssConstellation.GLONASS, 21, true, 26f, null),
+            skySat(GnssConstellation.BEIDOU, 31, false, 22f, null),
+            skySat(GnssConstellation.QZSS, 41, true, 24f, null),
+            skySat(GnssConstellation.IRNSS, 51, false, 18f, null)
         )
         val snapshot = GnssClassifier.snapshot(samples)
         assertEquals(1, snapshot.gpsL1.usedInFix)
@@ -348,6 +349,8 @@ class GnssClassifierTest {
         assertEquals(1, snapshot.byConstellation.getValue(GnssConstellation.IRNSS).inView)
         assertEquals(4, snapshot.satellitesInFix)
         assertEquals(SignalQuality.GOOD, snapshot.signalQuality)
+        assertEquals(7, snapshot.satellites.size)
+        assertEquals(samples, snapshot.satellites)
     }
 
     @Test
@@ -363,6 +366,249 @@ class GnssClassifierTest {
         assertEquals(GnssConstellation.GALILEO, GnssClassifier.constellationFromAndroid(6))
         assertEquals(GnssConstellation.IRNSS, GnssClassifier.constellationFromAndroid(7))
     }
+}
+
+class SkyplotProjectionTest {
+    @Test
+    fun northHorizonIsTopOfCircle() {
+        val point = SkyplotProjection.offset(0f, 0f, 100f, 100f, 100f)
+        assertEquals(100f, point!!.x, 0.01f)
+        assertEquals(0f, point.y, 0.01f)
+    }
+
+    @Test
+    fun eastHorizonIsRightOfCircle() {
+        val point = SkyplotProjection.offset(90f, 0f, 100f, 100f, 100f)
+        assertEquals(200f, point!!.x, 0.01f)
+        assertEquals(100f, point.y, 0.01f)
+    }
+
+    @Test
+    fun southHorizonIsBottomOfCircle() {
+        val point = SkyplotProjection.offset(180f, 0f, 100f, 100f, 100f)
+        assertEquals(100f, point!!.x, 0.01f)
+        assertEquals(200f, point.y, 0.01f)
+    }
+
+    @Test
+    fun westHorizonIsLeftOfCircle() {
+        val point = SkyplotProjection.offset(270f, 0f, 100f, 100f, 100f)
+        assertEquals(0f, point!!.x, 0.01f)
+        assertEquals(100f, point.y, 0.01f)
+    }
+
+    @Test
+    fun zenithIsCenterForAnyAzimuth() {
+        val north = SkyplotProjection.offset(0f, 90f, 100f, 100f, 100f)
+        val east = SkyplotProjection.offset(90f, 90f, 100f, 100f, 100f)
+        assertEquals(100f, north!!.x, 0.01f)
+        assertEquals(100f, north.y, 0.01f)
+        assertEquals(100f, east!!.x, 0.01f)
+        assertEquals(100f, east.y, 0.01f)
+    }
+
+    @Test
+    fun sixtyDegreeNorthRingIsOneThirdFromCenter() {
+        val point = SkyplotProjection.offset(0f, 60f, 100f, 100f, 100f)
+        assertEquals(100f, point!!.x, 0.01f)
+        assertEquals(100f - 100f / 3f, point.y, 0.01f)
+    }
+
+    @Test
+    fun thirtyDegreeNorthRingIsTwoThirdsFromCenter() {
+        val point = SkyplotProjection.offset(0f, 30f, 100f, 100f, 100f)
+        assertEquals(100f, point!!.x, 0.01f)
+        assertEquals(100f - 200f / 3f, point.y, 0.01f)
+    }
+
+    @Test
+    fun belowHorizonIsOmitted() {
+        assertNull(SkyplotProjection.offset(0f, -5f, 100f, 100f, 100f))
+    }
+
+    @Test
+    fun nonFiniteAnglesAreOmitted() {
+        assertNull(SkyplotProjection.offset(Float.NaN, 45f, 100f, 100f, 100f))
+        assertNull(SkyplotProjection.offset(10f, Float.POSITIVE_INFINITY, 100f, 100f, 100f))
+        assertNull(SkyplotProjection.offset(10f, Float.NaN, 100f, 100f, 100f))
+    }
+
+    @Test
+    fun elevationAboveZenithClampsToCenter() {
+        val point = SkyplotProjection.offset(45f, 95f, 100f, 100f, 100f)
+        assertEquals(100f, point!!.x, 0.01f)
+        assertEquals(100f, point.y, 0.01f)
+    }
+}
+
+class SkyplotMarkersTest {
+    @Test
+    fun emptySamplesYieldNoMarkers() {
+        assertTrue(SkyplotMarkers.from(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun belowHorizonIsDropped() {
+        val markers = SkyplotMarkers.from(
+            listOf(skySat(GnssConstellation.GPS, 1, true, 30f, elevationDegrees = -1f))
+        )
+        assertTrue(markers.isEmpty())
+    }
+
+    @Test
+    fun mergesDualFrequencyIntoOneMarker() {
+        val markers = SkyplotMarkers.from(
+            listOf(
+                skySat(
+                    GnssConstellation.GPS,
+                    12,
+                    true,
+                    32f,
+                    GnssClassifier.GPS_L1_HZ,
+                    azimuthDegrees = 20f,
+                    elevationDegrees = 40f
+                ),
+                skySat(
+                    GnssConstellation.GPS,
+                    12,
+                    false,
+                    28f,
+                    GnssClassifier.GPS_L5_HZ,
+                    azimuthDegrees = 20f,
+                    elevationDegrees = 40f
+                )
+            )
+        )
+        assertEquals(1, markers.size)
+        val marker = markers[0]
+        assertEquals(GnssConstellation.GPS, marker.constellation)
+        assertEquals(12, marker.svid)
+        assertTrue(marker.usedInFix)
+        assertTrue(marker.hasL5)
+        assertEquals(20f, marker.azimuthDegrees, 0.01f)
+        assertEquals(40f, marker.elevationDegrees, 0.01f)
+        assertEquals(32f, marker.cn0DbHz, 0.01f)
+    }
+
+    @Test
+    fun differentSvidsStaySeparate() {
+        val markers = SkyplotMarkers.from(
+            listOf(
+                skySat(GnssConstellation.GPS, 1, true, 30f, azimuthDegrees = 10f, elevationDegrees = 50f),
+                skySat(GnssConstellation.GPS, 2, false, 22f, azimuthDegrees = 200f, elevationDegrees = 15f)
+            )
+        )
+        assertEquals(2, markers.size)
+        assertEquals(1, markers.count { it.usedInFix })
+        assertFalse(markers.any { it.hasL5 })
+    }
+
+    @Test
+    fun galileoE5aCountsAsL5Ring() {
+        val markers = SkyplotMarkers.from(
+            listOf(
+                skySat(
+                    GnssConstellation.GALILEO,
+                    7,
+                    true,
+                    34f,
+                    GnssClassifier.GPS_L5_HZ,
+                    azimuthDegrees = 90f,
+                    elevationDegrees = 25f
+                )
+            )
+        )
+        assertEquals(1, markers.size)
+        assertTrue(markers[0].hasL5)
+        assertTrue(markers[0].usedInFix)
+    }
+
+    @Test
+    fun usedFlagIsTrueIfAnyBandIsUsed() {
+        val markers = SkyplotMarkers.from(
+            listOf(
+                skySat(
+                    GnssConstellation.GPS,
+                    3,
+                    false,
+                    20f,
+                    GnssClassifier.GPS_L1_HZ,
+                    elevationDegrees = 30f
+                ),
+                skySat(
+                    GnssConstellation.GPS,
+                    3,
+                    true,
+                    26f,
+                    GnssClassifier.GPS_L5_HZ,
+                    elevationDegrees = 30f
+                )
+            )
+        )
+        assertEquals(1, markers.size)
+        assertTrue(markers[0].usedInFix)
+        assertTrue(markers[0].hasL5)
+        assertEquals(26f, markers[0].cn0DbHz, 0.01f)
+    }
+
+    @Test
+    fun prefersUsedSampleGeometryWhenBandsDisagree() {
+        val markers = SkyplotMarkers.from(
+            listOf(
+                skySat(
+                    GnssConstellation.GPS,
+                    8,
+                    false,
+                    18f,
+                    GnssClassifier.GPS_L1_HZ,
+                    azimuthDegrees = 10f,
+                    elevationDegrees = 20f
+                ),
+                skySat(
+                    GnssConstellation.GPS,
+                    8,
+                    true,
+                    30f,
+                    GnssClassifier.GPS_L5_HZ,
+                    azimuthDegrees = 12f,
+                    elevationDegrees = 22f
+                )
+            )
+        )
+        assertEquals(12f, markers[0].azimuthDegrees, 0.01f)
+        assertEquals(22f, markers[0].elevationDegrees, 0.01f)
+    }
+
+    @Test
+    fun nonFiniteGeometryIsDropped() {
+        val markers = SkyplotMarkers.from(
+            listOf(
+                skySat(GnssConstellation.GPS, 1, true, 30f, azimuthDegrees = Float.NaN, elevationDegrees = 40f),
+                skySat(GnssConstellation.GALILEO, 2, true, 30f, azimuthDegrees = 10f, elevationDegrees = Float.NaN)
+            )
+        )
+        assertTrue(markers.isEmpty())
+    }
+}
+
+private fun skySat(
+    constellation: GnssConstellation,
+    svid: Int,
+    usedInFix: Boolean,
+    cn0DbHz: Float,
+    carrierFrequencyHz: Float? = null,
+    azimuthDegrees: Float = 0f,
+    elevationDegrees: Float = 45f
+): SatelliteSample {
+    return SatelliteSample(
+        constellation = constellation,
+        svid = svid,
+        usedInFix = usedInFix,
+        cn0DbHz = cn0DbHz,
+        carrierFrequencyHz = carrierFrequencyHz,
+        azimuthDegrees = azimuthDegrees,
+        elevationDegrees = elevationDegrees
+    )
 }
 
 class KmlExporterTest {
@@ -1970,6 +2216,305 @@ class BaroAltitudeTest {
         assertEquals(null, BaroAltitude.metersFromPressureHpa(0f))
         assertEquals(null, BaroAltitude.metersFromPressureHpa(-10f))
     }
+
+    @Test
+    fun higherQnhRaisesIndicatedAltitude() {
+        val isa = BaroAltitude.metersFromPressureHpa(990f) ?: 0.0
+        val highQnh = BaroAltitude.metersFromPressureHpa(990f, 1025f) ?: 0.0
+        assertTrue(highQnh > isa)
+    }
+
+    @Test
+    fun clampQnhStaysInRange() {
+        assertEquals(BaroAltitude.MinQnhHpa, BaroAltitude.clampQnh(800f))
+        assertEquals(BaroAltitude.MaxQnhHpa, BaroAltitude.clampQnh(1200f))
+        assertEquals(1013.25f, BaroAltitude.clampQnh(1013.25f))
+    }
+
+    @Test
+    fun displayedMetersPrefersRecomputeFromPressure() {
+        val shown = BaroAltitude.displayedMeters(
+            pressureHpa = 990f,
+            storedBaro = 10.0,
+            qnhHpa = 1013.25f
+        )
+        val recomputed = BaroAltitude.metersFromPressureHpa(990f)
+        assertEquals(recomputed, shown)
+    }
+
+    @Test
+    fun displayedMetersFallsBackToStoredWhenNoPressure() {
+        assertEquals(184.0, BaroAltitude.displayedMeters(null, 184.0, 1013.25f))
+    }
+}
+
+class OsmMapViewRedrawTest {
+    @Test
+    fun firstLayoutFromZeroNeedsRedraw() {
+        assertTrue(OsmMapViewRedraw.shouldRedrawLayers(1080, 1920, 0, 0))
+    }
+
+    @Test
+    fun zeroSizeDoesNotRedraw() {
+        assertFalse(OsmMapViewRedraw.shouldRedrawLayers(0, 1920, 0, 0))
+        assertFalse(OsmMapViewRedraw.shouldRedrawLayers(1080, 0, 0, 0))
+        assertFalse(OsmMapViewRedraw.shouldRedrawLayers(0, 0, 1080, 1920))
+    }
+
+    @Test
+    fun sizeChangeNeedsRedraw() {
+        assertTrue(OsmMapViewRedraw.shouldRedrawLayers(1080, 1920, 1080, 800))
+        assertFalse(OsmMapViewRedraw.shouldRedrawLayers(1080, 1920, 1080, 1920))
+    }
+
+    @Test
+    fun tilesWhenViewHasSize() {
+        assertFalse(OsmMapViewRedraw.shouldRequestTiles(width = 0, height = 1920))
+        assertTrue(OsmMapViewRedraw.shouldRequestTiles(width = 1080, height = 1920))
+    }
+
+    @Test
+    fun animatorThreadMustPostAncestorInvalidate() {
+        assertTrue(OsmMapViewRedraw.mustPostAncestorInvalidate(calledOnMainThread = false))
+        assertFalse(OsmMapViewRedraw.mustPostAncestorInvalidate(calledOnMainThread = true))
+    }
+}
+
+class OsmMapCameraTest {
+    private val hungary = LatLonBounds(45.74, 16.11, 48.59, 22.90)
+
+    @Test
+    fun emulatorMountainViewUsesMapStart() {
+        val center = OsmMapCamera.initialCenter(
+            mapBounds = hungary,
+            mapStartLatitude = 47.16,
+            mapStartLongitude = 19.50,
+            locationLatitude = 37.421998,
+            locationLongitude = -122.084
+        )
+        assertEquals(47.16, center.latitude, 0.0)
+        assertEquals(19.50, center.longitude, 0.0)
+    }
+
+    @Test
+    fun budapestFixStaysOnGps() {
+        val center = OsmMapCamera.initialCenter(
+            mapBounds = hungary,
+            mapStartLatitude = 47.16,
+            mapStartLongitude = 19.50,
+            locationLatitude = 47.447202,
+            locationLongitude = 19.195482
+        )
+        assertEquals(47.447202, center.latitude, 0.0)
+        assertEquals(19.195482, center.longitude, 0.0)
+    }
+
+    @Test
+    fun missingFixUsesMapStart() {
+        val center = OsmMapCamera.initialCenter(
+            mapBounds = hungary,
+            mapStartLatitude = 47.16,
+            mapStartLongitude = 19.50,
+            locationLatitude = null,
+            locationLongitude = null
+        )
+        assertEquals(47.16, center.latitude, 0.0)
+        assertEquals(19.50, center.longitude, 0.0)
+    }
+
+    @Test
+    fun zoomIsCountryWhenGpsOutsideMap() {
+        assertEquals(8, OsmMapCamera.initialZoom(gpsInsideMap = false, mapStartZoom = 8))
+        assertEquals(14, OsmMapCamera.initialZoom(gpsInsideMap = true, mapStartZoom = 8))
+        assertEquals(3, OsmMapCamera.initialZoom(gpsInsideMap = false, mapStartZoom = 1))
+    }
+
+    @Test
+    fun followIgnoresEmulatorFixOutsideHungary() {
+        assertEquals(
+            null,
+            OsmMapCamera.followCenter(
+                mapBounds = hungary,
+                preferTrack = false,
+                trackLatitude = null,
+                trackLongitude = null,
+                locationLatitude = 37.421998,
+                locationLongitude = -122.084
+            )
+        )
+    }
+
+    @Test
+    fun followStaysOnBudapestFix() {
+        val center = checkNotNull(
+            OsmMapCamera.followCenter(
+                mapBounds = hungary,
+                preferTrack = false,
+                trackLatitude = null,
+                trackLongitude = null,
+                locationLatitude = 47.447202,
+                locationLongitude = 19.195482
+            )
+        )
+        assertEquals(47.447202, center.latitude, 0.0)
+        assertEquals(19.195482, center.longitude, 0.0)
+    }
+}
+
+class GpsAltitudeTest {
+    @Test
+    fun fusedMinus1787IsRejected() {
+        assertEquals(
+            null,
+            GpsAltitude.pick(
+                gnssMsl = null,
+                fusedMsl = null,
+                gnssEllipsoid = null,
+                fusedEllipsoid = -1787.0
+            )
+        )
+    }
+
+    @Test
+    fun prefersMslOverJunkEllipsoid() {
+        assertEquals(
+            124.0,
+            GpsAltitude.pick(
+                gnssMsl = null,
+                fusedMsl = 124.0,
+                gnssEllipsoid = null,
+                fusedEllipsoid = -1787.0
+            )
+        )
+    }
+
+    @Test
+    fun prefersGnssEllipsoidOverFusedJunk() {
+        assertEquals(
+            163.0,
+            GpsAltitude.pick(
+                gnssMsl = null,
+                fusedMsl = null,
+                gnssEllipsoid = 163.0,
+                fusedEllipsoid = -1787.0
+            )
+        )
+    }
+
+    @Test
+    fun missingAltitudeIsNull() {
+        assertEquals(
+            null,
+            GpsAltitude.pick(
+                gnssMsl = null,
+                fusedMsl = null,
+                gnssEllipsoid = null,
+                fusedEllipsoid = null
+            )
+        )
+    }
+
+    @Test
+    fun deadSeaEllipsoidIsKept() {
+        assertEquals(
+            -410.0,
+            GpsAltitude.pick(
+                gnssMsl = null,
+                fusedMsl = null,
+                gnssEllipsoid = -410.0,
+                fusedEllipsoid = null
+            )
+        )
+    }
+}
+
+class OsmMapFileTest {
+    @Test
+    fun htmlErrorPageIsNotAMap() {
+        val file = kotlin.io.path.createTempFile(suffix = ".map").toFile()
+        file.writeText("<html>Access denied</html>")
+        assertFalse(OsmMapFile.isReadable(file))
+        file.delete()
+    }
+
+    @Test
+    fun truncatedMapsforgeHeaderIsNotReadable() {
+        val file = kotlin.io.path.createTempFile(suffix = ".map").toFile()
+        file.writeBytes("mapsforge binary OSM".toByteArray(Charsets.US_ASCII))
+        assertFalse(OsmMapFile.isReadable(file))
+        file.delete()
+    }
+
+    @Test
+    fun declaredSizeMustMatchFileLength() {
+        val file = kotlin.io.path.createTempFile(suffix = ".map").toFile()
+        file.writeBytes(fakeMapsforgeBytes(declaredSize = 2_000_000L, actualSize = 4096))
+        assertFalse(OsmMapFile.isReadable(file))
+        file.delete()
+    }
+
+    @Test
+    fun completeHeaderWithMatchingSizeIsReadable() {
+        val file = kotlin.io.path.createTempFile(suffix = ".map").toFile()
+        file.writeBytes(fakeMapsforgeBytes(declaredSize = 4096L, actualSize = 4096))
+        assertTrue(OsmMapFile.isReadable(file))
+        file.delete()
+    }
+
+    private fun fakeMapsforgeBytes(declaredSize: Long, actualSize: Int): ByteArray {
+        val bytes = ByteArray(actualSize)
+        val magic = "mapsforge binary OSM".toByteArray(Charsets.US_ASCII)
+        magic.copyInto(bytes)
+        java.nio.ByteBuffer.wrap(bytes, 28, 8).order(java.nio.ByteOrder.BIG_ENDIAN).putLong(declaredSize)
+        return bytes
+    }
+}
+
+class MapFitZoomTest {
+    @Test
+    fun missingOrZeroDimensionCannotFit() {
+        assertFalse(MapFitZoom.canFit(null, 800))
+        assertFalse(MapFitZoom.canFit(1080, null))
+        assertFalse(MapFitZoom.canFit(0, 800))
+        assertFalse(MapFitZoom.canFit(1080, 0))
+        assertTrue(MapFitZoom.canFit(1080, 1920))
+    }
+
+    @Test
+    fun clampKeepsMapsforgeSafeZoom() {
+        assertEquals(MapFitZoom.Min, MapFitZoom.clamp(-5))
+        assertEquals(MapFitZoom.Max, MapFitZoom.clamp(127))
+        assertEquals(16, MapFitZoom.clamp(16))
+    }
+}
+
+class TrackEndpointsTest {
+    @Test
+    fun emptyHasNeither() {
+        assertEquals(null, TrackEndpoints.start(emptyList()))
+        assertEquals(null, TrackEndpoints.end(emptyList(), logging = false))
+    }
+
+    @Test
+    fun singlePointIsStartOnly() {
+        val points = listOf(GeoPoint(47.5, 19.05))
+        assertEquals(47.5, TrackEndpoints.start(points)!!.latitude, 0.0)
+        assertEquals(null, TrackEndpoints.end(points, logging = false))
+    }
+
+    @Test
+    fun savedTrackMarksFirstAndLast() {
+        val points = listOf(GeoPoint(47.50, 19.05), GeoPoint(47.51, 19.06), GeoPoint(47.52, 19.07))
+        assertEquals(47.50, TrackEndpoints.start(points)!!.latitude, 0.0)
+        assertEquals(47.52, TrackEndpoints.end(points, logging = false)!!.latitude, 0.0)
+    }
+
+    @Test
+    fun loggingOmitsEndBecauseUsageIconIsNow() {
+        val points = listOf(GeoPoint(47.50, 19.05), GeoPoint(47.51, 19.06))
+        assertEquals(47.50, TrackEndpoints.start(points)!!.latitude, 0.0)
+        assertEquals(null, TrackEndpoints.end(points, logging = true))
+    }
 }
 
 class CompassHeadingTest {
@@ -2081,6 +2626,42 @@ class ElevationSeriesTest {
         assertEquals(100.0, samples.first().gpsAltitude, 0.0)
         assertEquals(599.0, samples.last().gpsAltitude, 0.0)
         assertFalse(ElevationSeries.hasBaroLine(samples))
+    }
+
+    @Test
+    fun plotScalePadsAnEightMetreGpsBaroGap() {
+        val samples = listOf(
+            ElevationSample(0.0, 187.0, 179.0),
+            ElevationSample(100.0, 186.0, 179.5)
+        )
+        val scale = ElevationSeries.plotScale(samples)
+        assertEquals(ElevationSeries.MinPlotSpanMeters, scale.span, 0.01)
+        val mid = (179.0 + 187.0) / 2.0
+        assertEquals(mid, (scale.plotMin + scale.plotMax) / 2.0, 0.01)
+        assertTrue(scale.plotMin < 179.0)
+        assertTrue(scale.plotMax > 187.0)
+    }
+
+    @Test
+    fun plotScaleUsesBaroWhenQnhMovesItFarFromGps() {
+        val samples = listOf(
+            ElevationSample(0.0, 187.0, 870.0),
+            ElevationSample(100.0, 179.0, 868.0)
+        )
+        val scale = ElevationSeries.plotScale(samples)
+        assertEquals(179.0, scale.plotMin, 0.01)
+        assertEquals(870.0, scale.plotMax, 0.01)
+    }
+
+    @Test
+    fun plotScaleIgnoresASingleBaroSample() {
+        val samples = listOf(
+            ElevationSample(0.0, 100.0, 500.0),
+            ElevationSample(100.0, 110.0, null)
+        )
+        val scale = ElevationSeries.plotScale(samples)
+        assertEquals(ElevationSeries.MinPlotSpanMeters, scale.span, 0.01)
+        assertEquals(105.0, (scale.plotMin + scale.plotMax) / 2.0, 0.01)
     }
 }
 

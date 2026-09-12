@@ -2,19 +2,19 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Állapot:** 2.0.5 (versionCode 23) utáni termékterv.  
+**Állapot:** termékterv a 2.0.5 (versionCode 23) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás és az OSM fájl/kamera védelem.  
 **Nem kódspec:** ez a sorrend *miértjét* és a hullámokat rögzíti. Implementáció előtt a kiválasztott hullámra külön brief / tesztlista kell.  
 **Effort:** egy, a kódbázist ismerő fejlesztő naptári napja (nem emberhónap, nem naptári hét csapatra).
 
-Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md), [RENEWAL-REPORT.md](RENEWAL-REPORT.md), [DBSTRUCT-en.md](DBSTRUCT-en.md), [GPSDATAFLOW-hu.md](GPSDATAFLOW-hu.md).
+Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md), [RENEWAL-REPORT.md](RENEWAL-REPORT.md), [DBSTRUCT-en.md](DBSTRUCT-en.md), [GPSDATAFLOW-hu.md](GPSDATAFLOW-hu.md), [all-gps-systems-hu.md](all-gps-systems-hu.md).
 
 ---
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő.
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő. A 2.0.5 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
 
-A következő lépés nem új szűrőalgoritmus. A hiány **termékélmény és interoperabilitás**: a felvétel közbeni térkép üresnek hat, az export csak Google Earth-höz barátságos, a Play feature graphic olyan cockpitet ígér, amit a valódi UI még nem ad.
+A következő hiány **éjszakai használat, archívum és a második eye-catcher**: a térkép nappali marad, az értesítés statikus, a mentett lista dátum, a vonal egy színű. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD és a skyplot már egyezik, a sötét csempe és a sebesség-szín még nem.
 
 A sorrend **érték szerint** van (megtartás × Play-konverzió × a már tárolt adat kiaknázása), nem könnyű győzelem szerint. Az effort másodlagos, de ahol két tétel közel azonos értékű, az olcsóbb előrébb kerül a hullámban.
 
@@ -34,34 +34,37 @@ A verseny **nem** a Strava, Komoot vagy Google Maps Navigation. Azok közösség
 
 1. adat a telefonon marad
 2. a vonal az, amit a chip / Kalman tényleg rögzített
-3. GNSS HUD (konstelláció, SNR, pontfelhő / CEP95)
-4. KMZ balloonok Earth-höz
+3. GNSS HUD (konstelláció, SNR, pontfelhő / CEP95, skyplot)
+4. KMZ balloonok Earth-höz; GPX a többi eszközhöz
 
-Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (GPX: ki tudod vinni; HUD: látod felvétel közben), nem helyettesítenie közösségi feeddel.
+Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térkép: éjjel is látod; kártyák: a saját logod olvasható), nem helyettesítenie közösségi feeddel.
 
 ---
 
-## Hol tartunk ma (2.0.5)
+## Hol tartunk ma
 
 ### Ami erős
 
 - Előtér-szolgáltatás, látható értesítés, nincs `ACCESS_BACKGROUND_LOCATION`
 - Használati előbeállítások (repülő, hajó, autó, motor, kerékpár, futó) egy DataStore-szerkesztésben
-- Szűrőlánc: pontosság / műhold → opcionális Kalman → sűrűség → Room → Térkép / Útvonal / KMZ
-- GPS fül: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR
+- Szűrőlánc: pontosság / műhold → opcionális Kalman → sűrűség → Room → Térkép / Útvonal / KMZ / GPX
+- Térkép HUD (nagy sebesség, pontosság, GNSS used/in view; naplózáskor út, idő, pulzáló REC); keep-screen-on beállítás
+- GPS fül: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; magasság a `GpsAltitude.pick`-ből; baro, ha van nyomásszenzor
 - KMZ terepre feszített `LineString` (látható, magasság 0) plusz rejtett `gx:Track` az idősorhoz; Start / Pause / Stop balloon a letárolt vonalon (a Stop az utolsó elfogadott pont)
-- OSM Mapsforge régióletöltés, Google Maps ha van `MAPS_API_KEY`
+- GPX 1.1 megosztás (egy fájl, több `trk`; START/PAUSE/STOP `wpt`)
+- Magasságprofil (GPS × táv; szaggatott baro, QNH 900–1100 hPa a Beállításokból; tengely legalább 50 m)
+- OSM Mapsforge régióletöltés `OsmMapFile` ellenőrzéssel; sikertelen nyitás kikapcsolja a **Letöltött OSM térkép használatát**; a kamera a `.map`-en marad, ha a GPS azon kívül van. Google Maps, ha van `MAPS_API_KEY`
+- Zöld **S** / piros **E** a kirajzolt tracken (a vég rejtve naplózáskor)
 - Compose paletta: világos sage/papír, sötét **Cockpit** (`Theme.kt`); a sötét a rendszer témáját követi
 
 ### Ami gyenge a listinghez és a használathoz
 
-- **Térkép naplózáskor:** HUD (nagy sebesség, út, REC) a Google- és OSM-térkép fölött. A listinghez még a régi screenshotok lehetnek a `docs/screenshots/`-ban.
-- **Útvonal fül:** 2×4 `HudMetric` kártya plusz magasságprofil, ha van session.
-- **Mentett útvonalak:** dátum + nyers `usageType` enum + `METRIC`. Nincs név, táv, mini-térkép.
-- **Export:** KMZ és GPX 1.1. FIT / TCX / GPX import nincs.
+- **Térkép éjjel:** HUD van, a csempe nappali. A listing `docs/screenshots/` képei lehet, hogy a HUD előtti üres térképek.
+- **Útvonal fül:** 2×4 `HudMetric` kártya plusz magasságprofil. A sebesség nem *a* szám.
+- **Mentett útvonalak:** dátum + nyers `usageType` enum + `METRIC`. Van Magasság, törlés-megerősítés, KMZ/GPX. Nincs név, táv, mini-térkép.
 - **Téma:** a cockpit paletta kész, a **térkép nappali marad**, nincs in-app Rendszer / Világos / Sötét, a `themes.xml` status bar light.
 - **Értesítés:** statikus cím + szöveg + Leállít (`TrackingForegroundService.buildNotification`). Nincs élő sebesség / út.
-- **Play feature graphic** (`docs/play-console/feature-graphic.png`): sötét műszerfal, izzó piros track, skyplot. Az app ezt a kompozíciót még nem adja. Ez a legnagyobb eye-catcher-rés.
+- **Play feature graphic** (`docs/play-console/feature-graphic.png`): sötét műszerfal, izzó track, skyplot. HUD és skyplot megvan; a sötét csempe és a sebesség-szín még hiányzik.
 
 ### Szándékosan nincs (és maradjon így)
 
@@ -76,9 +79,9 @@ Lásd a renewal jelentést: IMEI, élő lat/lng feltöltés, follow-me web, táv
 | Élő megosztás / saját szerver / `RemoteTrackSync` feltöltés | Szemben a privacy-politikával és a 2.0 ígérettel |
 | Utcára pattintás (OSM/Google map-matching) | Szemben a futó GNSS-trackkel; a Kalman szándékosan nem ezt csinálja |
 | Strava-szerű közösség, kudos, szegmensek | Más termék |
-| Wear OS | Hetek, külön store, tesztmátrix; a telefonos HUD előbb |
+| Wear OS | Hetek, külön store, tesztmátrix; a telefonos HUD megvan |
 | GPX import | Az app logger, nem archívum-kezelő |
-| FIT / TCX | GPX után, ha valaki Garmin Connect-re kér |
+| FIT / TCX | Ha valaki Garmin Connect-re kér |
 | Turn-by-turn | Play / API / figyelemelterelés; a 2014-es Directions szándékosan kimaradt |
 | Indítósáv-widget | A Quick Settings tile olcsóbb; widget később |
 
@@ -86,15 +89,15 @@ Lásd a renewal jelentést: IMEI, élő lat/lng feltöltés, follow-me web, táv
 
 ## Eye-catcher elv
 
-Ne „fésüld át Material 3-mal”. A paletta (teal, carmine, magenta, cockpit) már megkülönböztet. A gond a **hierarchia** és a **térkép üressége**.
+Ne „fésüld át Material 3-mal”. A paletta (teal, carmine, magenta, cockpit) már megkülönböztet. A HUD és a skyplot megvan. A gond a **hierarchia** a Route-on, a **nappali térkép éjjel**, és hogy a vonal **egy színű**.
 
-Három látvány, ami a feature graphicot igazzá teszi:
+Ami a feature graphicot igazzá teszi:
 
-1. Élő **térkép HUD** (nagy sebesség, út, REC) — hullám 1
-2. **Sebesség-színezett** vonal sötét térképen — hullám 2
-3. **Skyplot** a GPS fülön — hullám 2
+1. Élő **térkép HUD** — kész
+2. **Skyplot** a GPS fülön — kész
+3. **Sebesség-színezett** vonal sötét térképen — következő látvány
 
-A Play screenshot innentől a Térkép HUD-os állapota, nem a számkártyás Útvonal. A feature graphicot a hullám 1 után cseréld **valódi UI-kivágásra**, ne 3D műhold-montázsra, ha a kettő már egyezik.
+A Play screenshot a Térkép HUD-os állapota, nem a számkártyás Útvonal. A feature graphicot cseréld **valódi UI-kivágásra**, ha a sötét csempe és a színezett vonal már egyezik.
 
 Motor az alap usage: az eye-catchernek **nappal és éjjel, kesztyűben, villantásra** is működnie kell (nagy szám, kevés koppintás, sötét térkép).
 
@@ -104,63 +107,13 @@ Motor az alap usage: az eye-catchernek **nappal és éjjel, kesztyűben, villant
 
 Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem kimerítő lista.
 
-### 1. Térkép HUD overlay — kész 2026-09-12
-
-**Érték:** nagyon magas — eye-catcher és használat egyszerre  
-**Effort:** 3–5 nap  
-**Hullám:** 1
-
-**Miért.** Felvétel közben a felhasználó a Térkép fület nézi. Ma ott egy piros vonal van egy nappali Google-térképen, számok nélkül. A GPS és Útvonal fülekre kell lapozni sebességért — ez vezetés közben veszélyes, és a listingen „üres térképnek” néz ki. A feature graphic HUD-ot ígér; a rés itt a legnagyobb.
-
-**Ma.** `MapPane.kt`: Google Maps Compose + Mapsforge `AndroidView`. Overlay: pontossági kör, pontfelhő, usage-sziluett, északjelző, seprő. Nincs telemetria. Az Útvonal összesítők a `GtlViewModel` / `TrackStatsCalculator` élő mintáiból jönnek, de csak a Route fülön.
-
-**Mit építs.** Egy **közös Compose HUD** a térkép tetején (mindkét motor fölött, ne két overlay-implementáció):
-
-- nagy, olvasható **sebesség** (metrikus / angolszász / ICAO a Beállításokból)
-- **út** és **eltelt idő**
-- **pontosság** méterben + GNSS used / in view
-- pulzáló **REC**, ha `live.logging`
-- opcionális **képernyő bekapcsolva** naplózáskor (tankra szerelt telefon)
-
-A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia, mint a lila kör), az utat a Room-statból. Ne takarja el a vonalat: alsó vagy felső sáv, félig átlátszó, cockpit színek sötétben.
-
-**Függőség.** Nincs. A sötét térkép (3.) utána jobban áll.
-
-**Teszt.** Naplózás Google-on és letöltött OSM-en; idle + mentett track (HUD halkul vagy eltűnik, ha nincs logging — döntsd el egy helyen); mértékegység-váltás; keep-screen-on csak logging alatt.
-
----
-
-### 2. GPX export — kész 2026-09-12
-
-**Érték:** nagyon magas — az adat kikerül a szigetről  
-**Effort:** 1,5–2,5 nap  
-**Hullám:** 1
-
-**Miért.** A KMZ Google Earth-höz ideális (`gx:Track`, play/pause/stop ikon, balloon). A tracklog-világ többi része **GPX 1.1**-et vár: OsmAnd, Komoot, Garmin Connect, Relive, QGIS, sok sportóra-web. Enélkül a GTL zárt formátumú napló. A README ezt már listázza.
-
-**Ma.** `KmlExportUseCase` → `KmlExporter` + `KmzExporter`, FileProvider, share sheet. Mentett útvonalak: egy session egy KMZ, több session mappánként egy KMZ-ben.
-
-**Mit építs.**
-
-- `:engine` `GpxExporter`: `trk` / `trkseg` / `trkpt` (`lat`, `lon`, `ele`, `time`; opcionális `speed` GPX-kiterjesztésben vagy elhagyva — először a mag GPX, hogy minden importer nyeljen)
-- START/PAUSE/STOP: `wpt`, vagy egy `trkseg` szakaszonként, ha később jön a kézi szünet
-- Share: **KMZ vagy GPX** (rendszerchooser vagy in-app két gomb). Több kijelölés: egy `.gpx` több `trk`-kel, vagy több fájl — az egy fájl, több track egyszerűbb
-- MIME `application/gpx+xml`, fájlnév `GTL_yyyyMMdd_HHmmss.gpx`
-- Súgó EN/HU, engine unit teszt fix koordinátákkal
-
-**Ne most.** FIT, TCX, GPX import.
-
-**Függőség.** Nincs. A session-név (6.) később beírható a `<name>`-be.
-
----
-
-### 3. Sötét térkép + in-app téma
+### 1. Sötét térkép + in-app téma
 
 **Érték:** magas — brand, éjszakai motor, listing-egyezés  
 **Effort:** 2–3 nap  
 **Hullám:** 1
 
-**Miért.** A Compose már tud cockpit sötétet (`isSystemInDarkTheme()`). A Google Maps és a Mapsforge **nappali** csempe marad. Éjjel a fehér térkép vakít, a magenta cím + sötét top bar + világos térkép szétesik. A README „világos és sötét téma” azért van még a teendőkben, mert a **térkép és a rendszerchrome** nincs kész, csak a kártyák.
+**Miért.** A Compose már tud cockpit sötétet (`isSystemInDarkTheme()`). A Google Maps és a Mapsforge **nappali** csempe marad. Éjjel a fehér térkép vakít, a magenta cím + sötét top bar + világos térkép szétesik. A README „világos és sötét téma” azért van még a teendőkben, mert a **térkép és a rendszerchrome** nincs kész, csak a kártyák. A HUD sötét stílusa a csempével együtt áll.
 
 **Ma.** `GtlTheme(darkTheme = isSystemInDarkTheme())`. `gtlWash` gradient. `values/themes.xml`: teal status bar, paper nav bar, light. Nincs DataStore-kulcs a témára.
 
@@ -174,11 +127,13 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Ne.** Harmadik „high contrast” paletta. Elég a két scheme, ami a `Color.kt`-ban van.
 
-**Függőség.** A HUD (1.) sötét stílusát ezzel együtt csiszold, ha ugyanabban a kiadásban mennek.
+**Függőség.** Nincs. A HUD már megy mindkét map motor fölött.
+
+**Teszt.** Rendszer / Világos / Sötét a Beállításokban; Google és letöltött OSM; HUD és pontfelhő olvasható sötét csempén; status bar a témához.
 
 ---
 
-### 4. Élő előtér-értesítés
+### 2. Élő előtér-értesítés
 
 **Érték:** közepes–magas — második HUD, zsebben  
 **Effort:** 1–2 nap  
@@ -190,19 +145,19 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Mit építs.** Periodikus `notify()` frissítés: sebesség, út, pontosság (rövid `contentText` vagy `BigText`). Meglévő Stop. Ne legyen hang/rezgés (LOW marad). `FLAG_UPDATE_CURRENT`.
 
-**Függőség.** Ugyanaz a formázó, mint a HUD (`Units`). Érdemes a HUD után vagy vele párhuzamosan, hogy ne legyen kétféle kerekítés.
+**Függőség.** Ugyanaz a formázó, mint a HUD (`Units`). A HUD már megvan, ne legyen kétféle kerekítés.
 
 ---
 
-### 5. Sebesség szerint színezett track + Route cockpit
+### 3. Sebesség szerint színezett track + Route cockpit
 
 **Érték:** magas — második eye-catcher, a számkártyák helyett  
 **Effort:** 4–6 nap  
 **Hullám:** 2
 
-**Miért.** Egyetlen carmine polyline pontos, de a listingen „piros firkának” hat. Sebesség-szín (lassú teal → közép borostyán → gyors carmine) azonnal mesél: város vs autópálya, emelkedő vs lejtő. Az Útvonal fülön a sebesség legyen **a** szám, ne nyolc egyenlő csempe egyike.
+**Miért.** Egyetlen carmine polyline pontos, de a listingen „piros firkának” hat. Sebesség-szín (lassú teal → közép borostyán → gyors carmine) azonnal mesél: város vs autópálya, emelkedő vs lejtő. Az Útvonal fülön a sebesség legyen **a** szám, ne nyolc egyenlő csempe egyike. A magasságprofil a kártyák alatt már megvan.
 
-**Ma.** `Polyline` / Mapsforge polyline egy szín, `CarmineTrack`. `RoutePane`: `HudMetric` rács. `TrackStats`: odometer, moving/waiting, max/avg speed, min/max altitude — nincs idősor-rajz.
+**Ma.** `Polyline` / Mapsforge polyline egy szín, `CarmineTrack`. `RoutePane`: `HudMetric` rács + magasságprofil. `TrackStats`: odometer, moving/waiting, max/avg speed, min/max altitude — nincs sebesség-idősor.
 
 **Mit építs.**
 
@@ -213,34 +168,11 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Ne elsőre.** Magasság-szín és sebesség-szín egyszerre (választó később). Interpolált gradiens minden méterre — a szegmens elég.
 
-**Függőség.** Sötét térkép (3.), hogy a színek ne égjenek ki a fehér csempén. HUD (1.) maradhat egy színű „élő” fej, a múlt színezett.
+**Függőség.** Sötét térkép (1.), hogy a színek ne égjenek ki a fehér csempén. A HUD maradhat egy színű „élő” fej, a múlt színezett.
 
 ---
 
-### 6. GNSS skyplot
-
-**Érték:** magas a márkához, közepes a napi motoroshoz  
-**Effort:** 3–4 nap  
-**Hullám:** 2
-
-**Miért.** A konstelláció-chippek egyediek, de a feature graphic **polar plotot** mutat. GPSTest / nerd loggerek ezt várják. A GTL GNSS-hitelessége itt válik láthatóvá: used vs in view, L5, Galileo.
-
-**Ma.** `GnssStatusSource` mintavételez, de a `SatelliteSample` **nem** tárol azimutot és elevációt, pedig a `GnssStatus.getAzimuthDegrees` / `getElevationDegrees` megvan. A `GnssClassifier.snapshot` összesít, egyedi holdak nincsenek a UI-on.
-
-**Mit építs.**
-
-- `SatelliteSample` + snapshot lista: azimut, eleváció, CN0, used, konstelláció, L1/L5
-- Canvas polar: 0° = észak, gyűrűk 0/30/60° eleváció; szín konstellációnként; kitöltött = used-in-fix
-- GPS fül: skyplot fent vagy az SNR alatt, a chippek maradnak
-- Idle-ben is él (mint az iránytű) — nem kell naplózás
-
-**Ne.** 3D földgömb, AR. 2D polar + a meglévő chippek.
-
-**Függőség.** Nincs a HUD-hoz. Screenshot: GPS fül skyplottal a listingre.
-
----
-
-### 7. Mentett útvonalak: kártya, név, statok
+### 4. Mentett útvonalak: kártya, név, statok
 
 **Érték:** közepes–magas — a saját archívum használhatóvá válik  
 **Effort:** 3–4 nap  
@@ -248,37 +180,20 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Miért.** Leállítás után a lista dátum. Két szombati motoros kör megkülönböztethetetlen. Nincs táv, nincs usage-ikon, a `TWO_WHEELERS` nyers enum a UI-on. Megosztáskor a fájlnév időbélyeg.
 
-**Ma.** `track_sessions`: `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. Nincs `displayName`. `TracksScreen`: checkbox, Térképen, Törlés, kijelöltek megosztása.
+**Ma.** `track_sessions`: `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. Nincs `displayName`. `TracksScreen`: checkbox, Térképen, Magasság, Törlés megerősítéssel, kijelöltek megosztása KMZ vagy GPX.
 
 **Mit építs.**
 
-- Opcionális `displayName` (Room migráció 3→4). Üres = dátum, mint most
+- Opcionális `displayName` (Room migráció 4→5). Üres = dátum, mint most
 - Lista kártya: usage ikon, név/dátum, út, időtartam, max/átlag (a `TrackStatsCalculator` sessionenként — cache-eld a listához, ne minden scrollra a teljes `gps_events`-et)
 - Mini-polyline opcionális (drágább; elsőre statok + ikon is sokat visz)
-- Megosztás KMZ **vagy** GPX; a `<name>` / KMZ folder a displayName
-- Törlés megerősítés, ha még nincs
+- A `<name>` / KMZ folder a displayName (a KMZ/GPX választó megvan)
 
-**Függőség.** GPX (2.), ha a választó itt jelenik meg. A színezett track (5.) a Térképen-nézetet szépíti, a listát nem blokkolja.
-
----
-
-### 8. Magasságprofil (GPS először, baro később) — GPS-profil kész 2026-09-12; QNH később
-
-**Érték:** közepes  
-**Effort:** 2–3 nap a profilra; +2–3 nap baróra  
-**Hullám:** 3 (profil), később baro
-
-**Miért.** Futó, kerékpár, repülő nézi a szintet. A `gps_events.altitude` GPS-magasság, zajos, de van. A DBSTRUCT a barót (`TYPE_PRESSURE`) planned-ként említi, ICAO ft-hez.
-
-**Ma (2026-09-12).** Mentett útvonalak **Magasság** gombja és a Route fül: GPS-magasság × táv canvas. `baroAltitude` / `pressureHpa` a `gps_events`-en (Room 4); ISA, nincs QNH. Ha van legalább két baro minta, szaggatott második vonal.
-
-**Baro később.** QNH / tengerszint kalibráció, repülő usage. Az oszlop megvan; ne keverd a GPS alt-tal jelmagyarázat nélkül (a profil már külön vonal).
-
-**Függőség.** Route cockpit (5.) ad helyet a sparkline-nak; a teljes profil lehet a kártya alatt.
+**Függőség.** A színezett track (3.) a Térképen-nézetet szépíti, a listát nem blokkolja.
 
 ---
 
-### 9. Kézi szünet és kör / lap
+### 5. Kézi szünet és kör / lap
 
 **Érték:** közepes  
 **Effort:** 2–3 nap  
@@ -288,29 +203,29 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Ma.** `EventKind`: START, MOVE, PAUSE, STOP. STOP lezárja a sessiont (`stoppedAt`). Nincs user-pause a UI-on, csak Indít / Leállít.
 
-**Mit építs.** Harmadik gomb naplózáskor: Szünet / Folytat. Szünetben a service futhat, de ne írjon MOVE-ot (vagy írjon PAUSE placemarkot és hagyja a sűrűséget). Folytatáskor ne legyen új `track_sessions` sor. KMZ: meglévő pause ikon.
+**Mit építs.** Harmadik gomb naplózáskor: Szünet / Folytat. Szünetben a service futhat, de ne írjon MOVE-ot (vagy írjon PAUSE placemarkot és hagyja a sűrűséget). Folytatáskor ne legyen új `track_sessions` sor. KMZ: meglévő pause ikon. GPX: `trkseg` a szünetnél természetes.
 
 **Kör.** Lehet a szünet után; elsőre a kézi szünet a 80%.
 
-**Függőség.** GPX `trkseg` a szünetnél természetes. HUD: Szünet állapot a REC helyett.
+**Függőség.** HUD: Szünet állapot a REC helyett.
 
 ---
 
-### 10. Fekvő / tank HUD mód
+### 6. Fekvő / tank HUD mód
 
 **Érték:** közepes a default motorhoz, effort magas  
 **Effort:** 5–8 nap  
 **Hullám:** 3 vagy később
 
-**Miért.** Az app `portrait`. Tankra rakva a nagy számjegy fekvőben olvasható. A 1. tétel portrait HUD-ja a haszon ~80%-át adja.
+**Miért.** Az app `portrait`. Tankra rakva a nagy számjegy fekvőben olvasható. A portrait HUD a haszon ~80%-át adja.
 
 **Mit építs, ha jön.** Landscape activity vagy a fő képernyő lock-feloldása naplózáskor; óriás sebesség; térkép keskeny sáv; mindkét map motor. Figyelem: Mapsforge `MapView` + Compose rotáció.
 
-**Függőség.** 1. és 3. kész legyen, különben kétszer rakod a HUD-ot.
+**Függőség.** A sötét térkép (1.) kész legyen, különben kétszer rakod a HUD-ot éjjelre.
 
 ---
 
-### 11. Track-kép / képeslap megosztás
+### 7. Track-kép / képeslap megosztás
 
 **Érték:** közepes — social eye-catcher szerver nélkül  
 **Effort:** 4–6 nap  
@@ -320,11 +235,11 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Drága, mert:** statikus térkép-snapshot (Google Static / OSM render / saját polyline sötét háttéren). Az utolsó a legegyszerűbb és offline: nem csempe, csak vonal + statok. Kezdd azzal, ne Static Maps API-val.
 
-**Függőség.** 5. (szín) és 7. (név/stat) a képeslapot tartalommal tölti.
+**Függőség.** 3. (szín) és 4. (név/stat) a képeslapot tartalommal tölti.
 
 ---
 
-### 12. Quick Settings tile (Indít / Leállít)
+### 8. Quick Settings tile (Indít / Leállít)
 
 **Érték:** alacsony–közepes  
 **Effort:** ~1 nap  
@@ -332,52 +247,45 @@ A HUD nyers HUD-fixet mutasson sebességre / pontosságra (ugyanaz a filozófia,
 
 **Miért.** Shade-ből indítás kesztyűben. `TileService`, ugyanazok az engedélyek, mint az Indít gomb. Nem listing-téma.
 
-**Függőség.** Nincs. Az értesítés (4.) Stop actionje már ad egy vezérlőt.
+**Függőség.** Nincs. Az értesítés Stop actionje már ad egy vezérlőt.
 
 ---
 
 ## Kiadási hullámok
 
-A verziószámok **javaslatok**. A 2.0.5 patch maradhat hotfixnek; a következő minor a hullám 1.
+A verziószámok **javaslatok**. A 2.0.5 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
 
-### Hullám 1 — „látod és ki tudod vinni” (kb. 1–1,5 hét)
+### Hullám 1 — „éjjel is látod” (kb. 3,5–5,5 nap)
 
-Cél: a térkép felvétel közben műszer, az adat GPX-ben elmegy, éjjel nem vakít.
+Cél: éjjel nem vakít, az értesítésben ugyanazok a számok, a listing a valódi HUD-os térkép.
 
 | # | Tétel | Effort |
 | - | ----- | ------ |
-| 1 | Térkép HUD + keep-screen-on | 3–5 nap |
-| 2 | GPX export a megosztásban | 1,5–2,5 nap |
-| 3 | Sötét térkép + Rendszer/Világos/Sötét | 2–3 nap |
-| 4 | Értesítés élő számokkal | 1–2 nap |
+| 1 | Sötét térkép + Rendszer/Világos/Sötét | 2–3 nap |
+| 2 | Értesítés élő számokkal | 1–2 nap |
 | — | Play screenshot + feature graphic frissítés a **valódi** HUD-os térképről | 0,5 nap |
 
-Párhuzamosítható: GPX (engine teszt) a HUD UI mellett. A téma és a HUD vizuálisan egybeér.
+**Kész, ha:** sötét módban a csempe sötét; az értesítésben van km/h és km; a listing új 9:16 képe a HUD-os Térkép, nem a régi üres térkép.
 
-**Kész, ha:** OsmAnd megnyit egy GTL GPX-et; naplózáskor a Térkép fülön nagy sebesség látszik Google-on és OSM-en; sötét módban a csempe sötét; az értesítésben van km/h és km; a listing új 9:16 képe nem a régi üres térkép.
-
-### Hullám 2 — „az archívum és a GNSS látszik” (kb. 1,5–2 hét)
+### Hullám 2 — „az archívum és a vonal mesél” (kb. 7–10 nap)
 
 | # | Tétel | Effort |
 | - | ----- | ------ |
-| 5 | Színezett polyline + Route nagy sebesség / sparkline | 4–6 nap |
-| 6 | Skyplot | 3–4 nap |
-| 7 | Mentett track kártyák + displayName | 3–4 nap |
+| 3 | Színezett polyline + Route nagy sebesség / sparkline | 4–6 nap |
+| 4 | Mentett track kártyák + displayName | 3–4 nap |
 
-**Kész, ha:** egy autópályás szakasz nem azonos színű, mint a város; a GPS fül polar plotot mutat idle-ben; két session névvel megkülönböztethető; a Térképen a színezés a session usage sávjait használja.
+**Kész, ha:** egy autópályás szakasz nem azonos színű, mint a város; két session névvel megkülönböztethető; a Térképen a színezés a session usage sávjait használja.
 
 ### Hullám 3 — mélyítés (később, darabolva)
 
 | # | Tétel | Effort |
 | - | ----- | ------ |
-| 8 | Magasságprofil (GPS) | 2–3 nap |
-| 9 | Kézi szünet | 2–3 nap |
-| 10 | Fekvő HUD | 5–8 nap |
-| 11 | Képeslap PNG | 4–6 nap |
-| 12 | Quick Settings tile | ~1 nap |
-| — | Baro magasság | +2–3 nap |
+| 5 | Kézi szünet | 2–3 nap |
+| 6 | Fekvő HUD | 5–8 nap |
+| 7 | Képeslap PNG | 4–6 nap |
+| 8 | Quick Settings tile | ~1 nap |
 
-A 10. és 11. a drágák: csak akkor, ha a hullám 1–2 után még a „tankra raknám” / „megosztanám képként” a panasz.
+A 6. és 7. a drágák: csak akkor, ha a hullám 1–2 után még a „tankra raknám” / „megosztanám képként” a panasz.
 
 ---
 
@@ -385,22 +293,18 @@ A 10. és 11. a drágák: csak akkor, ha a hullám 1–2 után még a „tankra 
 
 | Rang | Feature | Érték | Effort | Hullám |
 | ---- | ------- | ----- | ------ | ------ |
-| 1 | Térkép HUD overlay | nagyon magas | 3–5 nap | 1 |
-| 2 | GPX export | nagyon magas | 1,5–2,5 nap | 1 |
-| 3 | Sötét térkép + téma-választó | magas | 2–3 nap | 1 |
-| 4 | Élő értesítés | közepes–magas | 1–2 nap | 1 |
-| 5 | Színezett track + Route cockpit | magas | 4–6 nap | 2 |
-| 6 | GNSS skyplot | magas (márka) | 3–4 nap | 2 |
-| 7 | Mentett track kártyák + név | közepes–magas | 3–4 nap | 2 |
-| 8 | Magasságprofil | közepes | 2–3 nap | 3 |
-| 9 | Kézi szünet / lap | közepes | 2–3 nap | 3 |
-| 10 | Fekvő tank HUD | közepes | 5–8 nap | 3+ |
-| 11 | Képeslap megosztás | közepes | 4–6 nap | 3+ |
-| 12 | Quick Settings tile | alacsony–közepes | ~1 nap | bármikor |
+| 1 | Sötét térkép + téma-választó | magas | 2–3 nap | 1 |
+| 2 | Élő értesítés | közepes–magas | 1–2 nap | 1 |
+| 3 | Színezett track + Route cockpit | magas | 4–6 nap | 2 |
+| 4 | Mentett track kártyák + név | közepes–magas | 3–4 nap | 2 |
+| 5 | Kézi szünet / lap | közepes | 2–3 nap | 3 |
+| 6 | Fekvő tank HUD | közepes | 5–8 nap | 3+ |
+| 7 | Képeslap megosztás | közepes | 4–6 nap | 3+ |
+| 8 | Quick Settings tile | alacsony–közepes | ~1 nap | bármikor |
 
-Hullám 1 összeg: **kb. 8–13 nap** + listing asset.  
-Hullám 2: **kb. 10–14 nap**.  
-Ha csak **kettőt** lehet: **HUD + GPX**. Ez zárja a „ezt mutatom a boltban” és a „ki tudom vinni” rést.
+Hullám 1 maradék: **kb. 3,5–5,5 nap** + listing asset.  
+Hullám 2: **kb. 7–10 nap**.  
+Ha csak **kettőt** lehet: **sötét térkép + színezett track**. Ez zárja a „éjjel vakít” és a „piros firka a listingen” rést.
 
 ---
 
@@ -412,23 +316,20 @@ Nem opcionális toldalék:
 - [docs/play-console/whatsnew.txt](play-console/whatsnew.txt) (500 karakter / nyelv)
 - Súgó EN/HU a új vezérlőkre
 - README funkciólista, ha a felhasználó látja
-- Screenshot 1080×1920, 24 bit, nincs alfa; hullám 1-ben legalább `map.png` / `tracking.png` / egy GPS, ha skyplot később jön
+- Screenshot 1080×1920, 24 bit, nincs alfa; vedd újra a Térkép és GPS képeket, hogy a HUD és a skyplot a listingen legyen
 
-A [GPSDATAFLOW](GPSDATAFLOW-hu.md) csak akkor változik, ha a lánc írása változik (GPX olvas Room-ot, mint a KMZ — általában elég a README export-bekezdés). Skyplot: `Gnss.kt` + GPSDATAFLOW HUD ág, ha a snapshot séma nő. Session név: [DBSTRUCT](DBSTRUCT-en.md) migráció.
+A [GPSDATAFLOW](GPSDATAFLOW-hu.md) csak akkor változik, ha a lánc írása változik. Session név: [DBSTRUCT](DBSTRUCT-en.md) migráció 4→5.
 
 ---
 
 ## Nyitott döntések (implementáció előtt, hullámonként)
 
-Hullám 1 (2026-09-12 lezárva):
+Hullám 1:
 
-- HUD idle: kompakt sáv GPS-fixnél; rejtve mentett track idle-ben; teljes sáv naplózáskor.
-- Keep-screen-on alapból ki.
-- GPX: egy fájl több `trk`.
+- Google night JSON: beépített stílus vagy saját, a cockpit teal/carmine köré?
 
 Hullám 2:
 
 - Sebességsávok globálisak (0–30 / 30–70 / 70+ km/h) vagy usage-enként (futó más skála)?
-- Skyplot a GPS fül tetején (több scroll) vagy csukható?
 
 Ezeket a hullám briefjében rögzítsd; a roadmap szándékosan nem fagyasztja a pixel-layoutot.

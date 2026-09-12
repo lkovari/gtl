@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.FixFilter
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
@@ -47,7 +48,8 @@ data class GtlSettings(
     val stationaryLockEnabled: Boolean,
     val recordingDensityValue: Float,
     val gnssOnly: Boolean,
-    val compassTrueNorth: Boolean
+    val compassTrueNorth: Boolean,
+    val qnhHpa: Float
 ) {
     fun toFilter(): FixFilter {
         return FixFilter(
@@ -85,7 +87,8 @@ data class GtlSettings(
                 stationaryLockEnabled = smoothing.stationaryLockEnabled,
                 recordingDensityValue = smoothing.recordingDensity.sliderValue(),
                 gnssOnly = smoothing.gnssOnly,
-                compassTrueNorth = false
+                compassTrueNorth = false,
+                qnhHpa = BaroAltitude.StandardAtmosphereHpa
             )
         }
     }
@@ -205,6 +208,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.compassTrueNorth] = value }
     }
 
+    suspend fun setQnhHpa(value: Float) {
+        dataStore.edit { it[Keys.qnhHpa] = BaroAltitude.clampQnh(value) }
+    }
+
     private suspend fun migrateSmoothingIfNeeded() {
         dataStore.edit { prefs ->
             if (prefs.contains(Keys.trackSmoothing)) {
@@ -276,7 +283,10 @@ class GtlPreferences(context: Context) {
             stationaryLockEnabled = prefs[Keys.stationaryLock] ?: smoothing.stationaryLockEnabled,
             recordingDensityValue = readRecordingDensity(prefs, smoothing),
             gnssOnly = prefs[Keys.gnssOnly] ?: smoothing.gnssOnly,
-            compassTrueNorth = prefs[Keys.compassTrueNorth] ?: false
+            compassTrueNorth = prefs[Keys.compassTrueNorth] ?: false,
+            qnhHpa = BaroAltitude.clampQnh(
+                prefs[Keys.qnhHpa] ?: BaroAltitude.StandardAtmosphereHpa
+            )
         )
     }
 
@@ -341,6 +351,7 @@ class GtlPreferences(context: Context) {
         val recordingDensityValue = floatPreferencesKey("recording_density_value")
         val gnssOnly = booleanPreferencesKey("gnss_only")
         val compassTrueNorth = booleanPreferencesKey("compass_true_north")
+        val qnhHpa = floatPreferencesKey("qnh_hpa")
     }
 
     companion object {

@@ -28,26 +28,29 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### GPS tab
 
-- Live satellite counts: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC.
+- Live satellite counts: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC. Chip colours match the skyplot.
+- Polar **skyplot** under SNR (north-up, used vs in view, L5 ring). See [GNSS Skyplot](#gnss-skyplot).
 - SNR quality (excellent / good / fair / poor / none).
-- Latitude, longitude, accuracy, provider, altitude, ambient temperature, logging status.
+- Latitude, longitude, accuracy, provider, altitude, logging status. **Baro** when a pressure sensor exists (Settings QNH). Ambient temperature.
+- **Altitude** prefers Mean Sea Level, then GNSS ellipsoid, then fused ellipsoid (`GpsAltitude.pick`). Values outside −430…9000 m (fused junk near −1800 m on some phones) are treated as missing.
 - When **Show fix cloud** is on: n, RMS, CEP95, median reported accuracy, and a standing / moving / wait caption (same in-memory window as the map dots; CEP95 needs 8 samples).
 
 
 
 ### Route tab
 
-Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist).
+Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH.
 
 ### Map tab
 
 - Centers on current location; follows while logging. **Keep whole track on the screen** fits the whole route after each GPS refresh (pan and zoom stay allowed until the next fix).
 - Red polyline from Room (live session, last saved track, or a track chosen in Saved tracks). The Map line **is** the stored log; there is no separate sketch. See [How logging works](#how-logging-works).
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
-- **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM.
+- **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM. A missing or non-Mapsforge file shows an on-device message and turns that switch off so the next launch is not a crash loop. Download keeps only files with magic `mapsforge binary OSM` and a matching header size. Camera starts on the `.map` start/bounds when the GPS fix is outside that file; live follow only inside the file. The OSM `MapView` stays laid out when you leave the Map tab.
 - Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
 - **HUD** over both map engines: large speed (units from Settings), accuracy, GNSS used/in view. While logging: odometer, elapsed time, pulsing REC. Idle with a fix: dim compact panel at the bottom left. Hidden when a saved track is shown and you are not logging.
 - Small red usage silhouette at your position (same icons as Settings). Stays upright in portrait. A north marker stays on the map.
+- Green **S** at the start of the drawn track; red **E** at the end when you are not logging (while logging the silhouette is now).
 - When a saved track is shown and logging is off, a broom at the top left takes the line off the map without deleting the log. Start or Saved tracks → Show on map draws it again.
 - Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on (see below). SQLite, Route totals, and KMZ are never simplified.
 
@@ -74,10 +77,10 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 - Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0). The **visible** line is a KML `LineString` with `tessellate` and `clampToGround` at height 0, so Google Earth drapes it on the terrain (a `gx:Track` with GPS altitude as the 3rd `gx:coord` floats beside the road at close zoom and can vanish under the camera). Start / Pause / Stop Points also use height 0. A hidden `gx:Track` still stores `when`, speed, odometer, GPS `alt`, and `baro`.
 - Path vertices are the stored log; a trailing STOP row that is only a session marker is not drawn as an extra hook. The Stop icon is on the last path vertex. Pause icons sit on pause vertices (one icon per standstill; omitted if they overlap Start or Stop).
 - START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth). Placemark names are **Start**, **Pause**, **Stop**. Description is HTML (`<br/>`) so every field shows in Earth details. Time is UTC with no `time=` prefix and no `UTC` suffix. Units follow Settings (metric: km/h, m / km, °C; imperial: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). Balloons do **not** include `usage=` or `lean=`.
-  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA from the barometer, or `N/A`). No Speed / Avg. Speed / Max speed / duration / distance.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (from the stored pressure sample at the QNH then selected, or `N/A`). No Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** the same lines, plus `Speed:` (instantaneous GPS speed at that pause row), `duration=` (seconds if 60 s or less, whole minutes under 60 min, otherwise `HH:MM:SS` from Start), and `distance=` so far in the selected unit. No Avg. Speed / Max speed.
   - **Stop:** the same lines, plus `Avg. Speed:` and `Max speed:` (one decimal) from `TrackStatsCalculator` on the path, then `duration=` and `distance=` for the full session. No instant `Speed:`.
-- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (ISA metres, empty if no sample). `gx:coord` height is 0 so Earth does not lift the timed track.
+- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (metres at the QNH used when the row was stored, empty if no sample). `gx:coord` height is 0 so Earth does not lift the timed track.
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
 - Help **Sharing KMZ and GPX** lists balloon fields (EN/HU) and the SQLite `gps_events` fields.
 
@@ -110,7 +113,8 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
-- **Use downloaded OSM map** — Mapsforge file versus Google Maps.
+- **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default ISA 1013.25). Live baro and the elevation dashed line use the current value. Stored `pressureHpa` is unchanged; `baroAltitude` at insert uses the QNH in force then.
+- **Use downloaded OSM map** — Mapsforge file versus Google Maps. A missing or invalid `.map` turns the switch off.
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
 - **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
@@ -127,7 +131,7 @@ Existing installs that still have the old **19.5 m** simplify default migrate to
 - First-run safe-driving disclaimer.
 - Download OSM map (Mapsforge v5 regions: Europe, selected Asia / Americas / Australia).
 - Location settings (opens the system GPS panel).
-- Help: accordion (one section open at a time). Usage, **Settings** (usage presets and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS, Route, Map, Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
+- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route, Map (OSM file, S/E), Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
 - Privacy-policy link.
 
 ---
@@ -141,7 +145,7 @@ Two Gradle modules:
 
 | Module    | Role                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Pure JVM: GNSS classification, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, compass MAG/TRUE heading, elevation series, map-visibility rules, fix-cloud buffer. JUnit tests live here. |
+| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
 | `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
 
 
@@ -156,7 +160,7 @@ docs/    Privacy policy, Play assets, renewal notes
 ### Data
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
-- **DataStore:** disclaimer, usage, units, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
+- **DataStore:** disclaimer, usage, units, QNH, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
 - **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
 
@@ -185,7 +189,7 @@ Stop
 
 **Source.** **Use GNSS only** on → Android `GPS_PROVIDER` (the satellite chip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — the provider name is historical). Off → Play Services fused `PRIORITY_HIGH_ACCURACY` (satellites mixed with Wi-Fi, cell, and IMU). If the GPS provider is disabled, fused is used either way. Runner default is GNSS only so a 5–10 m on-road loop is not flattened by the phone’s “where is the user?” filter before GTL ever sees it.
 
-**HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The pale purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. **Show fix cloud** samples the same `lastLocation` into an in-memory window (centroid RMS / CEP95) and does not write SQLite. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
+**HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The pale purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. **Altitude** on that object is already `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid; drop outside −430…9000 m). **Show fix cloud** samples the same `lastLocation` into an in-memory window (centroid RMS / CEP95) and does not write SQLite. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
 
 **Gate 1 — accuracy and satellites.** A fix worse than the usage accuracy (30 m, runner and bicycle 45 m) or with fewer than 4 satellites in the fix is discarded. It never enters Kalman and never becomes a row. The HUD still updates.
 
@@ -221,6 +225,22 @@ Stop
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
 Pipeline mermaid (same flow, more boxes): [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
+
+### GNSS Skyplot
+
+The GPS tab polar plot is a **map of the sky as the chip sees it**, not a 3D globe and not a second tracklog. It sits under SNR, after the constellation chips. Those chips stay: they are the glanceable `used/in view` counts (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). The skyplot shows **where** those birds are.
+
+**Geometry.** Centre is the zenith (90° elevation). The outer ring is the horizon (0°). Inner rings are 30° and 60° elevation. Twelve o’clock is north (azimuth 0°); east, south, and west follow clockwise. The plot does **not** rotate with the phone — the Compass tab does that. A satellite below the horizon is omitted.
+
+**Marks.** Colour is the constellation (GPS blue, Galileo lime, GLONASS carmine, BeiDou amber, QZSS magenta, NavIC cyan; SBAS/unknown muted). A **filled** disk is used in the current position fix. A **hollow** ring is in view but not used. An **inner ring** means an L5-class carrier (the same ~1176.45 MHz window as the GPS L5 chip, so Galileo E5a counts too). Marker size is fixed; SNR stays on the bar above.
+
+**Dual frequency.** Android reports L1 and L5 of the same SVID as two `GnssStatus` rows at the same azimuth/elevation. The plot merges them into one point so you do not see two stacked dots. The chips still count those rows separately (`satellitesInView` is the raw row count, same as the Map HUD `used/in view`).
+
+**Data path.** `GnssStatus.Callback` → per-satellite `SatelliteSample` (azimuth, elevation, CN0, used, constellation, carrier) → `GnssSnapshot.satellites` in memory → polar canvas. Nothing is written to `gps_events`, KMZ, or GPX. Kalman, recording density, and **Use GNSS only** change *where the fix comes from*, not this plot. The skyplot is the chip’s current sky, fused or not.
+
+**When it runs.** Live as soon as the app has location permission, like the compass and the GPS numbers. Start is not required. Empty rings until birds appear (or if permission is missing). It does not cache the last “pretty” sky in a tunnel.
+
+Engine: `Gnss.kt` (sample + snapshot) and `Skyplot.kt` (projection + L1/L5 merge). UI: `GnssSkyplot` on the GPS tab. Map HUD is unchanged.
 
 ### How Runner logs like a sports watch
 
@@ -281,6 +301,7 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | **Show accuracy marker**                                          | **No**                        | Pale purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                       |
 | **Show fix cloud**                                                | **No**                        | Pastel magenta dots of raw HUD fixes while standing, CEP95 around the centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while moving. Not stored.                                                                                                                                                                    |
 | **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons (metric km/h, m, °C; imperial mph, ft, °F; ICAO kt, ft, °C). Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
+| **QNH** (900–1100 hPa)                                            | Baro at insert                | Live baro and the elevation dashed line use the current slider. `baroAltitude` stored on the row uses the QNH in force then; `pressureHpa` is unchanged so you can recalibrate later. Default ISA 1013.25.                                                                                                                                                                                      |
 | Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
 
 
@@ -383,11 +404,19 @@ Engine entry points worth reading:
 - `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (datetime, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
 - `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markers for KMZ and GPX
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
-- `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR
+- `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR / satellite list
+- `engine/.../Skyplot.kt` — polar projection / dual-frequency merge
+- `engine/.../GpsAltitude.kt` — MSL then GNSS then fused; drop outside −430…9000 m
+- `engine/.../BaroAltitude.kt` — ISA / QNH metres from `pressureHpa`
+- `engine/.../OsmMapFile.kt` — Mapsforge magic + header file size
+- `engine/.../OsmMapCamera.kt` — OSM centre/zoom inside the `.map` bounds
+- `engine/.../OsmMapViewRedraw.kt` — when Compose must invalidate OSM tiles
+- `engine/.../MapFitZoom.kt` — zoom clamp / fit size check
+- `engine/.../TrackEndpoints.kt` — green S / red E (end hidden while logging)
 - `engine/.../FixCloud.kt` — in-memory standing-fix cloud / CEP95
 - `engine/.../MapDisplayUsage.kt` — which usage and simplify the map follows
 - `engine/.../MapTrackVisibility.kt` — when the map must draw a track (logging always; otherwise last-track or a selected session, unless cleared)
-- `app/.../LocationClient.kt` — fused HIGH_ACCURACY or `GPS_PROVIDER` when Use GNSS only is on
+- `app/.../LocationClient.kt` — fused HIGH_ACCURACY or `GPS_PROVIDER` when Use GNSS only is on; fused still listens to `GPS_PROVIDER` for altitude
 
 ---
 
@@ -397,7 +426,7 @@ Engine entry points worth reading:
 
 `docs/screenshots/`
 
-- `gps-idle.png`, `gps-logging.png` — GPS tab
+- `gps-idle.png`, `gps-logging.png` — GPS tab (recapture so the skyplot is visible)
 - `route.png` — Route totals
 - `map.png`, `tracking.png` — Map while recording
 - `googleearth.png` — shared KMZ in Google Earth

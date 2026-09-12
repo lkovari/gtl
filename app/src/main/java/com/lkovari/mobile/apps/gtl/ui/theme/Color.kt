@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import com.lkovari.mobile.apps.gtl.engine.GnssConstellation
 
 val ChartSage = Color(0xFFD8E4D4)
 val PaperGrid = Color(0xFFF4F7F1)
@@ -27,3 +28,15 @@ val HudCyan = Color(0xFF3ECFCF)
 val MoonAmber = Color(0xFFE8A838)
 val MoonCream = Color(0xFFE7F0EA)
 val NightMuted = Color(0xFF8AA0A8)
+
+fun gnssConstellationColor(constellation: GnssConstellation): Color {
+    return when (constellation) {
+        GnssConstellation.GPS -> StartBlue
+        GnssConstellation.GALILEO -> GnssLime
+        GnssConstellation.GLONASS -> CarmineTrack
+        GnssConstellation.BEIDOU -> MoonAmber
+        GnssConstellation.QZSS -> TitleMagenta
+        GnssConstellation.IRNSS -> HudCyan
+        GnssConstellation.SBAS, GnssConstellation.UNKNOWN -> NightMuted
+    }
+}

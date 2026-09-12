@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.engine.ConstellationCount
 import com.lkovari.mobile.apps.gtl.engine.GnssConstellation
 import com.lkovari.mobile.apps.gtl.engine.GnssSnapshot
 import com.lkovari.mobile.apps.gtl.engine.SignalQuality
@@ -46,19 +47,20 @@ import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.HudTeal
 import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.NightInk
+import com.lkovari.mobile.apps.gtl.ui.theme.gnssConstellationColor
 import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
 fun ConstellationStrip(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
     val items = listOf(
-        "GPS L1" to snapshot?.gpsL1,
-        "GPS L5" to snapshot?.gpsL5,
-        "GAL" to snapshot?.byConstellation?.get(GnssConstellation.GALILEO),
-        "GLO" to snapshot?.byConstellation?.get(GnssConstellation.GLONASS),
-        "BDS" to snapshot?.byConstellation?.get(GnssConstellation.BEIDOU),
-        "QZSS" to snapshot?.byConstellation?.get(GnssConstellation.QZSS),
-        "NavIC" to snapshot?.byConstellation?.get(GnssConstellation.IRNSS)
+        ChipSpec("GPS L1", snapshot?.gpsL1, GnssConstellation.GPS),
+        ChipSpec("GPS L5", snapshot?.gpsL5, GnssConstellation.GPS),
+        ChipSpec("GAL", snapshot?.byConstellation?.get(GnssConstellation.GALILEO), GnssConstellation.GALILEO),
+        ChipSpec("GLO", snapshot?.byConstellation?.get(GnssConstellation.GLONASS), GnssConstellation.GLONASS),
+        ChipSpec("BDS", snapshot?.byConstellation?.get(GnssConstellation.BEIDOU), GnssConstellation.BEIDOU),
+        ChipSpec("QZSS", snapshot?.byConstellation?.get(GnssConstellation.QZSS), GnssConstellation.QZSS),
+        ChipSpec("NavIC", snapshot?.byConstellation?.get(GnssConstellation.IRNSS), GnssConstellation.IRNSS)
     )
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -69,11 +71,12 @@ fun ConstellationStrip(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                rowItems.forEach { (label, count) ->
+                rowItems.forEach { spec ->
                     ConstellationChip(
-                        label = label,
-                        used = count?.usedInFix ?: 0,
-                        inView = count?.inView ?: 0,
+                        label = spec.label,
+                        used = spec.count?.usedInFix ?: 0,
+                        inView = spec.count?.inView ?: 0,
+                        labelColor = gnssConstellationColor(spec.constellation),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -85,11 +88,18 @@ fun ConstellationStrip(snapshot: GnssSnapshot?, modifier: Modifier = Modifier) {
     }
 }
 
+private data class ChipSpec(
+    val label: String,
+    val count: ConstellationCount?,
+    val constellation: GnssConstellation
+)
+
 @Composable
 private fun ConstellationChip(
     label: String,
     used: Int,
     inView: Int,
+    labelColor: Color,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -104,7 +114,7 @@ private fun ConstellationChip(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = labelColor,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Clip,

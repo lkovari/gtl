@@ -46,7 +46,9 @@ class GnssStatusSource(context: Context) {
                                     svid = status.getSvid(index),
                                     usedInFix = status.usedInFix(index),
                                     cn0DbHz = status.getCn0DbHz(index),
-                                    carrierFrequencyHz = frequency
+                                    carrierFrequencyHz = frequency,
+                                    azimuthDegrees = status.getAzimuthDegrees(index),
+                                    elevationDegrees = status.getElevationDegrees(index)
                                 )
                             )
                         }

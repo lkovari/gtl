@@ -22,7 +22,9 @@ data class SatelliteSample(
     val svid: Int,
     val usedInFix: Boolean,
     val cn0DbHz: Float,
-    val carrierFrequencyHz: Float?
+    val carrierFrequencyHz: Float?,
+    val azimuthDegrees: Float,
+    val elevationDegrees: Float
 )
 
 data class ConstellationCount(
@@ -47,7 +49,8 @@ data class GnssSnapshot(
     val maxCn0: Double,
     val satellitesInView: Int,
     val satellitesInFix: Int,
-    val signalQuality: SignalQuality
+    val signalQuality: SignalQuality,
+    val satellites: List<SatelliteSample>
 )
 
 object GnssClassifier {
@@ -106,7 +109,8 @@ object GnssClassifier {
             maxCn0 = cn0Values.maxOrNull() ?: 0.0,
             satellitesInView = samples.size,
             satellitesInFix = samples.count { it.usedInFix },
-            signalQuality = qualityFromCn0(qualitySource, samples.size)
+            signalQuality = qualityFromCn0(qualitySource, samples.size),
+            satellites = samples
         )
     }
 

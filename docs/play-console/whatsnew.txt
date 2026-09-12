@@ -5,21 +5,21 @@ What's new — max 500 characters per language.
 Date: 2026-09-12
 
 <en-US>
-KMZ Earth details.
+OSM maps, GPS altitude, skyplot.
 
-• Start / Pause / Stop sit on the stored line; close zoom stays on the road
-• Details: UTC datetime, temp=, lon, lat, Altitude, Baro
-• Pause: Speed, duration, distance; Stop: Avg. Speed, Max speed, duration, distance
-• temp=N/A if no sensor; units from Settings
-• Map HUD, GPX 1.1, elevation profile, compass, baro
+• Invalid OSM map no longer crashes or blocks the next launch
+• OSM camera stays on the downloaded region when GPS is outside it
+• GPS altitude prefers MSL then GNSS; implausible fused heights are hidden
+• Baro on the GPS tab; Settings QNH 900–1100 hPa
+• Polar skyplot under SNR; green S / red E on Map
 </en-US>
 
 <hu-HU>
-KMZ Earth details.
+OSM térkép, GPS magasság, skyplot.
 
-• Start / Pause / Stop a letárolt vonalon; közeli zoom az utcán marad
-• Details: UTC datetime, temp=, lon, lat, Altitude, Baro
-• Pause: Speed, duration, distance; Stop: Avg. Speed, Max speed, duration, distance
-• Ha nincs hőmérséklet: temp=N/A; mértékegység a Beállításokból
-• Térkép HUD, GPX 1.1, magasságprofil, iránytű, baro
+• Érvénytelen OSM térkép nem lövi ki az appot, a következő indítás sem áll le
+• OSM kamera a letöltött régión marad, ha a GPS azon kívül van
+• GPS magasság: MSL, majd GNSS; fused szemét rejtve
+• Baro a GPS fülön; QNH 900–1100 hPa a Beállításokban
+• Polar skyplot az SNR alatt; zöld S / piros E a Térképen
 </hu-HU>

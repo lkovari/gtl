@@ -1,7 +1,11 @@
 package com.lkovari.mobile.apps.gtl.ui.screens
 
+import android.content.Context
 import android.graphics.drawable.BitmapDrawable
 import android.location.Location
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +37,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -53,7 +57,11 @@ import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.FixCloudStats
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.LatLonBounds
+import com.lkovari.mobile.apps.gtl.engine.MapFitZoom
+import com.lkovari.mobile.apps.gtl.engine.OsmMapCamera
+import com.lkovari.mobile.apps.gtl.engine.OsmMapViewRedraw
 import com.lkovari.mobile.apps.gtl.engine.TrackCameraBounds
+import com.lkovari.mobile.apps.gtl.engine.TrackEndpoints
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.engine.MapHudMode
 import com.lkovari.mobile.apps.gtl.engine.MapHudVisibility
@@ -62,6 +70,8 @@ import com.lkovari.mobile.apps.gtl.ui.rememberUsageMarkerBitmap
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerBorder
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerFill
 import com.lkovari.mobile.apps.gtl.ui.theme.CarmineTrack
+import com.lkovari.mobile.apps.gtl.ui.theme.GnssLime
+import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudCepFill
 import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudCepStroke
 import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudDot
@@ -81,13 +91,14 @@ import org.mapsforge.core.util.MercatorProjection
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import org.mapsforge.map.android.util.AndroidUtil
 import org.mapsforge.map.android.view.MapView
+import org.mapsforge.map.view.InputListener
 import org.mapsforge.map.layer.Layer
 import org.mapsforge.map.layer.overlay.Circle as ForgeCircle
 import org.mapsforge.map.layer.overlay.Polyline as ForgePolyline
 import org.mapsforge.map.layer.renderer.TileRendererLayer
 import org.mapsforge.map.reader.MapFile
 import org.mapsforge.map.rendertheme.internal.MapsforgeThemes
-import java.io.FileInputStream
+import java.io.File
 
 private const val AccuracyFillAlpha = 64
 private const val FixCloudDotRadiusMeters = 1.25
@@ -95,8 +106,14 @@ private const val FixCloudCentroidRadiusMeters = 2.0
 private const val FixCloudPausedAlpha = 0.35f
 
 @Composable
-fun MapPane(state: GtlUiState, onClearMap: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize()) {
+fun MapPane(
+    state: GtlUiState,
+    onClearMap: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
+    mapActive: Boolean = true,
+    onOsmFailed: () -> Unit = {}
+) {
+    Box(modifier = modifier) {
         val points = state.displayPoints
         if (state.settings.useOfflineMap && state.osmFile != null) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -110,7 +127,9 @@ fun MapPane(state: GtlUiState, onClearMap: () -> Unit) {
                     viewingSaved = state.selectedSessionId != null && !state.live.logging,
                     showFixCloud = state.settings.showFixCloud,
                     fixCloud = state.fixCloud,
-                    usageType = state.mapUsageType
+                    usageType = state.mapUsageType,
+                    mapActive = mapActive,
+                    onOsmFailed = onOsmFailed
                 )
                 NorthIndicator(
                     mapBearingDegrees = 0f,
@@ -121,7 +140,12 @@ fun MapPane(state: GtlUiState, onClearMap: () -> Unit) {
             }
         } else if (!state.mapsKeyPresent) {
             Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.map_missing_key), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(
+                        if (state.settings.useOfflineMap) R.string.osm_map_unavailable else R.string.map_missing_key
+                    ),
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         } else {
             GoogleMapContent(state, points)
@@ -195,6 +219,36 @@ private fun GoogleMapContent(state: GtlUiState, points: List<GeoPoint>) {
     ) {
         if (latLngs.size >= 2) {
             Polyline(points = latLngs, color = CarmineTrack, width = 10f)
+        }
+        val startPoint = TrackEndpoints.start(points)
+        if (startPoint != null) {
+            val startLatLng = LatLng(startPoint.latitude, startPoint.longitude)
+            val startState = remember { MarkerState(startLatLng) }
+            SideEffect { startState.position = startLatLng }
+            MarkerComposable(
+                keys = arrayOf("track-start"),
+                state = startState,
+                title = stringResource(R.string.map_track_start),
+                anchor = Offset(0.5f, 0.5f),
+                zIndex = 1f
+            ) {
+                TrackEndDot(start = true)
+            }
+        }
+        val endPoint = TrackEndpoints.end(points, state.live.logging)
+        if (endPoint != null) {
+            val endLatLng = LatLng(endPoint.latitude, endPoint.longitude)
+            val endState = remember { MarkerState(endLatLng) }
+            SideEffect { endState.position = endLatLng }
+            MarkerComposable(
+                keys = arrayOf("track-end"),
+                state = endState,
+                title = stringResource(R.string.map_track_end),
+                anchor = Offset(0.5f, 0.5f),
+                zIndex = 1f
+            ) {
+                TrackEndDot(start = false)
+            }
         }
         val usagePosition = live ?: latLngs.lastOrNull()
         if (usagePosition != null) {
@@ -323,6 +377,24 @@ private suspend fun animateToTrackBounds(camera: CameraPositionState, bounds: La
 }
 
 @Composable
+private fun TrackEndDot(start: Boolean) {
+    val fill = if (start) GnssLime else CarmineTrack
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .background(fill, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (start) "S" else "E",
+            color = MoonCream,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
 private fun ClearMapButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     IconButton(
         onClick = onClick,
@@ -372,14 +444,69 @@ private fun NorthIndicator(mapBearingDegrees: Float, modifier: Modifier = Modifi
     }
 }
 
+private class GtlOsmMapView(context: Context) : MapView(context) {
+    var mapActive: Boolean = false
+
+    init {
+        addInputListener(object : InputListener {
+            override fun onMoveEvent() {
+                if (mapActive) {
+                    repaint()
+                }
+            }
+
+            override fun onZoomEvent() {
+                requestVisibleTiles()
+            }
+        })
+    }
+
+    override fun repaint() {
+        super.repaint()
+        if (OsmMapViewRedraw.mustPostAncestorInvalidate(Looper.myLooper() == Looper.getMainLooper())) {
+            post { invalidateComposeParents() }
+        } else {
+            invalidateComposeParents()
+        }
+    }
+
+    private fun invalidateComposeParents() {
+        var ancestor = parent
+        while (ancestor is View) {
+            ancestor.invalidate()
+            ancestor = ancestor.parent
+        }
+    }
+
+    override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight)
+        if (OsmMapViewRedraw.shouldRedrawLayers(width, height, oldWidth, oldHeight)) {
+            post { requestVisibleTiles() }
+        }
+    }
+
+    fun requestVisibleTiles() {
+        if (!OsmMapViewRedraw.shouldRequestTiles(width, height)) {
+            return
+        }
+        layerManager.redrawLayers()
+        repaint()
+    }
+}
+
 private class OsmMapOverlays {
     var polyline: ForgePolyline? = null
     var accuracy: ForgeCircle? = null
     var cloud: FixCloudLayer? = null
     var usage: UsagePositionLayer? = null
+    var ends: TrackEndsLayer? = null
     var usageBitmapType: UsageType? = null
     var didInitialCenter = false
     var lastFitKey: String? = null
+    var layersReady = false
+    var mapBounds: LatLonBounds? = null
+    var mapStart: GeoPoint? = null
+    var mapStartZoom: Int? = null
 }
 
 @Composable
@@ -393,7 +520,9 @@ private fun OsmMapView(
     viewingSaved: Boolean,
     showFixCloud: Boolean,
     fixCloud: FixCloudSnapshot,
-    usageType: UsageType
+    usageType: UsageType,
+    mapActive: Boolean,
+    onOsmFailed: () -> Unit
 ) {
     val overlays = remember(filePath) { OsmMapOverlays() }
     val usageBitmap = rememberUsageMarkerBitmap(usageType)
@@ -401,82 +530,164 @@ private fun OsmMapView(
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
-                val mapView = MapView(ctx)
+                val mapView = GtlOsmMapView(ctx)
                 mapView.mapScaleBar.isVisible = true
                 mapView.setBuiltInZoomControls(true)
-                val tileCache = AndroidUtil.createTileCache(
-                    ctx,
-                    "gtl-osm",
-                    mapView.model.displayModel.tileSize,
-                    1f,
-                    mapView.model.frameBufferModel.overdrawFactor
-                )
-                val mapFile = MapFile(FileInputStream(filePath))
-                val renderer = TileRendererLayer(
-                    tileCache,
-                    mapFile,
-                    mapView.model.mapViewPosition,
-                    AndroidGraphicFactory.INSTANCE
-                )
-                renderer.setXmlRenderTheme(MapsforgeThemes.DEFAULT)
-                mapView.layerManager.layers.add(renderer)
-                val graphic = AndroidGraphicFactory.INSTANCE
-                val stroke = graphic.createPaint()
-                stroke.setColor(graphic.createColor(255, 0xC1, 0x3B, 0x2E))
-                stroke.setStyle(Style.STROKE)
-                stroke.strokeWidth = 10f
-                val polyline = ForgePolyline(stroke, graphic)
-                mapView.layerManager.layers.add(polyline)
-                overlays.polyline = polyline
-                val cloud = FixCloudLayer()
-                mapView.layerManager.layers.add(cloud)
-                overlays.cloud = cloud
-                val usage = UsagePositionLayer()
-                mapView.layerManager.layers.add(usage)
-                overlays.usage = usage
-                mapView.model.mapViewPosition.setZoomLevel(14.toByte())
+                mapView.setZoomLevelMin(MapFitZoom.Min.toByte())
+                mapView.setZoomLevelMax(MapFitZoom.Max.toByte())
+                try {
+                    attachOsmLayers(mapView, overlays, filePath)
+                    applyOsmMapCamera(mapView, overlays, location, points)
+                    overlays.didInitialCenter = true
+                    mapView.post { mapView.requestVisibleTiles() }
+                } catch (_: Throwable) {
+                    Handler(Looper.getMainLooper()).post { onOsmFailed() }
+                }
                 mapView
             },
-            update = { mapView ->
+            update = { view ->
+                val mapView = view as? GtlOsmMapView ?: return@AndroidView
+                mapView.mapActive = mapActive
+                if (!overlays.layersReady) {
+                    return@AndroidView
+                }
+                if (!mapActive) {
+                    return@AndroidView
+                }
                 if (keepWholeTrack || viewingSaved) {
                     val extra = if (logging) {
-                        location?.let { GeoPoint(it.latitude, it.longitude) }
+                        location?.takeIf { loc ->
+                            val bounds = overlays.mapBounds
+                            bounds != null && OsmMapCamera.contains(bounds, loc.latitude, loc.longitude)
+                        }?.let { GeoPoint(it.latitude, it.longitude) }
                     } else {
                         null
                     }
                     val fitKey = osmFitKey(keepWholeTrack || viewingSaved, logging, points, location)
                     if (fitKey != overlays.lastFitKey) {
                         val bounds = TrackCameraBounds.of(points, extra)
-                        if (bounds != null) {
-                            fitOsmToBounds(mapView, bounds)
+                        if (bounds != null && fitOsmToBounds(mapView, bounds)) {
                             overlays.lastFitKey = fitKey
                             overlays.didInitialCenter = true
                         }
                     }
-                } else if (logging && points.isNotEmpty()) {
-                    val last = points.last()
-                    mapView.model.mapViewPosition.center = LatLong(last.latitude, last.longitude)
-                    overlays.didInitialCenter = true
-                } else if (!overlays.didInitialCenter) {
-                    if (points.isNotEmpty()) {
-                        val last = points.last()
-                        mapView.model.mapViewPosition.center = LatLong(last.latitude, last.longitude)
-                        overlays.didInitialCenter = true
-                    } else if (location != null) {
-                        mapView.model.mapViewPosition.center = LatLong(location.latitude, location.longitude)
-                        overlays.didInitialCenter = true
-                    }
+                } else {
+                    followOsmLiveCamera(mapView, overlays, location, points, logging)
                 }
                 updateOsmTrack(overlays, points)
+                updateOsmTrackEnds(overlays, points, logging)
                 updateOsmAccuracy(mapView, overlays, location, showAccuracyMarker)
                 updateOsmFixCloud(overlays, showFixCloud, fixCloud)
                 updateOsmUsage(mapView, overlays, location, points, usageType, usageBitmap)
+                mapView.requestVisibleTiles()
+            },
+            onRelease = { view ->
+                overlays.usage?.bitmap?.decrementRefCount()
+                overlays.usage?.bitmap = null
+                overlays.usageBitmapType = null
+                overlays.polyline = null
+                overlays.accuracy = null
+                overlays.cloud = null
+                overlays.ends = null
+                overlays.usage = null
+                overlays.layersReady = false
+                try {
+                    view.destroyAll()
+                } catch (_: Throwable) {
+                }
             }
         )
     }
-    DisposableEffect(filePath) {
-        onDispose { }
+}
+
+private fun attachOsmLayers(mapView: GtlOsmMapView, overlays: OsmMapOverlays, filePath: String) {
+    val tileCache = AndroidUtil.createTileCache(
+        mapView.context,
+        "gtl-osm",
+        mapView.model.displayModel.tileSize,
+        1f,
+        mapView.model.frameBufferModel.overdrawFactor
+    )
+    val mapFile = MapFile(File(filePath))
+    val renderer = TileRendererLayer(
+        tileCache,
+        mapFile,
+        mapView.model.mapViewPosition,
+        AndroidGraphicFactory.INSTANCE
+    )
+    renderer.setXmlRenderTheme(MapsforgeThemes.DEFAULT)
+    mapView.layerManager.layers.add(renderer)
+    val graphic = AndroidGraphicFactory.INSTANCE
+    val stroke = graphic.createPaint()
+    stroke.setColor(graphic.createColor(255, 0xC1, 0x3B, 0x2E))
+    stroke.setStyle(Style.STROKE)
+    stroke.strokeWidth = 10f
+    val polyline = ForgePolyline(stroke, graphic)
+    mapView.layerManager.layers.add(polyline)
+    overlays.polyline = polyline
+    val cloud = FixCloudLayer()
+    mapView.layerManager.layers.add(cloud)
+    overlays.cloud = cloud
+    val ends = TrackEndsLayer()
+    mapView.layerManager.layers.add(ends)
+    overlays.ends = ends
+    val usage = UsagePositionLayer()
+    mapView.layerManager.layers.add(usage)
+    overlays.usage = usage
+    val box = mapFile.boundingBox()
+    overlays.mapBounds = LatLonBounds(box.minLatitude, box.minLongitude, box.maxLatitude, box.maxLongitude)
+    val start = mapFile.startPosition()
+    overlays.mapStart = GeoPoint(start.latitude, start.longitude)
+    overlays.mapStartZoom = MapFitZoom.clamp((mapFile.startZoomLevel() ?: 8).toInt())
+    overlays.layersReady = true
+}
+
+private fun applyOsmMapCamera(
+    mapView: GtlOsmMapView,
+    overlays: OsmMapOverlays,
+    location: Location?,
+    points: List<GeoPoint>
+) {
+    val bounds = overlays.mapBounds ?: return
+    val start = overlays.mapStart ?: return
+    val locLat = location?.latitude ?: points.lastOrNull()?.latitude
+    val locLon = location?.longitude ?: points.lastOrNull()?.longitude
+    val center = OsmMapCamera.initialCenter(
+        bounds,
+        start.latitude,
+        start.longitude,
+        locLat,
+        locLon
+    )
+    mapView.model.mapViewPosition.setCenter(LatLong(center.latitude, center.longitude))
+    val gpsInside = locLat != null && locLon != null && OsmMapCamera.contains(bounds, locLat, locLon)
+    val zoom = OsmMapCamera.initialZoom(gpsInside, overlays.mapStartZoom ?: 8)
+    mapView.model.mapViewPosition.setZoomLevel(zoom.toByte(), false)
+}
+
+private fun followOsmLiveCamera(
+    mapView: GtlOsmMapView,
+    overlays: OsmMapOverlays,
+    location: Location?,
+    points: List<GeoPoint>,
+    logging: Boolean
+) {
+    if (!overlays.didInitialCenter) {
+        applyOsmMapCamera(mapView, overlays, location, points)
+        overlays.didInitialCenter = true
+        return
     }
+    val last = points.lastOrNull()
+    val bounds = overlays.mapBounds ?: return
+    val follow = OsmMapCamera.followCenter(
+        bounds,
+        logging && last != null,
+        last?.latitude,
+        last?.longitude,
+        location?.latitude,
+        location?.longitude
+    ) ?: return
+    mapView.model.mapViewPosition.center = LatLong(follow.latitude, follow.longitude)
 }
 
 private fun osmFitKey(
@@ -494,35 +705,56 @@ private fun osmFitKey(
     }
 }
 
-private fun fitOsmToBounds(mapView: MapView, bounds: LatLonBounds) {
+private fun fitOsmToBounds(mapView: MapView, bounds: LatLonBounds): Boolean {
     val center = LatLong(
         (bounds.minLatitude + bounds.maxLatitude) / 2.0,
         (bounds.minLongitude + bounds.maxLongitude) / 2.0
     )
+    val dimension = mapView.model.mapViewDimension.dimension
+    val width = dimension?.width
+    val height = dimension?.height
+    if (!MapFitZoom.canFit(width, height) || dimension == null) {
+        mapView.model.mapViewPosition.center = center
+        return false
+    }
     if (bounds.isDegenerate) {
         mapView.model.mapViewPosition.center = center
-        mapView.model.mapViewPosition.setZoomLevel(16.toByte())
-        return
+        mapView.model.mapViewPosition.setZoomLevel(16.toByte(), false)
+        return true
     }
-    val box = BoundingBox(
-        bounds.minLatitude,
-        bounds.minLongitude,
-        bounds.maxLatitude,
-        bounds.maxLongitude
-    )
-    val dimension = mapView.model.mapViewDimension.dimension
-    val zoom = if (dimension.width > 0 && dimension.height > 0) {
-        LatLongUtils.zoomForBounds(dimension, box, mapView.model.displayModel.tileSize)
-    } else {
-        14.toByte()
+    return try {
+        val box = BoundingBox(
+            bounds.minLatitude,
+            bounds.minLongitude,
+            bounds.maxLatitude,
+            bounds.maxLongitude
+        )
+        val zoom = MapFitZoom.clamp(
+            LatLongUtils.zoomForBounds(dimension, box, mapView.model.displayModel.tileSize).toInt()
+        ).toByte()
+        mapView.model.mapViewPosition.setMapPosition(MapPosition(center, zoom), false)
+        true
+    } catch (_: RuntimeException) {
+        mapView.model.mapViewPosition.center = center
+        false
     }
-    mapView.model.mapViewPosition.mapPosition = MapPosition(center, zoom)
 }
 
 private fun updateOsmTrack(overlays: OsmMapOverlays, points: List<GeoPoint>) {
     val latLongs = points.map { LatLong(it.latitude, it.longitude) }
     overlays.polyline?.setPoints(latLongs)
     overlays.polyline?.requestRedraw()
+}
+
+private fun updateOsmTrackEnds(overlays: OsmMapOverlays, points: List<GeoPoint>, logging: Boolean) {
+    val layer = overlays.ends ?: return
+    val start = TrackEndpoints.start(points)
+    val end = TrackEndpoints.end(points, logging)
+    layer.startLatitude = start?.latitude
+    layer.startLongitude = start?.longitude
+    layer.endLatitude = end?.latitude
+    layer.endLongitude = end?.longitude
+    layer.requestRedraw()
 }
 
 private fun updateOsmAccuracy(
@@ -628,6 +860,53 @@ private class UsagePositionLayer : Layer() {
         val left = (pixelX - bmp.width / 2.0).toInt()
         val top = (pixelY - bmp.height / 2.0).toInt()
         canvas.drawBitmap(bmp, left, top)
+    }
+}
+
+private class TrackEndsLayer : Layer() {
+    var startLatitude: Double? = null
+    var startLongitude: Double? = null
+    var endLatitude: Double? = null
+    var endLongitude: Double? = null
+
+    override fun draw(
+        boundingBox: BoundingBox,
+        zoomLevel: Byte,
+        canvas: Canvas,
+        topLeftPoint: Point,
+        _rotation: Rotation
+    ) {
+        val graphic = AndroidGraphicFactory.INSTANCE
+        val mapSize = MercatorProjection.getMapSize(zoomLevel, displayModel.tileSize)
+        val startLat = startLatitude
+        val startLon = startLongitude
+        if (startLat != null && startLon != null) {
+            drawEndDot(canvas, graphic, mapSize, topLeftPoint, startLat, startLon, 111, 175, 78)
+        }
+        val endLat = endLatitude
+        val endLon = endLongitude
+        if (endLat != null && endLon != null) {
+            drawEndDot(canvas, graphic, mapSize, topLeftPoint, endLat, endLon, 193, 59, 46)
+        }
+    }
+
+    private fun drawEndDot(
+        canvas: Canvas,
+        graphic: org.mapsforge.core.graphics.GraphicFactory,
+        mapSize: Long,
+        topLeftPoint: Point,
+        latitude: Double,
+        longitude: Double,
+        red: Int,
+        green: Int,
+        blue: Int
+    ) {
+        val fill = graphic.createPaint()
+        fill.setColor(graphic.createColor(255, red, green, blue))
+        fill.setStyle(Style.FILL)
+        val pixelX = MercatorProjection.longitudeToPixelX(longitude, mapSize) - topLeftPoint.x
+        val pixelY = MercatorProjection.latitudeToPixelY(latitude, mapSize) - topLeftPoint.y
+        canvas.drawCircle(pixelX.toInt(), pixelY.toInt(), 12, fill)
     }
 }
 

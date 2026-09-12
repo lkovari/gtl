@@ -13,8 +13,21 @@ data class ElevationSample(
     val baroAltitude: Double?
 )
 
+data class ElevationPlotScale(
+    val plotMin: Double,
+    val plotMax: Double
+) {
+    val span: Double
+        get() = (plotMax - plotMin).coerceAtLeast(1.0)
+
+    fun yFraction(altitude: Double): Double {
+        return (altitude - plotMin) / span
+    }
+}
+
 object ElevationSeries {
     const val DefaultMaxPoints = 200
+    const val MinPlotSpanMeters = 50.0
 
     fun fromPoints(points: List<ElevationPoint>): List<ElevationSample> {
         if (points.isEmpty()) {
@@ -55,5 +68,27 @@ object ElevationSeries {
 
     fun hasBaroLine(samples: List<ElevationSample>): Boolean {
         return samples.count { it.baroAltitude != null } >= 2
+    }
+
+    fun plotScale(
+        samples: List<ElevationSample>,
+        minSpanMeters: Double = MinPlotSpanMeters
+    ): ElevationPlotScale {
+        val minGps = samples.minOf { it.gpsAltitude }
+        val maxGps = samples.maxOf { it.gpsAltitude }
+        var minAlt = minGps
+        var maxAlt = maxGps
+        if (hasBaroLine(samples)) {
+            val baros = samples.mapNotNull { it.baroAltitude }
+            minAlt = minOf(minAlt, baros.min())
+            maxAlt = maxOf(maxAlt, baros.max())
+        }
+        val raw = (maxAlt - minAlt).coerceAtLeast(1.0)
+        val span = raw.coerceAtLeast(minSpanMeters)
+        val extra = span - raw
+        return ElevationPlotScale(
+            plotMin = minAlt - extra / 2.0,
+            plotMax = maxAlt + extra / 2.0
+        )
     }
 }

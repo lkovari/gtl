@@ -16,6 +16,7 @@ import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.GpxExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
+import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
@@ -28,6 +29,7 @@ import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectDump
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectEvent
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
@@ -88,6 +90,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private var compassJob: Job? = null
     private var temperatureJob: Job? = null
     private var gravityJob: Job? = null
+    private var pressureJob: Job? = null
     private val fixCloudBuffer = FixCloudBuffer()
     private val fixCloudView = MutableStateFlow(FixCloudSnapshot.Empty)
     private val savedElevationSessionId = MutableStateFlow<Long?>(null)
@@ -114,6 +117,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     init {
         startPreview()
         observeFixCloud()
+        observeSavedElevationQnh()
     }
 
     fun startPreview() {
@@ -122,6 +126,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         listenCompass()
         listenTemperature()
         listenGravity()
+        listenPressure()
     }
 
     private fun listenGnss() {
@@ -167,6 +172,26 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             app.gravitySource.gravity().collectLatest { value ->
                 app.trackingState.update {
                     it.copy(leanAngle = BikeLeanAngle.fromGravity(value[0], value[1], value[2]))
+                }
+            }
+        }
+    }
+
+    private fun listenPressure() {
+        pressureJob?.cancel()
+        pressureJob = viewModelScope.launch {
+            settings.map { it.qnhHpa }.distinctUntilChanged().collectLatest { qnh ->
+                app.trackingState.update {
+                    it.copy(pressureAvailable = app.pressureSource.isAvailable)
+                }
+                app.pressureSource.pressures().collect { value ->
+                    app.trackingState.update {
+                        it.copy(
+                            pressureHpa = value,
+                            baroAltitude = BaroAltitude.metersFromPressureHpa(value, qnh),
+                            pressureAvailable = true
+                        )
+                    }
                 }
             }
         }
@@ -241,6 +266,16 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun observeSavedElevationQnh() {
+        viewModelScope.launch {
+            settings.map { it.qnhHpa }.distinctUntilChanged().collectLatest { qnh ->
+                val id = savedElevationSessionId.value ?: return@collectLatest
+                val events = app.trackRepository.eventsFor(id)
+                savedElevationSamples.value = elevationSamplesOf(events, qnh)
+            }
+        }
+    }
+
     private val activeEvents = combine(live, selectedSessionId, settings, sessions, mapCleared) { liveState, selected, prefs, sessionList, cleared ->
         liveState.sessionId
             ?: selected
@@ -299,7 +334,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             emptyList()
         }
         val osm = if (prefs.selectedMapFile.isNotBlank()) {
-            File(prefs.selectedMapFile).takeIf { it.exists() }
+            File(prefs.selectedMapFile).takeIf { OsmMapFile.isReadable(it) }
         } else {
             null
         }
@@ -453,7 +488,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             }
             val events = app.trackRepository.eventsFor(sessionId)
             savedElevationSessionId.value = sessionId
-            savedElevationSamples.value = elevationSamplesOf(events)
+            savedElevationSamples.value = elevationSamplesOf(events, settings.value.qnhHpa)
         }
     }
 
@@ -543,6 +578,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setCompassTrueNorth(value) }
     }
 
+    fun setQnhHpa(value: Float) {
+        viewModelScope.launch { app.preferences.setQnhHpa(value) }
+    }
+
     fun downloadRegion(region: OsmRegion) {
         app.osmMapStore.enqueue(region)
     }
@@ -556,6 +595,12 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             app.preferences.setSelectedMapFile(file.absolutePath)
             app.preferences.setUseOfflineMap(true)
+        }
+    }
+
+    fun onOsmMapFailed() {
+        viewModelScope.launch {
+            app.preferences.setUseOfflineMap(false)
         }
     }
 
@@ -594,7 +639,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun elevationSamplesOf(events: List<GpsEventEntity>): List<ElevationSample> {
+    private fun elevationSamplesOf(events: List<GpsEventEntity>, qnhHpa: Float): List<ElevationSample> {
         return ElevationSeries.downsample(
             ElevationSeries.fromPoints(
                 events.map { event ->
@@ -602,7 +647,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                         latitude = event.latitude,
                         longitude = event.longitude,
                         gpsAltitude = event.altitude,
-                        baroAltitude = event.baroAltitude
+                        baroAltitude = BaroAltitude.displayedMeters(
+                            event.pressureHpa,
+                            event.baroAltitude,
+                            qnhHpa
+                        )
                     )
                 }
             )

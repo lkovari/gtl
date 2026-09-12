@@ -1,6 +1,6 @@
 # GPS eseményfigyelés és adatút
 
-Hogyan lesz a helyfrissítésből SQLite sor, majd térkép, Route HUD és KMZ. A Map polyline ezek a Room koordináták — nincs külön vázlat. Miért néz ki a vonal úgy, ahogy mentél: [README-hu.md — Hogyan működik a naplózás](../README-hu.md#hogyan-működik-a-naplózás).
+Hogyan lesz a helyfrissítésből SQLite sor, majd térkép, Route HUD és KMZ. A Map polyline ezek a Room koordináták — nincs külön vázlat. Miért néz ki a vonal úgy, ahogy mentél: [README-hu.md — Hogyan működik a naplózás](../README-hu.md#hogyan-működik-a-naplózás). A chipen látható konstelációk és sávok: [all-gps-systems-hu.md](all-gps-systems-hu.md).
 
 ```mermaid
 flowchart TD
@@ -28,6 +28,9 @@ flowchart TD
     LiveLoc --> Cloud["FixCloudBuffer memoria"]
     Cloud --> CloudMap["Terkep magenta pottyok + CEP95"]
     Cloud --> CloudGps["GPS fül n RMS CEP95"]
+    LiveGnss --> Sky["GPS fül chippek + skyplot"]
+    LiveLoc --> GpsHud["GPS fül lat lon magassag"]
+    LiveBaro --> GpsBaro["GPS fül Baro"]
 
     LiveLoc --> Fix["TrackFix<br/>lat lon mag. seb. irany pontossag muhold"]
     LiveGnss --> Fix
@@ -67,7 +70,6 @@ flowchart TD
     RawPts --> Vis
     Vis --> Map["Map tab vonal<br/>Google Maps vagy OSM"]
     Stats --> Route["Route tab + magassagprofil"]
-    Observe --> GPSUI["GPS tab elo mezok"]
     DBevt --> KMZ["KmlExportUseCase / KMZ megosztas"]
     DBevt --> GPX["GpxExportUseCase / GPX megosztas"]
 ```
@@ -76,12 +78,12 @@ flowchart TD
 
 | Forrás | Mit táplál |
 |---|---|
-| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, vagy `GPS_PROVIDER`, ha a **Csak GNSS** be van. Intervallum a beállításból, legalább 500 ms. A kérés `minDistance` értéke `0`; a sűrűséget később szűrjük. Ha a GPS-szolgáltató ki van kapcsolva, fused-et használ. Amíg az app nyitva van és nem logol, a `GtlViewModel` kb. másodpercenként figyel a GPS/Map HUD-hoz. Start után csak a foreground service ír SQLite-ot. |
-| `GnssStatusSource` | Műholdszám és SNR a GPS fülre; `satellitesInFix` a letárolt soron. |
+| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, vagy `GPS_PROVIDER`, ha a **Csak GNSS** be van. Intervallum a beállításból, legalább 500 ms. A kérés `minDistance` értéke `0`; a sűrűséget később szűrjük. Ha a GPS-szolgáltató ki van kapcsolva, fused-et használ. Fused mellett a `GPS_PROVIDER` a magassághoz is figyel. A HUD/tárolt magasság `GpsAltitude.pick` ebben a sorrendben: GNSS MSL, fused MSL, GNSS ellipszoid, fused ellipszoid. −430…9000 m-en kívül eldobva; ha nincs maradék, a `Location`-ről levesszük a magasságot. Amíg az app nyitva van és nem logol, a `GtlViewModel` kb. másodpercenként figyel a GPS/Map HUD-hoz. Start után csak a foreground service ír SQLite-ot. |
+| `GnssStatusSource` | Műholdszám és SNR a GPS fülre; holdankénti azimut/eleváció a `GnssSnapshot.satellites`-en a polar skyplothoz; `satellitesInFix` a letárolt soron. A konstelláció-mix és a skyplot csak memória. |
 | `AmbientTemperatureSource` | Opcionális; a sorra másolódik, ha van szenzor. |
 | `AccelerometerSource` | Opcionális; utolsó XYZ a soron. |
 | `GravitySource` | Opcionális; `TYPE_GRAVITY` (különben gyorsulásmérő) → dőlésszög a soron és a Route HUD-on. |
-| `PressureSource` | Opcionális; `TYPE_PRESSURE` → `pressureHpa` és ISA `baroAltitude` a soron, ha van szenzor. |
+| `PressureSource` | Opcionális; `TYPE_PRESSURE` → `pressureHpa` és `baroAltitude` a `BaroAltitude.metersFromPressureHpa` szerint, a jelenlegi Beállítások QNH-val (900–1100 hPa, alap ISA 1013,25). |
 | `CompassSource` | Csak Compass fül; **nem** kerül SQLite-ba. MAG a rotation-vector heading. TRUE a last GPS-fix `GeomagneticField.declination` értékét adja hozzá. |
 
 Mindez **látható** location foreground értesítéssel fut. Nincs `ACCESS_BACKGROUND_LOCATION`.
@@ -118,9 +120,10 @@ A **Pontfelhő** (alapból ki) ugyanezt a nyers `lastLocation`-t mintavételezi 
 
 A `GtlViewModel` a `gps_events`-et figyeli: élő session, Saved tracks választás, vagy az utolsó session, ha a **Show last logged route on map** be van kapcsolva. A Map polyline **ezek** a Room koordináták. Nincs külön vázlat a memóriában, ezért a térképen azt a logot látod, ami el lett tárolva (Douglas–Peucker csak a rajzolást ritkíthatja).
 
-- **Route** összesítők: `TrackStatsCalculator`, ha van session-esemény (naplózás, last-track, kijelölt session). Magasságprofil a Room GPS `altitude` (és baro, ha van) pontjaiból.
-- **Map** polyline Room-ból; opcionális Douglas–Peucker (lent); csak logoláskor, last-track-nél vagy kijelölt sessionnél (`MapTrackVisibility`). A térkép seprője (idle, mentett track) `mapCleared`-et állít, a vonal eltűnik, a log megmarad; Indítás vagy Térképen újra kirajzol. Naplózáskor mindig rajzol. Compose **HUD** a térkép tetején (Google és OSM): nyers sebesség/pontosság, GNSS used/in view; naplózáskor út, idő, REC.
-- **Megosztás** ugyanebből KMZ-t (`gx:Track` + balloonok) vagy GPX 1.1-et (`trk` / `trkpt` / Start-Pause-Stop `wpt`) épít. Sem a KMZ, sem a GPX nem egyszerűsített. A KMZ vonal és ikonok `clampToGround`. A látható vonal terepre feszített `LineString` (magasság 0; az Earth Android a `gx:Track` GPS-magasságát 3D-nek veszi). A záró STOP marker az utolsó path-csúcsra esik (utolsó elfogadott logpont), nem HUD-horog a vonal mellett. A Start/Stoppal átfedő Pause ikon elmarad. A balloon HTML. Mindhárom: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` (session mértékegység vagy `N/A`), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA, vagy `N/A`). Pause: `Speed:`, `duration=` (Starttól), `distance=` az addigi út. A Stop neve **Stop**, plusz `Avg. Speed:` és `Max speed:` a `TrackStatsCalculator`-ból a pathon (nem a STOP sor `speed` mezője), majd a session `duration=` és `distance=`. A KMZ ExtendedData `baro` ISA méter, `alt` GPS méter; a `gx:coord` magasság 0. A GPX `ele` GPS-magasság. A balloonban nincs `usage=` és `lean=`.
+- **Route** összesítők: `TrackStatsCalculator`, ha van session-esemény (naplózás, last-track, kijelölt session). Magasságprofil a Room GPS `altitude` és a baro a `BaroAltitude.displayedMeters` szerint (`pressureHpa` + jelenlegi Beállítások QNH, különben a letárolt `baroAltitude`). A tengely min/max a GPS és a baro együtt, legalább 50 m (`ElevationSeries.plotScale`).
+- **Map** polyline Room-ból; opcionális Douglas–Peucker (lent); csak logoláskor, last-track-nél vagy kijelölt sessionnél (`MapTrackVisibility`). A térkép seprője (idle, mentett track) `mapCleared`-et állít, a vonal eltűnik, a log megmarad; Indítás vagy Térképen újra kirajzol. Naplózáskor mindig rajzol. Zöld **S** / piros **E** a track eleje és vége (a vég idle-ben). Compose **HUD** a térkép tetején (Google és OSM): nyers sebesség/pontosság, GNSS used/in view; naplózáskor út, idő, REC. OSM: a Mapsforge csempe `onDraw`-kor cserélődik; Compose-ban a `repaint` a szülőket is invalidálja, és az OSM `MapView` mérete megmarad, ha elhagyod a Térkép fület. A kamera a `.map` start/bounds pontját használja, ha a GPS a fájlon kívül van (emulátor Kalifornia + Magyarország térkép különben üres csempe). Élő követés csak a fájlon belül. Sikertelen nyitás vagy olvashatatlan fájl kikapcsolja a **Letöltött OSM térkép használatát**, hogy a következő indítás ne crash-loop legyen. A letöltés csak `mapsforge binary OSM` mágiájú, egyező header-méretű fájlt tart meg (`OsmMapFile.isReadable`).
+- **GPS fül** konstelláció-chippek, SNR és polar skyplot a memóriabeli `GnssSnapshot`-ból (holdanként azimut/eleváció). Nem Room. Idle-ben is él. A magasság a `lastLocation` megbízható választása. Baro, ha `pressureAvailable`.
+- **Megosztás** ugyanebből KMZ-t (`gx:Track` + balloonok) vagy GPX 1.1-et (`trk` / `trkpt` / Start-Pause-Stop `wpt`) épít. Sem a KMZ, sem a GPX nem egyszerűsített. A KMZ vonal és ikonok `clampToGround`. A látható vonal terepre feszített `LineString` (magasság 0; az Earth Android a `gx:Track` GPS-magasságát 3D-nek veszi). A záró STOP marker az utolsó path-csúcsra esik (utolsó elfogadott logpont), nem HUD-horog a vonal mellett. A Start/Stoppal átfedő Pause ikon elmarad. A balloon HTML. Mindhárom: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` (session mértékegység vagy `N/A`), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (letárolt baro az íráskori QNH-val, vagy `N/A`). Pause: `Speed:`, `duration=` (Starttól), `distance=` az addigi út. A Stop neve **Stop**, plusz `Avg. Speed:` és `Max speed:` a `TrackStatsCalculator`-ból a pathon (nem a STOP sor `speed` mezője), majd a session `duration=` és `distance=`. A KMZ ExtendedData `baro` a letárolt baro méter, `alt` GPS méter; a `gx:coord` magasság 0. A GPX `ele` GPS-magasság. A balloonban nincs `usage=` és `lean=`.
 
 Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 
