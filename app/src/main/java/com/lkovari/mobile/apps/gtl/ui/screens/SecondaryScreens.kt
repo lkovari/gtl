@@ -2,11 +2,11 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,8 +77,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withTimeout
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
@@ -565,7 +563,7 @@ fun TracksScreen(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .holdStill(session.id, 3_000L) {
+                                .onTripleTap(session.id) {
                                     viewModel.inspectSession(session.id)
                                 }
                         ) {
@@ -668,35 +666,16 @@ fun TracksScreen(
     }
 }
 
-private fun Modifier.holdStill(
-    key: Any,
-    durationMillis: Long,
-    onHold: () -> Unit
-): Modifier = pointerInput(key, durationMillis) {
-    val slop = viewConfiguration.touchSlop
-    awaitEachGesture {
-        val down = awaitFirstDown()
-        try {
-            withTimeout(durationMillis) {
-                while (true) {
-                    val event = awaitPointerEvent()
-                    val change = event.changes.first()
-                    if (!change.pressed || change.isConsumed) {
-                        return@withTimeout
-                    }
-                    if ((change.position - down.position).getDistance() > slop) {
-                        return@withTimeout
-                    }
-                }
-            }
-        } catch (_: TimeoutCancellationException) {
-            onHold()
-            while (true) {
-                val event = awaitPointerEvent()
-                if (event.changes.all { !it.pressed }) {
-                    break
-                }
-            }
+private fun Modifier.onTripleTap(key: Any, onTripleTap: () -> Unit): Modifier = pointerInput(key) {
+    var count = 0
+    var lastAt = 0L
+    detectTapGestures {
+        val now = SystemClock.elapsedRealtime()
+        count = if (now - lastAt <= 500L) count + 1 else 1
+        lastAt = now
+        if (count >= 3) {
+            count = 0
+            onTripleTap()
         }
     }
 }

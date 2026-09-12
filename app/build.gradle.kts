@@ -33,8 +33,8 @@ android {
         applicationId = "com.lkovari.mobile.apps.gtl"
         minSdk = 24
         targetSdk = 36
-        versionCode = 23
-        versionName = "2.0.5"
+        versionCode = 24
+        versionName = "2.0.6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
