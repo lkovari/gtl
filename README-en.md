@@ -2,7 +2,7 @@
 
 [English](README-en.md) · [Magyar](README-hu.md)
 
-On-device GPS track logger. Route points stay in SQLite on the phone. Share a KMZ (KML + icons) to Google Earth or another map app. Nothing is uploaded to our servers.
+On-device GPS track logger. Route points stay in SQLite on the phone. Share a KMZ (KML + icons) to Google Earth or a GPX 1.1 file to OsmAnd, Komoot, Garmin Connect, QGIS, and other apps. Nothing is uploaded to our servers.
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
@@ -22,7 +22,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Runner default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
 - Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, runner. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Runner and bicycle use a looser accuracy filter and a lower pause threshold.
-- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
+- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), barometric altitude (`TYPE_PRESSURE`, ISA, nullable), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
 
 
 
@@ -37,7 +37,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Route tab
 
-Session totals after Start: elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists.
+Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist).
 
 ### Map tab
 
@@ -46,6 +46,7 @@ Session totals after Start: elapsed time, odometer, time moving, time waiting, s
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM.
 - Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
+- **HUD** over both map engines: large speed (units from Settings), accuracy, GNSS used/in view. While logging: odometer, elapsed time, pulsing REC. Idle with a fix: dim compact panel at the bottom left. Hidden when a saved track is shown and you are not logging.
 - Small red usage silhouette at your position (same icons as Settings). Stays upright in portrait. A north marker stays on the map.
 - When a saved track is shown and logging is off, a broom at the top left takes the line off the map without deleting the log. Start or Saved tracks → Show on map draws it again.
 - Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on (see below). SQLite, Route totals, and KMZ are never simplified.
@@ -54,29 +55,39 @@ Session totals after Start: elapsed time, odometer, time moving, time waiting, s
 
 ### Compass tab
 
-Magnetic heading and a live dial from the rotation sensor. Works without Start.
+Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG + declination from the last GPS fix). MAG / TRUE on this tab, default MAG, not tied to usage. Without a GPS fix TRUE stays MAG and shows No GPS. Low magnetometer accuracy: “Figure-8 in the air” under the dial. Rotating rose, fixed lubber, MAG or TRUE plus three-digit heading in the centre. Works without Start.
 
 ### Saved tracks
 
 - List of sessions with date, usage, units.
 - **Show on map** opens the Map tab on that session (Google Maps or OSM), switches Settings to the usage stored on the session, and draws it with those settings. After that, changing usage or sliders redraws the same log that way. Next Start uses the Settings then selected. The Map broom takes that line off without deleting the session.
-- Delete.
-- Checkboxes, **Select all**, **Share selected**:
-  - one session → one KMZ named `GTL_yyyyMMdd_HHmmss.kmz`
-  - several sessions → one KMZ with a folder per track
+- **Elevation** opens a GPS altitude vs distance chart for that session (dashed barometric line when those samples exist).
+- **Delete** on each session (wraps under Elevation on a narrow phone). Confirms, then cascade-deletes the SQLite session and its points.
+- Checkboxes, **Select all**, **Share selected** → KMZ or GPX:
+  - one session → `GTL_yyyyMMdd_HHmmss.kmz` or `.gpx`
+  - several sessions → one KMZ with a folder per track, or one GPX with several `<trk>`
 
 
 
 ### KMZ export
 
-- Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0).
-- Every stored GPS point is on a `gx:Track` (`when`, lon/lat/alt, speed).
-- START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth):
-  - All three: `time=` (UTC), `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle, or Runner), `lat=`, `lon=`, `speed=`, `temp=`, and `lean=` when a lean angle was stored.
-  - Pause and stop force `speed=0`.
-  - Stop also: `Duration:` (`20 s` if 60 seconds or less, whole minutes if under 60 minutes, otherwise `HH:MM:SS`), `Avg. speed:` and `Max. speed:` as whole numbers from `TrackStatsCalculator` (metric `km/h`, imperial `mile/h`, ICAO `kt`).
+- Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0). The line and icons use `clampToGround` so they sit on the same track in Google Earth.
+- Path vertices are the stored log; a trailing STOP row that is only a session marker is not drawn as an extra hook. The Stop icon is on the last path vertex. Pause icons sit on pause vertices (one icon per standstill; omitted if they overlap Start or Stop).
+- START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth). Placemark names are **Start**, **Pause**, **Stop**. Description is HTML (`<br/>`) so every field shows in Earth details. Time is UTC with no `time=` prefix and no `UTC` suffix. Units follow Settings (metric: km/h, m / km, °C; imperial: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). Balloons do **not** include `usage=` or `lean=`.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA from the barometer, or `N/A`). No Speed / Avg. Speed / Max speed / duration / distance.
+  - **Pause:** the same lines, plus `Speed:` (instantaneous GPS speed at that pause row), `duration=` (seconds if 60 s or less, whole minutes under 60 min, otherwise `HH:MM:SS` from Start), and `distance=` so far in the selected unit. No Avg. Speed / Max speed.
+  - **Stop:** the same lines, plus `Avg. Speed:` and `Max speed:` (one decimal) from `TrackStatsCalculator` on the path, then `duration=` and `distance=` for the full session. No instant `Speed:`.
+- Each `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), and `baro` (ISA metres, empty if no sample). `gx:coord` altitude stays GPS.
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
-- Help **Viewing KMZ/KML** lists these balloon fields (EN/HU) and the SQLite `gps_events` fields.
+- Help **Sharing KMZ and GPX** lists balloon fields (EN/HU) and the SQLite `gps_events` fields.
+
+### GPX export
+
+- GPX 1.1 core: one `<trk>` / one `<trkseg>` per session (auto-PAUSE does not split the line). A trailing STOP marker is not an extra `<trkpt>`.
+- Each stored point is a `<trkpt>` with `lat`, `lon`, `<ele>` (GPS altitude), `<time>` (UTC). No speed extension, so OsmAnd, Komoot, Garmin Connect, Relive, and QGIS can import it.
+- START / PAUSE / STOP are `<wpt>` named Start, Pause, Stop. The Stop waypoint uses the last path point (same snap as KMZ).
+- Several selected sessions → one `.gpx` with several `<trk>`. Filename `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
+- Saved tracks → Share selected → KMZ or GPX.
 
 
 
@@ -103,6 +114,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
 - **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
+- **Keep screen on while logging** — off by default. Holds the display awake only while a session is recording (tank-mount).
 - **Show accuracy marker** — pale purple circle; radius is GPS accuracy. HUD stays on the raw location (chip or fused).
 - **Show fix cloud** — pastel magenta dots of raw GPS fixes while you stand still, plus a magenta CEP95 circle around the cloud centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while you move. Not written to the log or KMZ.
 - **Use GNSS only** — satellite-chip positions instead of fused location. On for runner and bicycle; off for vehicles.
@@ -129,7 +141,7 @@ Two Gradle modules:
 
 | Module    | Role                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Pure JVM: GNSS classification, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, map-visibility rules, fix-cloud buffer. JUnit tests live here. |
+| `:engine` | Pure JVM: GNSS classification, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, compass MAG/TRUE heading, elevation series, map-visibility rules, fix-cloud buffer. JUnit tests live here. |
 | `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
 
 
@@ -165,7 +177,7 @@ Start
   → density gate (Smart / Every good / mix) — this is what writes or skips
   → SQLite gps_events (START / MOVE / PAUSE)
 Stop
-  → STOP placemark (last Kalman point if smoothing is on, else last raw fix)
+  → STOP placemark (last **accepted** stored point, so the icon sits on the tracklog end)
   → Map / Route / KMZ all read Room
 ```
 
@@ -189,7 +201,7 @@ Stop
 
 **Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, and lean angle (gravity, tank-mount) are copied onto the row. Compass azimuth is HUD-only and is not stored.
 
-**Stop.** Always writes a `STOP` placemark (`isPlacemark` true) even if density would have dropped the point. With smoothing on, that row uses the last Kalman output so the track end matches the smoothed line.
+**Stop.** Always writes a `STOP` row (`isPlacemark` true) even if density would have dropped the point. Coordinates are the last **accepted** stored fix (not the raw HUD fix, which can sit a few metres off the log). KMZ/GPX then place the Stop icon on that last path vertex.
 
 **Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected — unless the Map broom set `mapCleared` (idle only; logging still draws). If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (runner and bicycle default), every stored vertex is on the map — that is why a small on-road loop stays visible.
 
@@ -237,7 +249,7 @@ Accuracy and satellite gates still drop bad fixes. This does **not** store fewer
 2. Drop the fix if accuracy is worse than the usage gate (30 m, runner and bicycle 45 m) or satellites-in-fix is below 4. Rejected fixes never reach Kalman or SQLite.
 3. If **Smooth recorded track** is on, run `KalmanTrackFilter.observe`. The filter outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s. Runner/pedestrian adds extra position process noise so a 5 m loop is not pulled onto the chord.
 4. **Recording density** (`FixAcceptance`) decides whether to **write** that (possibly smoothed) point. If the gap is too small, the Kalman state is still updated, but Room does not get a row.
-5. On Stop, the last Kalman output is stored as the STOP point when smoothing is on.
+5. On Stop, the STOP row uses the last **accepted** stored point so Map, KMZ, and GPX end on the log.
 
 So Kalman changes **where** stored points sit. Density changes **how many** of them are stored. Map simplify changes **neither** — it only thins the polyline drawn on Map.
 
@@ -268,7 +280,7 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | **Simplify track on map** (1–20 m slider)                         | **No**                        | Fewer vertices on the Map tab only. Stored points, odometer, and KMZ are unchanged.                                                                                                                                                                                                                                                                                                                  |
 | **Show accuracy marker**                                          | **No**                        | Pale purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                       |
 | **Show fix cloud**                                                | **No**                        | Pastel magenta dots of raw HUD fixes while standing, CEP95 around the centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while moving. Not stored.                                                                                                                                                                    |
-| **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons. Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
+| **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons (metric km/h, m, °C; imperial mph, ft, °F; ICAO kt, ft, °C). Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
 | Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
 
 
@@ -367,7 +379,10 @@ Engine entry points worth reading:
 - `engine/.../SpeedAdaptiveSpacing.kt` — metres between points by km/h and curves
 - `engine/.../DouglasPeucker.kt` — map-only polyline simplify (metres, local projection)
 - `engine/.../TrackStats.kt` — odometer, moving vs waiting
-- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ with local icons
+- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ with local icons, clampToGround, HTML balloons
+- `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (datetime, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
+- `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markers for KMZ and GPX
+- `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
 - `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR
 - `engine/.../FixCloud.kt` — in-memory standing-fix cloud / CEP95
 - `engine/.../MapDisplayUsage.kt` — which usage and simplify the map follows
@@ -401,7 +416,6 @@ Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Upload `settin
 
 ## Next to do
 
-- Implement GPX export. GPX (GPS Exchange Format) is the most common GPS tracklog interchange format.
 - Add light and dark themes
 
 ---

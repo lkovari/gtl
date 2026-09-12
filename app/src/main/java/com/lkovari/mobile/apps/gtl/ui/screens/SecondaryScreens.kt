@@ -3,9 +3,15 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +24,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +50,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -54,16 +65,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
+import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
@@ -73,6 +88,7 @@ import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.NightMuted
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
+import com.lkovari.mobile.apps.gtl.ui.components.ElevationProfile
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import java.text.DateFormat
@@ -243,6 +259,9 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
             }
             SettingSwitch(stringResource(R.string.settings_keep_whole_track), state.settings.keepWholeTrackOnScreen) {
                 viewModel.setKeepWholeTrackOnScreen(it)
+            }
+            SettingSwitch(stringResource(R.string.settings_keep_screen_on), state.settings.keepScreenOnWhileLogging) {
+                viewModel.setKeepScreenOnWhileLogging(it)
             }
             SettingSwitch(stringResource(R.string.settings_show_accuracy), state.settings.showAccuracyMarker) {
                 viewModel.setShowAccuracyMarker(it)
@@ -438,19 +457,34 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun TracksScreen(
     state: GtlUiState,
     viewModel: GtlViewModel,
     onBack: () -> Unit,
-    onShare: (Set<Long>) -> Unit,
+    onShare: (Set<Long>, TrackShareFormat) -> Unit,
     onShowOnMap: (Long) -> Unit
 ) {
+    val inspectDump by viewModel.inspectDump.collectAsStateWithLifecycle()
+    val dump = inspectDump
+    if (dump != null) {
+        BackHandler { viewModel.closeInspect() }
+        SessionInspectScreen(
+            text = dump,
+            onBack = { viewModel.closeInspect() }
+        )
+        return
+    }
     val format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
     var selectedIds by remember { mutableStateOf(setOf<Long>()) }
     val sessionIds = state.sessions.map { it.id }.toSet()
     val visibleSelected = selectedIds.intersect(sessionIds)
     val allSelected = sessionIds.isNotEmpty() && visibleSelected.size == sessionIds.size
+    var sharePicker by remember { mutableStateOf(false) }
+    var pendingDeleteId by remember { mutableStateOf<Long?>(null) }
+    val elevationSessionId by viewModel.savedElevationId.collectAsStateWithLifecycle()
+    val elevationSamples by viewModel.savedElevation.collectAsStateWithLifecycle()
     SecondaryScaffold(stringResource(R.string.tracks_title), onBack) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             item {
@@ -468,7 +502,7 @@ fun TracksScreen(
                     Text(stringResource(R.string.tracks_select_all), style = MaterialTheme.typography.bodyLarge)
                 }
                 Button(
-                    onClick = { onShare(visibleSelected) },
+                    onClick = { sharePicker = true },
                     enabled = visibleSelected.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                 ) {
@@ -493,7 +527,14 @@ fun TracksScreen(
                                 }
                             }
                         )
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .combinedClickable(
+                                    onClick = {},
+                                    onLongClick = { viewModel.inspectSession(session.id) }
+                                )
+                        ) {
                             Text(format.format(Date(session.startedAt)), style = MaterialTheme.typography.titleLarge)
                             Text(
                                 "${session.usageType} · ${session.measurementSystem}",
@@ -501,18 +542,118 @@ fun TracksScreen(
                             )
                         }
                     }
-                    Row(
-                        modifier = Modifier.padding(start = 48.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 48.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(onClick = { onShowOnMap(session.id) }) {
                             Text(stringResource(R.string.action_show_on_map))
                         }
-                        Button(onClick = { viewModel.deleteSession(session.id) }) {
+                        Button(onClick = { viewModel.toggleSavedElevation(session.id) }) {
+                            Text(stringResource(R.string.tracks_elevation))
+                        }
+                        Button(onClick = { pendingDeleteId = session.id }) {
                             Text(stringResource(R.string.action_delete))
                         }
                     }
+                    if (elevationSessionId == session.id) {
+                        val units = runCatching {
+                            MeasurementSystem.valueOf(session.measurementSystem)
+                        }.getOrDefault(MeasurementSystem.METRIC)
+                        ElevationProfile(
+                            samples = elevationSamples,
+                            system = units,
+                            modifier = Modifier.padding(start = 48.dp, top = 8.dp)
+                        )
+                    }
                 }
+            }
+        }
+    }
+    if (pendingDeleteId != null) {
+        val deleteId = pendingDeleteId
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = null },
+            title = { Text(stringResource(R.string.tracks_delete_title)) },
+            text = { Text(stringResource(R.string.tracks_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (deleteId != null) {
+                            viewModel.deleteSession(deleteId)
+                            selectedIds = visibleSelected - deleteId
+                        }
+                        pendingDeleteId = null
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+    if (sharePicker) {
+        AlertDialog(
+            onDismissRequest = { sharePicker = false },
+            title = { Text(stringResource(R.string.tracks_share_as)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            sharePicker = false
+                            onShare(visibleSelected, TrackShareFormat.KMZ)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.tracks_share_kmz))
+                    }
+                    Button(
+                        onClick = {
+                            sharePicker = false
+                            onShare(visibleSelected, TrackShareFormat.GPX)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.tracks_share_gpx))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { sharePicker = false }) {
+                    Text(stringResource(R.string.action_back))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SessionInspectScreen(text: String, onBack: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    val vertical = rememberScrollState()
+    val horizontal = rememberScrollState()
+    SecondaryScaffold("gps_events", onBack) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
+                Text("Copy")
+            }
+            SelectionContainer(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = text,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .verticalScroll(vertical)
+                        .horizontalScroll(horizontal)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
         }
     }

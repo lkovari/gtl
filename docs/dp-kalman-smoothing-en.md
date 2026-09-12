@@ -386,7 +386,7 @@ client.locations(...).collect { location ->
 }
 ```
 
-On `ACTION_STOP`, STOP placemark uses the last Kalman position if smoothing is on and a last location exists; do not run DP.
+On `ACTION_STOP`, the STOP row uses the last **accepted** stored fix (not the raw HUD `lastLocation`). KMZ/GPX then put the Stop icon on that last path vertex. Do not run DP.
 
 Session start: new `KalmanTrackFilter()` when `lastAccepted == null`. Resume: `seedFrom(lastAccepted)`.
 

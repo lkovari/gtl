@@ -94,4 +94,25 @@ object TrackStatsCalculator {
             temperatureRange = temperatureRange
         )
     }
+
+    fun cumulativeOdometerMeters(points: List<GeoPoint>): List<Double> {
+        if (points.isEmpty()) {
+            return emptyList()
+        }
+        val distances = ArrayList<Double>(points.size)
+        var odometer = 0.0
+        distances.add(0.0)
+        for (index in 1 until points.size) {
+            val previous = points[index - 1]
+            val current = points[index]
+            odometer += FixAcceptance.haversineMeters(
+                previous.latitude,
+                previous.longitude,
+                current.latitude,
+                current.longitude
+            )
+            distances.add(odometer)
+        }
+        return distances
+    }
 }

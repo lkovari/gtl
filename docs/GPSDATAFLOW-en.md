@@ -14,6 +14,7 @@ flowchart TD
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
     FGS --> Grav["GravitySource"]
+    FGS --> Press["PressureSource"]
     FGS --> Comp["CompassSource"]
 
     Loc --> LiveLoc["LiveTrackingState.lastLocation"]
@@ -21,6 +22,7 @@ flowchart TD
     Temp --> LiveTemp["temperatureCelsius"]
     Acc --> LiveAcc["accel"]
     Grav --> LiveLean["leanAngle"]
+    Press --> LiveBaro["baroAltitude pressureHpa"]
     Comp --> LiveAz["azimuthDegrees HUD only"]
 
     LiveLoc --> Cloud["FixCloudBuffer memory"]
@@ -44,7 +46,7 @@ flowchart TD
     KindMove -->|"below pause speed"| KindPause["PAUSE"]
     KindMove -->|"moving"| KindGo["MOVE"]
 
-    KindStart --> Row["GpsEventEntity<br/>+ live temp, accel, lean, usageType"]
+    KindStart --> Row["GpsEventEntity<br/>+ live temp, accel, lean, usageType, baro"]
     KindPause --> Row
     KindGo --> Row
 
@@ -64,9 +66,10 @@ flowchart TD
     Simpl --> Vis{"MapTrackVisibility"}
     RawPts --> Vis
     Vis --> Map["Map tab polyline<br/>Google Maps or OSM"]
-    Stats --> Route["Route tab"]
+    Stats --> Route["Route tab + elevation profile"]
     Observe --> GPSUI["GPS tab live fields"]
     DBevt --> KMZ["KmlExportUseCase / KMZ share"]
+    DBevt --> GPX["GpxExportUseCase / GPX share"]
 ```
 
 ## Listeners (in the foreground service)
@@ -78,7 +81,8 @@ flowchart TD
 | `AmbientTemperatureSource` | Optional; copied onto the row if the sensor exists. |
 | `AccelerometerSource` | Optional; last XYZ on the row. |
 | `GravitySource` | Optional; `TYPE_GRAVITY` (else accelerometer) → lean angle on the row and Route HUD. |
-| `CompassSource` | HUD / Compass tab only; **not** written to SQLite. |
+| `PressureSource` | Optional; `TYPE_PRESSURE` → `pressureHpa` and ISA `baroAltitude` on the row when the sensor exists. |
+| `CompassSource` | Compass tab only; **not** written to SQLite. MAG is the rotation-vector heading. TRUE adds `GeomagneticField.declination` from the last GPS fix. |
 
 All of this runs under a **visible** location foreground notification. There is no `ACCESS_BACKGROUND_LOCATION`.
 
@@ -114,9 +118,9 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 
 `GtlViewModel` observes `gps_events` for the live session, a Saved-tracks selection, or the last session if **Show last logged route on map** is on. The Map polyline **is** those Room coordinates. There is no in-memory sketch, so what you see on Map is the log that was stored (optionally thinned by Douglas–Peucker for drawing only).
 
-- **Route** totals from `TrackStatsCalculator` while logging (raw Room samples).
-- **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`). The Map broom (idle, saved track shown) sets `mapCleared` so the line hides without deleting the log; Start or Show on map draws again. Logging always draws.
-- **Share** builds KMZ (`gx:Track` + balloons) from the same Room rows. KMZ is never simplified. START / PAUSE / STOP balloons include `usage=` from the event (or the session if older rows). STOP balloon duration, average speed, and max speed come from `TrackStatsCalculator` over the session events, not from the STOP row’s `speed`.
+- **Route** totals from `TrackStatsCalculator` whenever the session has events (logging, last-track, selected session). Elevation profile from Room GPS `altitude` (and baro when present).
+- **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`). The Map broom (idle, saved track shown) sets `mapCleared` so the line hides without deleting the log; Start or Show on map draws again. Logging always draws. Compose **HUD** over both map engines: raw speed/accuracy, GNSS used/in view; while logging: trip, elapsed, REC.
+- **Share** builds KMZ (`gx:Track` + balloons) or GPX 1.1 (`trk` / `trkpt` / Start-Pause-Stop `wpt`) from the same Room rows. Neither is simplified. The KMZ line and icons use `clampToGround`. A trailing STOP marker is snapped to the last path vertex (last accepted log point), so Stop is not a HUD hook off the line. Pause icons that overlap Start/Stop are omitted. Balloons are HTML. All three: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` (session unit or `N/A`), `lon=`, `lat=`, `Altitude:` (GPS, session unit), `Baro:` (ISA, or `N/A`). Pause adds `Speed:`, `duration=` (from Start), and `distance=` so far. Stop is named **Stop** and adds `Avg. Speed:` and `Max speed:` from `TrackStatsCalculator` on the path (not the STOP row’s `speed`), plus session `duration=` and `distance=`. KMZ ExtendedData `baro` is ISA metres; `gx:coord` altitude stays GPS. GPX `ele` is GPS altitude; baro stays in SQLite and KMZ ExtendedData / balloons. No `usage=` or `lean=` in the balloon.
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
@@ -129,14 +133,14 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 | Kalman (optional) | Moves stored lat/lon; vehicles on, runner and bicycle off. HUD pale purple circle stays on the raw fix. |
 | Fix cloud | Memory-only raw dots + CEP95 while standing. Not Room. Turning it on enables the accuracy marker. |
 | Density | Smart (speed bands) or Every good (~500 ms, 0.5 m floor for runner and bicycle). |
-| Room | Single source for Map, Route, KMZ. |
+| Room | Single source for Map, Route, KMZ, GPX. |
 | Douglas–Peucker | Display-only. Runner and bicycle default is off, so every stored vertex is drawn. |
 
 Full prose: [README-en.md — How logging works](../README-en.md#how-logging-works).
 
 ## Map polyline: Douglas–Peucker
 
-**Purpose.** Fewer vertices on the Map tab so a long track stays cheap to draw. SQLite, Route stats, and KMZ keep every stored point.
+**Purpose.** Fewer vertices on the Map tab so a long track stays cheap to draw. SQLite, Route stats, KMZ, and GPX keep every stored point.
 
 **When.** Settings **Simplify track on map** (on by default for vehicles, off for runner and bicycle) and more than 4 points. Tolerance is a **1–20 m** slider (1 m steps), chosen by usage (motorbike 6 m, car 8 m, aircraft 15 m, bicycle 3 m and runner 2 m if turned on). **Show on map** copies the session usage into Settings first, then the drawn line follows the current Settings sliders. Hidden when the switch is off; the stored value is kept. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. Kalman, not Douglas–Peucker, is the noise filter.
 

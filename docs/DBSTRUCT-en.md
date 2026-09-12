@@ -1,6 +1,6 @@
 # SQLite database structure
 
-File: `gtl.db` (Room, schema version **3**).  
+File: `gtl.db` (Room, schema version **4**).  
 Package: `com.lkovari.mobile.apps.gtl.data.db`.
 
 Two tables. A session is one logging run. Each stored GPS fix is one row in `gps_events`. Deleting a session **cascade-deletes** its points. Map, Route, and KMZ all read `gps_events` — the red polyline is this table.
@@ -36,6 +36,8 @@ erDiagram
         TEXT usageType "UsageType name, nullable on old rows until migrated"
         INTEGER isPlacemark "1 = START PAUSE STOP"
         TEXT eventKind "START MOVE PAUSE STOP"
+        REAL baroAltitude "ISA m from TYPE_PRESSURE, nullable"
+        REAL pressureHpa "hPa, nullable"
     }
 ```
 
@@ -72,12 +74,14 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `usageType` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER` copied at insert (session usage); backfilled from `track_sessions` on migrate 2→3 |
 | `isPlacemark` | `true` for START / PAUSE / STOP (KMZ icons) |
 | `eventKind` | `START`, `MOVE`, `PAUSE`, `STOP` |
+| `baroAltitude` | metres, ISA from `TYPE_PRESSURE` via `BaroAltitude.metersFromPressureHpa` (standard 1013.25 hPa); **null** if the phone has no barometer or no sample yet |
+| `pressureHpa` | raw hectopascals at insert; **null** if no sensor. Kept so later QNH calibration can recompute altitude without rewriting history |
 
-`MOVE` rows are the dense track. START / PAUSE / STOP are also stored as points and marked as placemarks.
+`MOVE` rows are the dense track. START / PAUSE / STOP are also stored as points and marked as placemarks. KMZ export places Start / Pause / Stop icons on the path (`TrackLogExport`); a trailing STOP that would sit off the log is snapped to the last path vertex. Earth balloons: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (ISA, or `N/A`); Pause adds `Speed:`, `duration=` from Start, and `distance=` so far; Stop adds `Avg. Speed:`, `Max speed:`, session `duration=` and `distance=`. KMZ ExtendedData `baro` is ISA metres; `gx:coord` stays GPS. Missing `ambientTemperature` is `temp=N/A`.
 
 ## Not stored
 
-- Barometric pressure / baro altitude (planned: aircraft + ICAO).
+- QNH / sea-level calibration for baro (column exists; ISA only at insert).
 - Raw GNSS constellation mix (HUD only, in memory).
 - Map / OSM settings, Kalman / density / GNSS-only switches (DataStore, not SQLite).
 - The raw HUD fix when Kalman is on (only the filter output is stored).

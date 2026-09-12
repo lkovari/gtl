@@ -21,6 +21,7 @@ import com.lkovari.mobile.apps.gtl.data.sensor.AccelerometerSource
 import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
+import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
@@ -36,7 +37,6 @@ class TrackingForegroundService : LifecycleService() {
     private var lastFiltered: TrackFix? = null
     private var lastKind: EventKind = EventKind.START
     private var kalman = KalmanTrackFilter()
-    private var smoothingEnabled = false
 
     override fun onCreate() {
         super.onCreate()
@@ -68,7 +68,12 @@ class TrackingForegroundService : LifecycleService() {
                 ?: app.trackRepository.startSession(settings.usageType, settings.measurementSystem)
             val usageTypeName = existing?.usageType ?: settings.usageType.name
             app.trackingState.update {
-                it.copy(logging = true, sessionId = sessionId, temperatureAvailable = app.ambientTemperatureSource.isAvailable)
+                it.copy(
+                    logging = true,
+                    sessionId = sessionId,
+                    temperatureAvailable = app.ambientTemperatureSource.isAvailable,
+                    pressureAvailable = app.pressureSource.isAvailable
+                )
             }
             lastAccepted = app.trackRepository.latestEvent(sessionId)?.let { event ->
                 TrackFix(
@@ -84,7 +89,6 @@ class TrackingForegroundService : LifecycleService() {
             }
             kalman = KalmanTrackFilter()
             lastFiltered = null
-            smoothingEnabled = settings.trackSmoothingEnabled
             val accepted = lastAccepted
             if (accepted != null) {
                 kalman.seedFrom(accepted)
@@ -115,8 +119,24 @@ class TrackingForegroundService : LifecycleService() {
                 }
             }
             launch {
-                app.compassSource.azimuthDegrees().collectLatest { value ->
-                    app.trackingState.update { it.copy(azimuthDegrees = value) }
+                app.compassSource.samples().collectLatest { sample ->
+                    app.trackingState.update {
+                        it.copy(
+                            azimuthDegrees = sample.azimuthDegrees,
+                            compassAccuracy = sample.accuracy
+                        )
+                    }
+                }
+            }
+            launch {
+                app.pressureSource.pressures().collectLatest { value ->
+                    app.trackingState.update {
+                        it.copy(
+                            pressureHpa = value,
+                            baroAltitude = BaroAltitude.metersFromPressureHpa(value),
+                            pressureAvailable = true
+                        )
+                    }
                 }
             }
         }
@@ -177,6 +197,7 @@ class TrackingForegroundService : LifecycleService() {
                     else -> EventKind.MOVE
                 }
                 val live = app.trackingState.state.value
+                val temp = if (live.temperatureAvailable) live.temperatureCelsius else null
                 app.trackRepository.insertEvent(
                     GpsEventEntity(
                         sessionId = sessionId,
@@ -188,14 +209,16 @@ class TrackingForegroundService : LifecycleService() {
                         bearing = forStore.bearing,
                         accuracy = forStore.accuracyMeters,
                         satellitesInFix = forStore.satellitesInFix,
-                        ambientTemperature = live.temperatureCelsius,
+                        ambientTemperature = temp,
                         accelX = live.accel?.getOrNull(0),
                         accelY = live.accel?.getOrNull(1),
                         accelZ = live.accel?.getOrNull(2),
                         leanAngle = live.leanAngle,
                         usageType = usageTypeName,
                         isPlacemark = kind != EventKind.MOVE,
-                        eventKind = kind.name
+                        eventKind = kind.name,
+                        baroAltitude = live.baroAltitude,
+                        pressureHpa = live.pressureHpa
                     )
                 )
                 lastAccepted = forStore
@@ -214,56 +237,55 @@ class TrackingForegroundService : LifecycleService() {
                 val live = app.trackingState.state.value
                 val last = live.lastLocation
                 val filtered = lastFiltered
+                val accepted = lastAccepted
                 val usageTypeName = app.trackRepository.openSession()?.usageType
                     ?: app.preferences.settings.first().usageType.name
-                if (smoothingEnabled && filtered != null) {
-                    app.trackRepository.insertEvent(
-                        GpsEventEntity(
-                            sessionId = sessionId,
-                            timestamp = System.currentTimeMillis(),
-                            latitude = filtered.latitude,
-                            longitude = filtered.longitude,
-                            altitude = filtered.altitude,
-                            speed = filtered.speedMps,
-                            bearing = filtered.bearing,
-                            accuracy = filtered.accuracyMeters,
-                            satellitesInFix = live.gnss?.satellitesInFix ?: 0,
-                            ambientTemperature = live.temperatureCelsius,
-                            accelX = live.accel?.getOrNull(0),
-                            accelY = live.accel?.getOrNull(1),
-                            accelZ = live.accel?.getOrNull(2),
-                            leanAngle = live.leanAngle,
-                            usageType = usageTypeName,
-                            isPlacemark = true,
-                            eventKind = EventKind.STOP.name
-                        )
+                val temp = if (live.temperatureAvailable) live.temperatureCelsius else null
+                val stopFix = accepted ?: filtered ?: last?.let { location ->
+                    TrackFix(
+                        timestampMillis = location.time,
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        altitude = location.altitude,
+                        speedMps = location.speed,
+                        bearing = location.bearing,
+                        accuracyMeters = location.accuracy,
+                        satellitesInFix = live.gnss?.satellitesInFix ?: 0
                     )
-                } else if (last != null) {
+                }
+                if (stopFix != null) {
                     app.trackRepository.insertEvent(
                         GpsEventEntity(
                             sessionId = sessionId,
                             timestamp = System.currentTimeMillis(),
-                            latitude = last.latitude,
-                            longitude = last.longitude,
-                            altitude = last.altitude,
-                            speed = last.speed,
-                            bearing = last.bearing,
-                            accuracy = last.accuracy,
-                            satellitesInFix = live.gnss?.satellitesInFix ?: 0,
-                            ambientTemperature = live.temperatureCelsius,
+                            latitude = stopFix.latitude,
+                            longitude = stopFix.longitude,
+                            altitude = stopFix.altitude,
+                            speed = stopFix.speedMps,
+                            bearing = stopFix.bearing,
+                            accuracy = stopFix.accuracyMeters,
+                            satellitesInFix = stopFix.satellitesInFix,
+                            ambientTemperature = temp,
                             accelX = live.accel?.getOrNull(0),
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
                             leanAngle = live.leanAngle,
                             usageType = usageTypeName,
                             isPlacemark = true,
-                            eventKind = EventKind.STOP.name
+                            eventKind = EventKind.STOP.name,
+                            baroAltitude = live.baroAltitude,
+                            pressureHpa = live.pressureHpa
                         )
                     )
                 }
                 app.trackRepository.stopSession(sessionId)
             }
-            app.trackingState.update { LiveTrackingState(temperatureAvailable = app.ambientTemperatureSource.isAvailable) }
+            app.trackingState.update {
+                LiveTrackingState(
+                    temperatureAvailable = app.ambientTemperatureSource.isAvailable,
+                    pressureAvailable = app.pressureSource.isAvailable
+                )
+            }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }

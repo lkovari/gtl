@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [TrackSessionEntity::class, GpsEventEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class GtlDatabase : RoomDatabase() {
@@ -35,12 +35,19 @@ abstract class GtlDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE gps_events ADD COLUMN baroAltitude REAL")
+                db.execSQL("ALTER TABLE gps_events ADD COLUMN pressureHpa REAL")
+            }
+        }
+
         fun create(context: Context): GtlDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 GtlDatabase::class.java,
                 "gtl.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
         }
     }
 }

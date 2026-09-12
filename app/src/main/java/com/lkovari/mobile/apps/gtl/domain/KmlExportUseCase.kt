@@ -4,17 +4,12 @@ import android.content.Context
 import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
 import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
 import com.lkovari.mobile.apps.gtl.engine.EventKind
-import com.lkovari.mobile.apps.gtl.engine.GeoPoint
-import com.lkovari.mobile.apps.gtl.engine.KmlDescriptions
 import com.lkovari.mobile.apps.gtl.engine.KmlDocument
 import com.lkovari.mobile.apps.gtl.engine.KmlExporter
-import com.lkovari.mobile.apps.gtl.engine.KmlPlacemark
-import com.lkovari.mobile.apps.gtl.engine.KmlTrack
-import com.lkovari.mobile.apps.gtl.engine.KmlVertex
+import com.lkovari.mobile.apps.gtl.engine.KmlTrackBuilder
 import com.lkovari.mobile.apps.gtl.engine.KmzExporter
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
-import com.lkovari.mobile.apps.gtl.engine.TrackSample
-import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
+import com.lkovari.mobile.apps.gtl.engine.TrackLogEvent
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import java.io.File
 import java.text.SimpleDateFormat
@@ -40,50 +35,21 @@ class KmlExportUseCase(private val context: Context) {
             val stamp = stampFormat.format(Date(session.startedAt))
             val system = runCatching { MeasurementSystem.valueOf(session.measurementSystem) }
                 .getOrDefault(MeasurementSystem.METRIC)
-            val stats = TrackStatsCalculator.compute(events.map { event ->
-                TrackSample(
+            val logEvents = events.map { event ->
+                TrackLogEvent(
                     timestampMillis = event.timestamp,
                     latitude = event.latitude,
                     longitude = event.longitude,
                     altitude = event.altitude,
                     speedMps = event.speed,
-                    bearing = event.bearing,
-                    ambientTemperature = event.ambientTemperature,
-                    eventKind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE)
+                    kind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE),
+                    tempCelsius = event.ambientTemperature,
+                    leanAngle = event.leanAngle,
+                    usageType = UsageType.kmlLabelOf(event.usageType ?: session.usageType),
+                    baroAltitude = event.baroAltitude
                 )
-            })
-            KmlTrack(
-                name = "GTL $stamp",
-                points = events.map { event ->
-                    KmlVertex(
-                        point = GeoPoint(event.latitude, event.longitude, event.altitude),
-                        timestampMillis = event.timestamp,
-                        speedMps = event.speed
-                    )
-                },
-                placemarks = events.filter { it.isPlacemark }.map { event ->
-                    val kind = runCatching { EventKind.valueOf(event.eventKind) }.getOrDefault(EventKind.MOVE)
-                    KmlPlacemark(
-                        name = kind.name,
-                        kind = kind,
-                        point = GeoPoint(event.latitude, event.longitude, event.altitude),
-                        description = KmlDescriptions.balloon(
-                            kind = kind,
-                            timestampMillis = event.timestamp,
-                            latitude = event.latitude,
-                            longitude = event.longitude,
-                            speedMps = event.speed,
-                            tempCelsius = event.ambientTemperature,
-                            maxSpeedMps = if (kind == EventKind.STOP) stats.maxSpeedMps else null,
-                            averageSpeedMps = if (kind == EventKind.STOP) stats.averageSpeedMps else null,
-                            elapsedMillis = if (kind == EventKind.STOP) stats.elapsedMillis else 0L,
-                            system = system,
-                            leanAngle = event.leanAngle,
-                            usageType = UsageType.kmlLabelOf(event.usageType ?: session.usageType)
-                        )
-                    )
-                }
-            )
+            }
+            KmlTrackBuilder.build("GTL $stamp", logEvents, system)
         }
         val documentName = if (tracks.size == 1) tracks.first().name else "GTL export $fileStamp"
         val kml = KmlExporter.export(

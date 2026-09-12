@@ -14,6 +14,7 @@ flowchart TD
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
     FGS --> Grav["GravitySource"]
+    FGS --> Press["PressureSource"]
     FGS --> Comp["CompassSource"]
 
     Loc --> LiveLoc["LiveTrackingState.lastLocation"]
@@ -21,6 +22,7 @@ flowchart TD
     Temp --> LiveTemp["temperatureCelsius"]
     Acc --> LiveAcc["accel"]
     Grav --> LiveLean["leanAngle"]
+    Press --> LiveBaro["baroAltitude pressureHpa"]
     Comp --> LiveAz["azimuthDegrees csak HUD"]
 
     LiveLoc --> Cloud["FixCloudBuffer memoria"]
@@ -44,7 +46,7 @@ flowchart TD
     KindMove -->|"pauza kuszob alatt"| KindPause["PAUSE"]
     KindMove -->|"mozog"| KindGo["MOVE"]
 
-    KindStart --> Row["GpsEventEntity<br/>+ homerseklet, gyorsulas, doles, usageType"]
+    KindStart --> Row["GpsEventEntity<br/>+ homerseklet, gyorsulas, doles, usageType, baro"]
     KindPause --> Row
     KindGo --> Row
 
@@ -64,9 +66,10 @@ flowchart TD
     Simpl --> Vis{"MapTrackVisibility"}
     RawPts --> Vis
     Vis --> Map["Map tab vonal<br/>Google Maps vagy OSM"]
-    Stats --> Route["Route tab"]
+    Stats --> Route["Route tab + magassagprofil"]
     Observe --> GPSUI["GPS tab elo mezok"]
     DBevt --> KMZ["KmlExportUseCase / KMZ megosztas"]
+    DBevt --> GPX["GpxExportUseCase / GPX megosztas"]
 ```
 
 ## Figyelők (a foreground service-ben)
@@ -78,7 +81,8 @@ flowchart TD
 | `AmbientTemperatureSource` | Opcionális; a sorra másolódik, ha van szenzor. |
 | `AccelerometerSource` | Opcionális; utolsó XYZ a soron. |
 | `GravitySource` | Opcionális; `TYPE_GRAVITY` (különben gyorsulásmérő) → dőlésszög a soron és a Route HUD-on. |
-| `CompassSource` | Csak HUD / Compass fül; **nem** kerül SQLite-ba. |
+| `PressureSource` | Opcionális; `TYPE_PRESSURE` → `pressureHpa` és ISA `baroAltitude` a soron, ha van szenzor. |
+| `CompassSource` | Csak Compass fül; **nem** kerül SQLite-ba. MAG a rotation-vector heading. TRUE a last GPS-fix `GeomagneticField.declination` értékét adja hozzá. |
 
 Mindez **látható** location foreground értesítéssel fut. Nincs `ACCESS_BACKGROUND_LOCATION`.
 
@@ -114,9 +118,9 @@ A **Pontfelhő** (alapból ki) ugyanezt a nyers `lastLocation`-t mintavételezi 
 
 A `GtlViewModel` a `gps_events`-et figyeli: élő session, Saved tracks választás, vagy az utolsó session, ha a **Show last logged route on map** be van kapcsolva. A Map polyline **ezek** a Room koordináták. Nincs külön vázlat a memóriában, ezért a térképen azt a logot látod, ami el lett tárolva (Douglas–Peucker csak a rajzolást ritkíthatja).
 
-- **Route** összesítők: `TrackStatsCalculator`, logolás közben (nyers Room minták).
-- **Map** polyline Room-ból; opcionális Douglas–Peucker (lent); csak logoláskor, last-track-nél vagy kijelölt sessionnél (`MapTrackVisibility`). A térkép seprője (idle, mentett track) `mapCleared`-et állít, a vonal eltűnik, a log megmarad; Indítás vagy Térképen újra kirajzol. Naplózáskor mindig rajzol.
-- **Megosztás** ugyanebből a KMZ-t építi (`gx:Track` + balloonok). A KMZ soha nem egyszerűsített. A START / PAUSE / STOP balloonokban `usage=` van az eseményből (régi soroknál a sessionből). A STOP balloon időtartama, átlag- és maxsebessége a session eseményein futtatott `TrackStatsCalculator`-ból jön, nem a STOP sor `speed` mezőjéből.
+- **Route** összesítők: `TrackStatsCalculator`, ha van session-esemény (naplózás, last-track, kijelölt session). Magasságprofil a Room GPS `altitude` (és baro, ha van) pontjaiból.
+- **Map** polyline Room-ból; opcionális Douglas–Peucker (lent); csak logoláskor, last-track-nél vagy kijelölt sessionnél (`MapTrackVisibility`). A térkép seprője (idle, mentett track) `mapCleared`-et állít, a vonal eltűnik, a log megmarad; Indítás vagy Térképen újra kirajzol. Naplózáskor mindig rajzol. Compose **HUD** a térkép tetején (Google és OSM): nyers sebesség/pontosság, GNSS used/in view; naplózáskor út, idő, REC.
+- **Megosztás** ugyanebből KMZ-t (`gx:Track` + balloonok) vagy GPX 1.1-et (`trk` / `trkpt` / Start-Pause-Stop `wpt`) épít. Sem a KMZ, sem a GPX nem egyszerűsített. A KMZ vonal és ikonok `clampToGround`. A záró STOP marker az utolsó path-csúcsra esik (utolsó elfogadott logpont), nem HUD-horog a vonal mellett. A Start/Stoppal átfedő Pause ikon elmarad. A balloon HTML. Mindhárom: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` (session mértékegység vagy `N/A`), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA, vagy `N/A`). Pause: `Speed:`, `duration=` (Starttól), `distance=` az addigi út. A Stop neve **Stop**, plusz `Avg. Speed:` és `Max speed:` a `TrackStatsCalculator`-ból a pathon (nem a STOP sor `speed` mezője), majd a session `duration=` és `distance=`. A KMZ ExtendedData `baro` ISA méter; a `gx:coord` magasság GPS. A GPX `ele` GPS-magasság. A balloonban nincs `usage=` és `lean=`.
 
 Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 
@@ -129,14 +133,14 @@ Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 | Kalman (opcionális) | Mozgatja a letárolt szélességet/hosszúságot; járműveknél be, futónál és kerékpárnál ki. A HUD világos lila köre a nyers fixen marad. |
 | Pontfelhő | Csak memória: nyers pöttyök + CEP95 állva. Nem Room. Bekapcsoláskor a pontossági jelzés is bekapcsol. |
 | Sűrűség | Okos (sebesség-sávok) vagy Minden jó (~500 ms, futónál és kerékpárnál 0,5 m padló). |
-| Room | Egy forrás a Map, Route és KMZ számára. |
+| Room | Egy forrás a Map, Route, KMZ és GPX számára. |
 | Douglas–Peucker | Csak megjelenítés. Futó és kerékpár alapból ki, ezért minden letárolt csúcs kirajzolódik. |
 
 Részletes leírás: [README-hu.md — Hogyan működik a naplózás](../README-hu.md#hogyan-működik-a-naplózás).
 
 ## Térképvonal: Douglas–Peucker
 
-**Cél.** Kevesebb csúcspont a Map fülön, hogy egy hosszú track olcsón rajzolható maradjon. Az SQLite, a Route összesítők és a KMZ minden eltárolt pontot megtart.
+**Cél.** Kevesebb csúcspont a Map fülön, hogy egy hosszú track olcsón rajzolható maradjon. Az SQLite, a Route összesítők, a KMZ és a GPX minden eltárolt pontot megtart.
 
 **Mikor.** Beállítás: **Simplify track on map** / **Útvonal egyszerűsítése a térképen** (járműveknél alapból be, futónál és kerékpárnál ki), és több mint 4 pont. A tűrés csúszka **1–20 m** (1 m-es lépés), usage szerint (motor 6 m, autó 8 m, repülő 15 m, kerékpár 3 m és futó 2 m ha bekapcsolják). A **Térképen** először a session usage-ét írja a Beállításokba, utána a kirajzolt vonal a jelenlegi csúszkákat követi. A kapcsoló ki a csúszkát elrejti, a tárolt értéket megtartja. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. A zajszűrő a Kalman, nem a Douglas–Peucker.
 

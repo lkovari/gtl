@@ -91,12 +91,45 @@ class GravitySource(context: Context) {
     }
 }
 
+class PressureSource(context: Context) {
+    private val sensorManager =
+        context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val sensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE)
+
+    val isAvailable: Boolean get() = sensor != null
+
+    fun pressures(): Flow<Float> = callbackFlow {
+        val current = sensor
+        if (current == null) {
+            close()
+            return@callbackFlow
+        }
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                if (event.values.isNotEmpty()) {
+                    trySend(event.values[0])
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+            }
+        }
+        sensorManager.registerListener(listener, current, SensorManager.SENSOR_DELAY_NORMAL)
+        awaitClose { sensorManager.unregisterListener(listener) }
+    }
+}
+
+data class CompassSample(
+    val azimuthDegrees: Float,
+    val accuracy: Int
+)
+
 class CompassSource(context: Context) {
     private val sensorManager =
         context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val rotation: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-    fun azimuthDegrees(): Flow<Float> = callbackFlow {
+    fun samples(): Flow<CompassSample> = callbackFlow {
         val current = rotation
         if (current == null) {
             close()
@@ -104,15 +137,20 @@ class CompassSource(context: Context) {
         }
         val rotationMatrix = FloatArray(9)
         val orientation = FloatArray(3)
+        var lastAzimuth = 0f
+        var lastAccuracy = SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
                 SensorManager.getOrientation(rotationMatrix, orientation)
                 val azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
-                trySend((azimuth + 360f) % 360f)
+                lastAzimuth = (azimuth + 360f) % 360f
+                trySend(CompassSample(lastAzimuth, lastAccuracy))
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+                lastAccuracy = accuracy
+                trySend(CompassSample(lastAzimuth, lastAccuracy))
             }
         }
         sensorManager.registerListener(listener, current, SensorManager.SENSOR_DELAY_UI)

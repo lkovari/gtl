@@ -10,6 +10,7 @@ import com.lkovari.mobile.apps.gtl.data.sensor.AccelerometerSource
 import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
 import com.lkovari.mobile.apps.gtl.data.sensor.GravitySource
+import com.lkovari.mobile.apps.gtl.data.sensor.PressureSource
 import com.lkovari.mobile.apps.gtl.data.sync.NoOpRemoteTrackSync
 import com.lkovari.mobile.apps.gtl.service.TrackingStateHolder
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
@@ -33,6 +34,8 @@ class GtlApplication : Application() {
         private set
     lateinit var compassSource: CompassSource
         private set
+    lateinit var pressureSource: PressureSource
+        private set
     lateinit var osmMapStore: OsmMapStore
         private set
 
@@ -48,9 +51,13 @@ class GtlApplication : Application() {
         accelerometerSource = AccelerometerSource(this)
         gravitySource = GravitySource(this)
         compassSource = CompassSource(this)
+        pressureSource = PressureSource(this)
         osmMapStore = OsmMapStore(this)
         trackingState.update {
-            it.copy(temperatureAvailable = ambientTemperatureSource.isAvailable)
+            it.copy(
+                temperatureAvailable = ambientTemperatureSource.isAvailable,
+                pressureAvailable = pressureSource.isAvailable
+            )
         }
     }
 }

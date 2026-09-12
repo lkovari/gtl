@@ -44,5 +44,7 @@ data class GpsEventEntity(
     val leanAngle: Float?,
     val usageType: String? = null,
     val isPlacemark: Boolean,
-    val eventKind: String
+    val eventKind: String,
+    val baroAltitude: Double? = null,
+    val pressureHpa: Float? = null
 )

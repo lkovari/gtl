@@ -2,6 +2,7 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.hardware.GeomagneticField
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,17 +44,23 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.engine.CompassHeading
+import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
+import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.ui.components.CompassDial
 import com.lkovari.mobile.apps.gtl.ui.components.ConstellationStrip
+import com.lkovari.mobile.apps.gtl.ui.components.ElevationProfile
 import com.lkovari.mobile.apps.gtl.ui.components.HudMetric
 import com.lkovari.mobile.apps.gtl.ui.components.SnrMeter
+import com.lkovari.mobile.apps.gtl.ui.theme.AmberFix
 import com.lkovari.mobile.apps.gtl.ui.theme.StartBlue
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import com.lkovari.mobile.apps.gtl.ui.theme.TrackingOrange
@@ -249,7 +257,10 @@ fun MainTrackerScreen(
                 0 -> GpsPane(state)
                 1 -> RoutePane(state)
                 2 -> MapPane(state, onClearMap = { viewModel.clearShownTrack() })
-                else -> CompassPane(state)
+                else -> CompassPane(
+                    state = state,
+                    onTrueNorth = { viewModel.setCompassTrueNorth(it) }
+                )
             }
         }
     }
@@ -421,22 +432,95 @@ private fun RoutePane(state: GtlUiState) {
                 "${Units.formatTemperature(range.minCelsius)} / ${Units.formatTemperature(range.maxCelsius)}"
             )
         }
+        val elevation = remember(state.events) {
+            ElevationSeries.downsample(
+                ElevationSeries.fromPoints(
+                    state.events.map { event ->
+                        ElevationPoint(
+                            latitude = event.latitude,
+                            longitude = event.longitude,
+                            gpsAltitude = event.altitude,
+                            baroAltitude = event.baroAltitude
+                        )
+                    }
+                )
+            )
+        }
+        ElevationProfile(samples = elevation, system = units)
     }
 }
 
 @Composable
-private fun CompassPane(state: GtlUiState) {
+private fun CompassPane(state: GtlUiState, onTrueNorth: (Boolean) -> Unit) {
+    val location = state.live.lastLocation
+    val declination = remember(
+        location?.latitude,
+        location?.longitude,
+        location?.altitude,
+        location?.time
+    ) {
+        location?.let { loc ->
+            val time = if (loc.time > 0L) loc.time else System.currentTimeMillis()
+            GeomagneticField(
+                loc.latitude.toFloat(),
+                loc.longitude.toFloat(),
+                if (loc.hasAltitude()) loc.altitude.toFloat() else 0f,
+                time
+            ).declination
+        }
+    }
+    val shown = CompassHeading.display(
+        magneticDegrees = state.live.azimuthDegrees ?: 0f,
+        wantTrue = state.settings.compassTrueNorth,
+        declinationDegrees = declination
+    )
+    val reference = if (shown.trueNorth) {
+        stringResource(R.string.compass_true)
+    } else {
+        stringResource(R.string.compass_mag)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val azimuth = state.live.azimuthDegrees
-        HudMetric(
-            stringResource(R.string.compass_heading),
-            azimuth?.let { String.format(Locale.US, "%.0f°", it) } ?: "—"
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = !state.settings.compassTrueNorth,
+                onClick = { onTrueNorth(false) },
+                label = { Text(stringResource(R.string.compass_mag)) }
+            )
+            FilterChip(
+                selected = state.settings.compassTrueNorth,
+                onClick = { onTrueNorth(true) },
+                label = { Text(stringResource(R.string.compass_true)) }
+            )
+        }
+        if (shown.missingFix) {
+            Text(
+                text = stringResource(R.string.compass_no_gps),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+        CompassDial(
+            azimuth = shown.degrees,
+            referenceLabel = reference,
+            modifier = Modifier.padding(top = 12.dp)
         )
-        CompassDial(azimuth ?: 0f)
+        if (CompassHeading.needsFigureEight(state.live.compassAccuracy)) {
+            Text(
+                text = stringResource(R.string.compass_figure_eight),
+                style = MaterialTheme.typography.bodyLarge,
+                color = AmberFix,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        }
     }
 }

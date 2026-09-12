@@ -41,11 +41,13 @@ data class GtlSettings(
     val keepWholeTrackOnScreen: Boolean,
     val showAccuracyMarker: Boolean,
     val showFixCloud: Boolean,
+    val keepScreenOnWhileLogging: Boolean,
     val trackSmoothingEnabled: Boolean,
     val smoothingStrengthValue: Float,
     val stationaryLockEnabled: Boolean,
     val recordingDensityValue: Float,
-    val gnssOnly: Boolean
+    val gnssOnly: Boolean,
+    val compassTrueNorth: Boolean
 ) {
     fun toFilter(): FixFilter {
         return FixFilter(
@@ -77,11 +79,13 @@ data class GtlSettings(
                 keepWholeTrackOnScreen = false,
                 showAccuracyMarker = true,
                 showFixCloud = false,
+                keepScreenOnWhileLogging = false,
                 trackSmoothingEnabled = smoothing.trackSmoothingEnabled,
                 smoothingStrengthValue = smoothing.smoothingStrength.sliderValue(),
                 stationaryLockEnabled = smoothing.stationaryLockEnabled,
                 recordingDensityValue = smoothing.recordingDensity.sliderValue(),
-                gnssOnly = smoothing.gnssOnly
+                gnssOnly = smoothing.gnssOnly,
+                compassTrueNorth = false
             )
         }
     }
@@ -173,6 +177,10 @@ class GtlPreferences(context: Context) {
         }
     }
 
+    suspend fun setKeepScreenOnWhileLogging(value: Boolean) {
+        dataStore.edit { it[Keys.keepScreenOn] = value }
+    }
+
     suspend fun setTrackSmoothingEnabled(value: Boolean) {
         dataStore.edit { it[Keys.trackSmoothing] = value }
     }
@@ -191,6 +199,10 @@ class GtlPreferences(context: Context) {
 
     suspend fun setGnssOnly(value: Boolean) {
         dataStore.edit { it[Keys.gnssOnly] = value }
+    }
+
+    suspend fun setCompassTrueNorth(value: Boolean) {
+        dataStore.edit { it[Keys.compassTrueNorth] = value }
     }
 
     private suspend fun migrateSmoothingIfNeeded() {
@@ -258,11 +270,13 @@ class GtlPreferences(context: Context) {
             keepWholeTrackOnScreen = prefs[Keys.keepWholeTrack] ?: false,
             showAccuracyMarker = prefs[Keys.showAccuracy] ?: true,
             showFixCloud = prefs[Keys.showFixCloud] ?: false,
+            keepScreenOnWhileLogging = prefs[Keys.keepScreenOn] ?: false,
             trackSmoothingEnabled = prefs[Keys.trackSmoothing] ?: smoothing.trackSmoothingEnabled,
             smoothingStrengthValue = readSmoothingStrength(prefs, smoothing),
             stationaryLockEnabled = prefs[Keys.stationaryLock] ?: smoothing.stationaryLockEnabled,
             recordingDensityValue = readRecordingDensity(prefs, smoothing),
-            gnssOnly = prefs[Keys.gnssOnly] ?: smoothing.gnssOnly
+            gnssOnly = prefs[Keys.gnssOnly] ?: smoothing.gnssOnly,
+            compassTrueNorth = prefs[Keys.compassTrueNorth] ?: false
         )
     }
 
@@ -318,6 +332,7 @@ class GtlPreferences(context: Context) {
         val keepWholeTrack = booleanPreferencesKey("keep_whole_track")
         val showAccuracy = booleanPreferencesKey("show_accuracy_marker")
         val showFixCloud = booleanPreferencesKey("show_fix_cloud")
+        val keepScreenOn = booleanPreferencesKey("keep_screen_on_logging")
         val trackSmoothing = booleanPreferencesKey("track_smoothing")
         val smoothingStrength = stringPreferencesKey("smoothing_strength")
         val smoothingStrengthValue = floatPreferencesKey("smoothing_strength_value")
@@ -325,6 +340,7 @@ class GtlPreferences(context: Context) {
         val recordingDensity = stringPreferencesKey("recording_density")
         val recordingDensityValue = floatPreferencesKey("recording_density_value")
         val gnssOnly = booleanPreferencesKey("gnss_only")
+        val compassTrueNorth = booleanPreferencesKey("compass_true_north")
     }
 
     companion object {

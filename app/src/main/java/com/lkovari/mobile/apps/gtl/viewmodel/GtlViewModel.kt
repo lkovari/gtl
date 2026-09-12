@@ -13,9 +13,14 @@ import com.lkovari.mobile.apps.gtl.data.maps.OsmCatalog
 import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
+import com.lkovari.mobile.apps.gtl.domain.GpxExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
+import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
+import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
+import com.lkovari.mobile.apps.gtl.engine.ElevationSample
+import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
 import com.lkovari.mobile.apps.gtl.engine.FixCloudBuffer
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
@@ -23,6 +28,8 @@ import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.TrackInspectDump
+import com.lkovari.mobile.apps.gtl.engine.TrackInspectEvent
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
 import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
 import com.lkovari.mobile.apps.gtl.engine.UsageType
@@ -71,6 +78,7 @@ data class GtlUiState(
 class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as GtlApplication
     private val exporter = KmlExportUseCase(application)
+    private val gpxExporter = GpxExportUseCase(application)
     private val selectedSessionId = MutableStateFlow<Long?>(null)
     private val requestedTab = MutableStateFlow<Int?>(null)
     private val mainTab = MutableStateFlow(0)
@@ -82,6 +90,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private var gravityJob: Job? = null
     private val fixCloudBuffer = FixCloudBuffer()
     private val fixCloudView = MutableStateFlow(FixCloudSnapshot.Empty)
+    private val savedElevationSessionId = MutableStateFlow<Long?>(null)
+    private val savedElevationSamples = MutableStateFlow<List<ElevationSample>>(emptyList())
     private var lastObservedNanos = Long.MIN_VALUE
     private var lastGnssOnly: Boolean? = null
 
@@ -92,6 +102,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val live: StateFlow<LiveTrackingState> = app.trackingState.state
+
+    val savedElevationId: StateFlow<Long?> = savedElevationSessionId
+    val savedElevation: StateFlow<List<ElevationSample>> = savedElevationSamples
+    private val inspectDumpText = MutableStateFlow<String?>(null)
+    val inspectDump: StateFlow<String?> = inspectDumpText
 
     val sessions: StateFlow<List<TrackSessionEntity>> = app.trackRepository.observeSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -135,8 +150,13 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private fun listenCompass() {
         compassJob?.cancel()
         compassJob = viewModelScope.launch {
-            app.compassSource.azimuthDegrees().collectLatest { value ->
-                app.trackingState.update { it.copy(azimuthDegrees = value) }
+            app.compassSource.samples().collectLatest { sample ->
+                app.trackingState.update {
+                    it.copy(
+                        azimuthDegrees = sample.azimuthDegrees,
+                        compassAccuracy = sample.accuracy
+                    )
+                }
             }
         }
     }
@@ -249,11 +269,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         val cleared = mapBits.mapCleared
         val followSettings = MapDisplayUsage.followsSettings(liveState.logging, selected)
         val samples = app.trackRepository.toSamples(events)
-        val routeStats = if (liveState.logging) {
-            TrackStatsCalculator.compute(samples)
-        } else {
-            TrackStatsCalculator.compute(emptyList())
-        }
+        val routeStats = TrackStatsCalculator.compute(samples)
         val viewingId = liveState.sessionId
             ?: selected
             ?: if (!cleared && prefs.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
@@ -373,7 +389,72 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteSession(id: Long) {
-        viewModelScope.launch { app.trackRepository.deleteSession(id) }
+        viewModelScope.launch {
+            app.trackRepository.deleteSession(id)
+            if (savedElevationSessionId.value == id) {
+                savedElevationSessionId.value = null
+                savedElevationSamples.value = emptyList()
+            }
+            if (selectedSessionId.value == id) {
+                selectedSessionId.value = null
+                mapCleared.value = true
+            }
+            inspectDumpText.value = null
+        }
+    }
+
+    fun inspectSession(id: Long) {
+        viewModelScope.launch {
+            val session = app.trackRepository.sessionById(id) ?: return@launch
+            val events = app.trackRepository.eventsFor(id)
+            inspectDumpText.value = TrackInspectDump.format(
+                sessionId = session.id,
+                startedAt = session.startedAt,
+                stoppedAt = session.stoppedAt,
+                usageType = session.usageType,
+                measurementSystem = session.measurementSystem,
+                events = events.map { event ->
+                    TrackInspectEvent(
+                        id = event.id,
+                        timestampMillis = event.timestamp,
+                        latitude = event.latitude,
+                        longitude = event.longitude,
+                        altitude = event.altitude,
+                        speedMps = event.speed,
+                        bearing = event.bearing,
+                        accuracy = event.accuracy,
+                        satellitesInFix = event.satellitesInFix,
+                        ambientTemperature = event.ambientTemperature,
+                        accelX = event.accelX,
+                        accelY = event.accelY,
+                        accelZ = event.accelZ,
+                        leanAngle = event.leanAngle,
+                        usageType = event.usageType,
+                        isPlacemark = event.isPlacemark,
+                        eventKind = event.eventKind,
+                        baroAltitude = event.baroAltitude,
+                        pressureHpa = event.pressureHpa
+                    )
+                }
+            )
+        }
+    }
+
+    fun closeInspect() {
+        inspectDumpText.value = null
+    }
+
+    fun toggleSavedElevation(sessionId: Long) {
+        viewModelScope.launch {
+            if (savedElevationSessionId.value == sessionId) {
+                savedElevationSessionId.value = null
+                savedElevationSamples.value = emptyList()
+                return@launch
+            }
+            val events = app.trackRepository.eventsFor(sessionId)
+            savedElevationSessionId.value = sessionId
+            savedElevationSamples.value = elevationSamplesOf(events)
+        }
     }
 
     fun setMainTab(index: Int) {
@@ -426,6 +507,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setKeepWholeTrackOnScreen(value) }
     }
 
+    fun setKeepScreenOnWhileLogging(value: Boolean) {
+        viewModelScope.launch { app.preferences.setKeepScreenOnWhileLogging(value) }
+    }
+
     fun setShowAccuracyMarker(value: Boolean) {
         viewModelScope.launch { app.preferences.setShowAccuracyMarker(value) }
     }
@@ -454,6 +539,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setGnssOnly(value) }
     }
 
+    fun setCompassTrueNorth(value: Boolean) {
+        viewModelScope.launch { app.preferences.setCompassTrueNorth(value) }
+    }
+
     fun downloadRegion(region: OsmRegion) {
         app.osmMapStore.enqueue(region)
     }
@@ -474,7 +563,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun isDownloaded(region: OsmRegion): Boolean = app.osmMapStore.downloadedFile(region.id) != null
 
-    fun shareSessions(sessionIds: Collection<Long>, onReady: (Intent) -> Unit) {
+    fun shareSessions(sessionIds: Collection<Long>, format: TrackShareFormat, onReady: (Intent) -> Unit) {
         if (sessionIds.isEmpty()) {
             return
         }
@@ -486,15 +575,37 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             if (items.isEmpty()) {
                 return@launch
             }
-            val file = exporter.write(items)
+            val file = when (format) {
+                TrackShareFormat.KMZ -> exporter.write(items)
+                TrackShareFormat.GPX -> gpxExporter.write(items)
+            }
+            val mime = when (format) {
+                TrackShareFormat.KMZ -> "application/vnd.google-earth.kmz"
+                TrackShareFormat.GPX -> "application/gpx+xml"
+            }
             val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
             onReady(
                 Intent(Intent.ACTION_SEND).apply {
-                    type = "application/vnd.google-earth.kmz"
+                    type = mime
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
             )
         }
+    }
+
+    private fun elevationSamplesOf(events: List<GpsEventEntity>): List<ElevationSample> {
+        return ElevationSeries.downsample(
+            ElevationSeries.fromPoints(
+                events.map { event ->
+                    ElevationPoint(
+                        latitude = event.latitude,
+                        longitude = event.longitude,
+                        gpsAltitude = event.altitude,
+                        baroAltitude = event.baroAltitude
+                    )
+                }
+            )
+        )
     }
 }

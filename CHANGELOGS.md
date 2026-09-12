@@ -9,6 +9,41 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### 2026-09-12
+
+Map HUD, GPX 1.1 export, elevation profile, compass rose, barometric altitude column.
+
+### Added
+
+- Map tab **HUD** over Google Maps and OSM: large speed (metric / imperial / ICAO), accuracy in metres, GNSS used/in view. While logging: odometer, elapsed time, pulsing **REC**. Idle with a GPS fix: dim compact panel at the bottom left, sized to the numbers. Hidden when a saved track is shown and logging is off. Speed and accuracy follow the raw HUD fix (same philosophy as the pale purple circle); trip totals come from Room.
+- Settings **Keep screen on while logging** (off by default). The flag is cleared when logging stops.
+- **GPX 1.1** export from Saved tracks. Share selected opens KMZ or GPX. One session → `GTL_yyyyMMdd_HHmmss.gpx`; several sessions → one file with several `<trk>`. Core `trkpt` (`lat`, `lon`, `ele`, `time`); START / PAUSE / STOP as `<wpt>`. MIME `application/gpx+xml`. Engine `GpxExporter` unit tests with fixed coordinates.
+- **Elevation profile** (GPS altitude vs distance) on Saved tracks (Elevation) and on the Route tab when a session has points. Optional dashed barometric line when at least two pressure samples exist. Route totals now compute for a saved / last session, not only while logging.
+- Compass tab: rotating rose, fixed lubber line, MAG / TRUE in the centre with the three-digit heading. MAG is the sensor; TRUE adds declination from the last GPS fix. Switch is on the Compass tab (default MAG). Low accuracy: figure-8 warning under the dial.
+- `gps_events.baroAltitude` and `pressureHpa` (Room schema **4**). Written from `TYPE_PRESSURE` via ISA (`SensorManager`-equivalent formula) when the sensor exists; otherwise null. GPX `ele` stays GPS altitude.
+- KMZ **Distance** on every `gx:Track` point (cumulative metres in ExtendedData), plus `baro` (ISA metres, empty if no sample). Pause / Stop balloons also show `distance=` in session units.
+
+### Changed
+
+- Saved tracks **Delete** wraps onto a second row on a phone (it sat off-screen after Elevation). Confirm dialog before cascade-delete.
+- KMZ Earth details match the Start / Pause / Stop field spec. Datetime is UTC `YYYY:MM:DD HH:MM:SS` (no `time=` prefix, no `UTC` suffix). Then `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (ISA, or `N/A`) in session units. Pause adds `Speed:` (instant GPS speed at that row), `duration=` (≤60 s as `N s`, under 60 min as whole `N min`, otherwise `HH:MM:SS` from Start), and `distance=` so far. Stop adds `Avg. Speed:` and `Max speed:` (one decimal from `TrackStatsCalculator`; metric `km/h`, imperial `mph`, ICAO `kt`; imperial/ICAO altitude `ft`; imperial temp `°F`), then session `duration=` and `distance=`. KMZ `gx:Track` ExtendedData includes `baro` metres; `gx:coord` altitude stays GPS. Dropped from balloons: `usage=`, `lean=`, `Distance:`, `Duration:`, forced `speed=0`, `Avg. speed:` / `Max. speed:`. Start has no duration/distance.
+
+### Fixed
+
+- KMZ/Google Earth: Start / Pause / Stop icons sit on the stored track (`clampToGround` on the `gx:Track` and Point placemarks). Stop is the last **accepted** log point, not the raw HUD fix. A trailing STOP row is not drawn as an off-track hook. Pause icons that overlap Start or Stop are omitted; consecutive standing PAUSE rows collapse to one icon.
+- Stop balloon title is **Stop** (not Pause). Details use HTML line breaks and a KML `BalloonStyle` so Start / Pause / Stop fields show in Earth (Pause was blank when Earth ignored plain newlines). Missing temperature is `temp=N/A`.
+
+### Magyar
+
+- Mentett útvonalak **Törlés** gombja keskeny kijelzőn a Magasság alá tör (eddig kilógott). Megerősítés a cascade-törlés előtt.
+- Beállítás: **Képernyő bekapcsolva naplózáskor** (alapból ki).
+- **GPX 1.1** megosztás a Mentett útvonalakon (KMZ vagy GPX).
+- **Magasságprofil** a mentett trackeken és az Útvonal fülön. Route-stat mentett sessionre is.
+- Iránytű: MAG / TRUE a fülön (alap MAG), forgó rózsa, deklináció a last GPS-fixből, 8-as figyelmeztetés LOW pontosságnál.
+- Barometrikus magasság oszlop (Room 4), ha van nyomásszenzor.
+- KMZ **Distance**: minden trackponton kumulatív táv (ExtendedData, méter), plusz `baro` (ISA méter). Pause / Stop balloon: `distance=` a session mértékegységében.
+- KMZ ikonok a letárolt vonalon (clampToGround); Stop az utolsó elfogadott pont; Pause nem takarja a Stopot. Balloon címe Start / Pause / Stop. Pause details nem üres (HTML + BalloonStyle); `temp=N/A`. Earth details: UTC `YYYY:MM:DD HH:MM:SS`, `temp=`, `lon=`, `lat=`, `Altitude:`, `Baro:`; Pause: `Speed:`, `duration=`, `distance=`; Stop: `Avg. Speed:`, `Max speed:`, `duration=`, `distance=`. KMZ ExtendedData `baro` (ISA m); a `gx:coord` GPS. Nincs usage / lean a balloonban.
+
 ## [2.0.5] — 2026-09-10
 
 Play production track **23 (2.0.5)** (signed AAB). Fix cloud, bicycle usage, KMZ session stats, map broom.

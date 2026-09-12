@@ -3,7 +3,9 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 import android.graphics.drawable.BitmapDrawable
 import android.location.Location
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -53,6 +55,9 @@ import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.LatLonBounds
 import com.lkovari.mobile.apps.gtl.engine.TrackCameraBounds
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.engine.MapHudMode
+import com.lkovari.mobile.apps.gtl.engine.MapHudVisibility
+import com.lkovari.mobile.apps.gtl.ui.components.MapHud
 import com.lkovari.mobile.apps.gtl.ui.rememberUsageMarkerBitmap
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerBorder
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerFill
@@ -129,20 +134,43 @@ fun MapPane(state: GtlUiState, onClearMap: () -> Unit) {
                     .padding(10.dp)
             )
         }
-        if (state.settings.showFixCloud && !state.fixCloud.stats.active) {
-            Text(
-                text = stringResource(R.string.map_fix_cloud_paused),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+        val hudMode = MapHudVisibility.mode(
+            logging = state.live.logging,
+            selectedSessionId = state.selectedSessionId,
+            hasFix = state.live.lastLocation != null
+        )
+        val showCloudPaused = state.settings.showFixCloud && !state.fixCloud.stats.active
+        if (hudMode != MapHudMode.Hidden || showCloudPaused) {
+            Column(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(12.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        RoundedCornerShape(8.dp)
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (showCloudPaused) {
+                    Text(
+                        text = stringResource(R.string.map_fix_cloud_paused),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            )
+                }
+                MapHud(
+                    mode = hudMode,
+                    speedMps = state.live.lastLocation?.speed,
+                    system = state.settings.measurementSystem,
+                    odometerMeters = state.stats.odometerMeters,
+                    elapsedMillis = state.stats.elapsedMillis,
+                    accuracyMeters = state.live.lastLocation?.accuracy,
+                    satellitesInFix = state.live.gnss?.satellitesInFix ?: 0,
+                    satellitesInView = state.live.gnss?.satellitesInView ?: 0
+                )
+            }
         }
     }
 }

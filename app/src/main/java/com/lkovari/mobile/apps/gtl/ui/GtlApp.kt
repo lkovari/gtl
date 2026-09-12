@@ -2,8 +2,10 @@ package com.lkovari.mobile.apps.gtl.ui
 
 import android.app.Activity
 import android.content.Intent
+import android.view.WindowManager
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,6 +28,18 @@ import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 fun GtlApp(viewModel: GtlViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? Activity
+    val keepScreenOn = state.live.logging && state.settings.keepScreenOnWhileLogging
+    DisposableEffect(keepScreenOn, activity) {
+        val window = activity?.window
+        if (keepScreenOn) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
     GtlTheme(darkTheme = isSystemInDarkTheme()) {
         if (!state.settings.disclaimerAccepted) {
             DisclaimerScreen(
@@ -59,8 +73,8 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                         state = state,
                         viewModel = viewModel,
                         onBack = { nav.popBackStack() },
-                        onShare = { ids ->
-                            viewModel.shareSessions(ids) { intent ->
+                        onShare = { ids, format ->
+                            viewModel.shareSessions(ids, format) { intent ->
                                 context.startActivity(Intent.createChooser(intent, null))
                             }
                         },

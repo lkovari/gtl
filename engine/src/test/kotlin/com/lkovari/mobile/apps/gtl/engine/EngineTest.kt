@@ -382,13 +382,45 @@ class KmlExporterTest {
     }
 
     @Test
-    fun writesTimeLatLonAndSpeedOnEveryTrackPoint() {
+    fun writesTimeLatLonSpeedAndOdometerOnEveryTrackPoint() {
         val kml = sampleKml()
         assertTrue(kml.contains("xmlns:gx="))
         assertTrue(kml.contains("<when>2024-09-05T01:33:20Z</when>"))
         assertTrue(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"speed\">"))
         assertTrue(kml.contains("<gx:value>5.5</gx:value>"))
+        assertTrue(kml.contains("<gx:SimpleArrayData name=\"odometer\">"))
+        assertTrue(kml.contains("<gx:value>0.0</gx:value>"))
+        assertTrue(kml.contains("<gx:value>1416.5</gx:value>"))
+        assertTrue(kml.contains("Distance (m)"))
+        assertTrue(kml.contains("<gx:SimpleArrayData name=\"baro\">"))
+        assertTrue(kml.contains("Baro (m)"))
+    }
+
+    @Test
+    fun writesBaroExtendedDataWithoutChangingGpsCoord() {
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "Ride",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(
+                    KmlTrack(
+                        name = "Ride",
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 5.5f, 0.0, 108.0),
+                            KmlVertex(GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000, 6.0f, 1416.5, null)
+                        ),
+                        placemarks = emptyList()
+                    )
+                )
+            )
+        )
+        assertTrue(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
+        assertTrue(kml.contains("<gx:coord>19.06 47.51 125.0</gx:coord>"))
+        assertTrue(kml.contains("<gx:value>108.0</gx:value>"))
+        assertTrue(kml.contains("<gx:value></gx:value>"))
+        assertFalse(kml.contains("<gx:coord>19.05 47.5 108.0</gx:coord>"))
     }
 
     @Test
@@ -402,235 +434,294 @@ class KmlExporterTest {
     }
 
     @Test
-    fun pauseAndStopBalloonsForceZeroSpeed() {
+    fun startBalloonMatchesEarthDetailsSpec() {
+        val start = KmlDescriptions.balloon(
+            kind = EventKind.START,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            altitude = 184.0,
+            speedMps = 5.5f,
+            tempCelsius = 18.5f
+        )
+        assertEquals(
+            listOf(
+                "2024:09:05 01:33:20",
+                "temp=18.5 °C",
+                "lon=19.050000",
+                "lat=47.500000",
+                "Altitude: 184 m",
+                "Baro: N/A"
+            ),
+            start.lines()
+        )
+        assertFalse(start.contains("Speed:"))
+        assertFalse(start.contains("Avg. Speed:"))
+        assertFalse(start.contains("usage="))
+        assertFalse(start.contains("duration="))
+        assertFalse(start.contains("distance="))
+        assertFalse(start.contains("lean="))
+    }
+
+    @Test
+    fun pauseBalloonMatchesEarthDetailsSpec() {
         val pause = KmlDescriptions.balloon(
             kind = EventKind.PAUSE,
             timestampMillis = SAMPLE_TIME,
             latitude = 47.5,
             longitude = 19.05,
+            altitude = 184.0,
             speedMps = 1.1117642f,
-            tempCelsius = null
+            tempCelsius = null,
+            elapsedMillis = 45_000L,
+            odometerMeters = 184.0
         )
+        assertEquals(
+            listOf(
+                "2024:09:05 01:33:20",
+                "temp=N/A",
+                "lon=19.050000",
+                "lat=47.500000",
+                "Altitude: 184 m",
+                "Baro: N/A",
+                "Speed: 4.0 km/h",
+                "duration=45 s",
+                "distance=184 m"
+            ),
+            pause.lines()
+        )
+        assertFalse(pause.contains("Avg. Speed:"))
+        assertFalse(pause.contains("Max speed:"))
+    }
+
+    @Test
+    fun stopBalloonMatchesEarthDetailsSpec() {
         val stop = KmlDescriptions.balloon(
             kind = EventKind.STOP,
             timestampMillis = SAMPLE_TIME,
             latitude = 47.5,
             longitude = 19.05,
+            altitude = 184.0,
             speedMps = 4.1f,
             tempCelsius = 18.5f,
             maxSpeedMps = 12.0f,
             averageSpeedMps = 6.0f,
-            elapsedMillis = 45 * 60 * 1000L
+            elapsedMillis = 540_000L,
+            odometerMeters = 3713.0
         )
-        assertTrue(pause.contains("speed=0.0 km/h"))
-        assertFalse(pause.contains("Duration:"))
-        assertFalse(pause.contains("Avg. speed:"))
-        assertFalse(pause.contains("Max. speed:"))
-        assertTrue(stop.contains("speed=0.0 km/h"))
-        assertTrue(stop.contains("Duration: 45 min"))
-        assertTrue(stop.contains("Avg. speed: 22 km/h"))
-        assertTrue(stop.contains("Max. speed: 43 km/h"))
-        assertTrue(stop.contains("temp=18.5"))
-        assertFalse(stop.contains("lean="))
-        assertFalse(stop.contains("maxSpeed="))
-        assertFalse(stop.contains("avgSpeed="))
+        assertEquals(
+            listOf(
+                "2024:09:05 01:33:20",
+                "temp=18.5 °C",
+                "lon=19.050000",
+                "lat=47.500000",
+                "Altitude: 184 m",
+                "Baro: N/A",
+                "Avg. Speed: 21.6 km/h",
+                "Max speed: 43.2 km/h",
+                "duration=9 min",
+                "distance=3.71 km"
+            ),
+            stop.lines()
+        )
+        assertFalse(stop.lines().any { it.startsWith("Speed:") })
+        assertFalse(stop.contains("usage="))
     }
 
     @Test
-    fun stopBalloonShowsSecondsWhenDurationIsAtMostOneMinute() {
-        val twenty = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 2.8f,
-            averageSpeedMps = 1.9f,
-            elapsedMillis = 20_000L
-        )
-        val fiftyEight = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 2.8f,
-            averageSpeedMps = 1.9f,
-            elapsedMillis = 58_000L
-        )
-        val sixty = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 2.8f,
-            averageSpeedMps = 1.9f,
-            elapsedMillis = 60_000L
-        )
-        assertTrue(twenty.contains("Duration: 20 s"))
-        assertFalse(twenty.contains("Duration: 0 min"))
-        assertTrue(fiftyEight.contains("Duration: 58 s"))
-        assertFalse(fiftyEight.contains("Duration: 0 min"))
-        assertTrue(sixty.contains("Duration: 60 s"))
-    }
-
-    @Test
-    fun stopBalloonShowsMinutesWhenDurationIsOverSixtySeconds() {
-        val stop = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 12.0f,
-            averageSpeedMps = 6.0f,
-            elapsedMillis = 61_000L
-        )
-        assertTrue(stop.contains("Duration: 1 min"))
-        assertFalse(stop.contains("Duration: 61 s"))
-    }
-
-    @Test
-    fun stopBalloonUsesHmsWhenDurationIsAtLeastOneHour() {
-        val stop = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 12.0f,
-            averageSpeedMps = 6.0f,
-            elapsedMillis = 60 * 60 * 1000L
-        )
-        assertTrue(stop.contains("Duration: 01:00:00"))
-        assertFalse(stop.contains("Duration: 60 min"))
-    }
-
-    @Test
-    fun stopBalloonUsesImperialAndIcaoIntegerSpeeds() {
+    fun balloonUsesSelectedUnitsForTempAltitudeAndSpeed() {
         val imperial = KmlDescriptions.balloon(
             kind = EventKind.STOP,
             timestampMillis = SAMPLE_TIME,
             latitude = 47.5,
             longitude = 19.05,
+            altitude = 184.0,
             speedMps = 0f,
-            tempCelsius = null,
+            tempCelsius = 18.5f,
             maxSpeedMps = 12.0f,
             averageSpeedMps = 6.0f,
-            elapsedMillis = 10 * 60 * 1000L,
+            elapsedMillis = 3_661_000L,
+            odometerMeters = 2500.0,
+            baroAltitude = 184.0,
             system = MeasurementSystem.IMPERIAL
         )
-        val icao = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 12.0f,
-            averageSpeedMps = 6.0f,
-            elapsedMillis = 10 * 60 * 1000L,
-            system = MeasurementSystem.ICAO
-        )
-        assertTrue(imperial.contains("Avg. speed: 13 mile/h"))
-        assertTrue(imperial.contains("Max. speed: 27 mile/h"))
-        assertTrue(imperial.contains("speed=0.0 mph"))
-        assertTrue(icao.contains("Avg. speed: 12 kt"))
-        assertTrue(icao.contains("Max. speed: 23 kt"))
-    }
-
-    @Test
-    fun balloonsIncludeTimeLatLonAndMovingSpeed() {
-        val start = KmlDescriptions.balloon(
-            kind = EventKind.START,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 5.5f,
-            tempCelsius = null
-        )
-        assertTrue(start.contains("time=2024-09-05 01:33:20 UTC"))
-        assertTrue(start.contains("lat=47.500000"))
-        assertTrue(start.contains("lon=19.050000"))
-        assertTrue(start.contains("speed=19.8 km/h"))
-        val move = KmlDescriptions.balloon(
-            kind = EventKind.MOVE,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.51,
-            longitude = 19.06,
-            speedMps = 8.3f,
-            tempCelsius = null
-        )
-        assertTrue(move.contains("speed=29.9 km/h"))
-        assertTrue(move.contains("lat=47.510000"))
-        assertTrue(move.contains("lon=19.060000"))
-    }
-
-    @Test
-    fun balloonsIncludeLeanWhenPresent() {
-        val start = KmlDescriptions.balloon(
-            kind = EventKind.START,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 5.5f,
-            tempCelsius = null,
-            leanAngle = 12.4f
-        )
-        assertTrue(start.contains("lean=12.4"))
-    }
-
-    @Test
-    fun startPauseStopBalloonsIncludeUsageType() {
-        val start = KmlDescriptions.balloon(
-            kind = EventKind.START,
-            timestampMillis = SAMPLE_TIME,
-            latitude = 47.5,
-            longitude = 19.05,
-            speedMps = 5.5f,
-            tempCelsius = null,
-            usageType = "Motorbike"
-        )
-        val pause = KmlDescriptions.balloon(
+        val icaoPause = KmlDescriptions.balloon(
             kind = EventKind.PAUSE,
             timestampMillis = SAMPLE_TIME,
             latitude = 47.5,
             longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            usageType = "Runner"
+            altitude = 184.0,
+            speedMps = 6.0f,
+            tempCelsius = 18.5f,
+            elapsedMillis = 61_000L,
+            odometerMeters = 184.0,
+            system = MeasurementSystem.ICAO
         )
-        val stop = KmlDescriptions.balloon(
-            kind = EventKind.STOP,
+        assertTrue(imperial.contains("temp=65.3 °F"))
+        assertTrue(imperial.contains("Altitude: 604 ft"))
+        assertTrue(imperial.contains("Baro: 604 ft"))
+        assertTrue(imperial.contains("Avg. Speed: 13.4 mph"))
+        assertTrue(imperial.contains("Max speed: 26.8 mph"))
+        assertTrue(imperial.contains("duration=01:01:01"))
+        assertTrue(imperial.contains("distance=1.55 mi"))
+        assertTrue(icaoPause.contains("temp=18.5 °C"))
+        assertTrue(icaoPause.contains("Altitude: 604 ft"))
+        assertTrue(icaoPause.contains("Speed: 11.7 kt"))
+        assertTrue(icaoPause.contains("duration=1 min"))
+        assertTrue(icaoPause.contains("distance=0.10 NM"))
+    }
+
+    @Test
+    fun balloonUsesNaWhenTemperatureIsMissing() {
+        val start = KmlDescriptions.balloon(
+            kind = EventKind.START,
             timestampMillis = SAMPLE_TIME,
             latitude = 47.5,
             longitude = 19.05,
-            speedMps = 0f,
-            tempCelsius = null,
-            maxSpeedMps = 12.0f,
-            averageSpeedMps = 6.0f,
-            elapsedMillis = 10 * 60 * 1000L,
-            usageType = "Aircraft"
+            altitude = 120.0,
+            speedMps = 5.5f,
+            tempCelsius = null
         )
-        val move = KmlDescriptions.balloon(
-            kind = EventKind.MOVE,
+        assertTrue(start.contains("temp=N/A"))
+        assertFalse(start.contains("temp=-"))
+    }
+
+    @Test
+    fun balloonKeepsZeroCelsiusAsARealTemperature() {
+        val start = KmlDescriptions.balloon(
+            kind = EventKind.START,
             timestampMillis = SAMPLE_TIME,
             latitude = 47.5,
             longitude = 19.05,
-            speedMps = 8.3f,
-            tempCelsius = null,
-            usageType = "Car"
+            altitude = 120.0,
+            speedMps = 5.5f,
+            tempCelsius = 0f
         )
-        assertTrue(start.contains("usage=Motorbike"))
-        assertTrue(pause.contains("usage=Runner"))
-        assertTrue(stop.contains("usage=Aircraft"))
-        assertFalse(move.contains("usage="))
+        assertTrue(start.contains("temp=0.0 °C"))
+        assertFalse(start.contains("temp=N/A"))
+    }
+
+    @Test
+    fun balloonShowsBaroInSelectedUnitsOrNa() {
+        val withBaro = KmlDescriptions.balloon(
+            kind = EventKind.START,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            altitude = 184.0,
+            baroAltitude = 108.0,
+            speedMps = 5.5f,
+            tempCelsius = 18.5f
+        )
+        val imperial = KmlDescriptions.balloon(
+            kind = EventKind.START,
+            timestampMillis = SAMPLE_TIME,
+            latitude = 47.5,
+            longitude = 19.05,
+            altitude = 184.0,
+            baroAltitude = 108.0,
+            speedMps = 5.5f,
+            tempCelsius = 18.5f,
+            system = MeasurementSystem.IMPERIAL
+        )
+        assertTrue(withBaro.contains("Altitude: 184 m"))
+        assertTrue(withBaro.contains("Baro: 108 m"))
+        assertTrue(imperial.contains("Baro: 354 ft"))
+        assertFalse(withBaro.contains("Baro: N/A"))
+    }
+
+    @Test
+    fun balloonDurationUsesSecondsThenMinutesThenClock() {
+        assertEquals("0 s", Units.formatBalloonDuration(0L))
+        assertEquals("60 s", Units.formatBalloonDuration(60_000L))
+        assertEquals("1 min", Units.formatBalloonDuration(61_000L))
+        assertEquals("59 min", Units.formatBalloonDuration(3_599_000L))
+        assertEquals("01:00:00", Units.formatBalloonDuration(3_600_000L))
+    }
+
+    @Test
+    fun drapesTrackAndPointIconsOnTheGround() {
+        val kml = sampleKml()
+        assertTrue(kml.contains("<gx:Track>"))
+        assertTrue(kml.contains("<altitudeMode>clampToGround</altitudeMode>"))
+        assertFalse(kml.contains("<altitudeMode>absolute</altitudeMode>"))
+        assertTrue(kml.contains("<Point>"))
+        assertTrue(kml.contains("<coordinates>19.05,47.5,120.0</coordinates>"))
+    }
+
+    @Test
+    fun wrapsBalloonDescriptionAsHtmlCdata() {
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "Ride",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(
+                    KmlTrack(
+                        name = "Ride",
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 0f, 0.0)
+                        ),
+                        placemarks = listOf(
+                            KmlPlacemark(
+                                name = "Stop",
+                                kind = EventKind.STOP,
+                                point = GeoPoint(47.5, 19.05, 120.0),
+                                description = "2024:09:05 01:33:20\nAvg. Speed: 22.0 km/h\nMax speed: 43.0 km/h",
+                                drawOrder = 10
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        assertTrue(kml.contains("<description><![CDATA[2024:09:05 01:33:20<br/>Avg. Speed: 22.0 km/h<br/>Max speed: 43.0 km/h]]></description>"))
+        assertTrue(kml.contains("<name>Stop</name>"))
+        assertFalse(kml.contains("<name>Pause</name>"))
+        assertTrue(kml.contains("<gx:drawOrder>10</gx:drawOrder>"))
+    }
+
+    @Test
+    fun pausePlacemarkDetailsAreHtmlAndNotEmpty() {
+        val events = listOf(
+            TrackLogEvent(SAMPLE_TIME, 47.50, 19.05, 120.0, 5f, EventKind.START, usageType = "Motorbike"),
+            TrackLogEvent(SAMPLE_TIME + 1_000, 47.51, 19.06, 120.0, 8f, EventKind.MOVE),
+            TrackLogEvent(SAMPLE_TIME + 2_000, 47.52, 19.07, 120.0, 0f, EventKind.PAUSE, usageType = "Motorbike")
+        )
+        val track = KmlTrackBuilder.build("GTL ride", events, MeasurementSystem.METRIC)
+        val pause = track.placemarks.single { it.kind == EventKind.PAUSE }
+        assertEquals("Pause", pause.name)
+        assertTrue(pause.description.contains("2024:09:05 01:33:22"))
+        assertTrue(pause.description.contains("lon=19.070000"))
+        assertTrue(pause.description.contains("lat=47.520000"))
+        assertTrue(pause.description.contains("temp=N/A"))
+        assertTrue(pause.description.contains("Altitude: 120 m"))
+        assertTrue(pause.description.contains("Baro: N/A"))
+        assertTrue(pause.description.contains("Speed: 0.0 km/h"))
+        assertTrue(pause.description.contains("duration=2 s"))
+        assertTrue(pause.description.contains("distance="))
+        assertFalse(pause.description.isBlank())
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "GTL ride",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(track)
+            )
+        )
+        assertTrue(kml.contains("<name>Pause</name>"))
+        assertTrue(kml.contains("<description><![CDATA["))
+        assertTrue(kml.contains("2024:09:05 01:33:22<br/>"))
+        assertTrue(kml.contains("lat=47.520000<br/>"))
+        assertTrue(kml.contains("temp=N/A<br/>"))
+        assertTrue(kml.contains("Altitude: 120 m<br/>"))
+        assertTrue(kml.contains("Speed: 0.0 km/h"))
+        assertTrue(kml.contains("duration=2 s"))
+        assertTrue(kml.contains("distance="))
+        assertTrue(kml.contains("<BalloonStyle>"))
+        assertTrue(kml.contains("\$[description]"))
+        assertFalse(pause.description.contains("Avg. Speed:"))
+        assertFalse(pause.description.contains("Max speed:"))
     }
 
     @Test
@@ -706,8 +797,8 @@ class KmlExporterTest {
                     KmlTrack(
                         name = "Ride <1>",
                         points = listOf(
-                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 5.5f),
-                            KmlVertex(GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000, 6.0f)
+                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 5.5f, 0.0),
+                            KmlVertex(GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000, 6.0f, 1416.5)
                         ),
                         placemarks = listOf(
                             KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, 120.0), "begin")
@@ -722,6 +813,230 @@ class KmlExporterTest {
         java.util.zip.ZipInputStream(bytes.inputStream()).use { zip ->
             return generateSequence { zip.nextEntry }.map { it.name }.toList()
         }
+    }
+}
+
+class TrackLogExportTest {
+    @Test
+    fun emptySessionHasNoPathOrMarkers() {
+        assertTrue(TrackLogExport.path(emptyList()).isEmpty())
+        assertTrue(TrackLogExport.markers(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun startMarkerSitsOnTheFirstPathVertex() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.51, 19.06, 1_000)
+        )
+        val start = TrackLogExport.markers(events).first { it.kind == EventKind.START }
+        val path = TrackLogExport.path(events)
+        assertEquals(path.first().latitude, start.event.latitude, 0.0)
+        assertEquals(path.first().longitude, start.event.longitude, 0.0)
+        assertEquals("Start", start.kind.kmlPlacemarkName())
+    }
+
+    @Test
+    fun trailingStopIsNotAPathVertexAndIconSitsOnTrackEnd() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.51, 19.06, 1_000),
+            event(EventKind.STOP, 47.80, 19.40, 2_000)
+        )
+        val path = TrackLogExport.path(events)
+        assertEquals(2, path.size)
+        assertEquals(47.51, path.last().latitude, 0.0)
+        assertEquals(19.06, path.last().longitude, 0.0)
+        val stop = TrackLogExport.markers(events).single { it.kind == EventKind.STOP }
+        assertEquals(47.51, stop.event.latitude, 0.0)
+        assertEquals(19.06, stop.event.longitude, 0.0)
+        assertEquals(2_000L, stop.event.timestampMillis)
+        assertEquals("Stop", stop.kind.kmlPlacemarkName())
+    }
+
+    @Test
+    fun pauseOnTheTrackIsKeptAndPauseAtStopIsDropped() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.51, 19.06, 1_000),
+            event(EventKind.PAUSE, 47.52, 19.07, 2_000),
+            event(EventKind.MOVE, 47.53, 19.08, 3_000),
+            event(EventKind.PAUSE, 47.53, 19.08, 4_000),
+            event(EventKind.STOP, 47.90, 19.50, 5_000)
+        )
+        val markers = TrackLogExport.markers(events)
+        val pauses = markers.filter { it.kind == EventKind.PAUSE }
+        assertEquals(1, pauses.size)
+        assertEquals(47.52, pauses.single().event.latitude, 0.0)
+        assertEquals(19.07, pauses.single().event.longitude, 0.0)
+        val path = TrackLogExport.path(events)
+        val pauseVertex = path.single { it.kind == EventKind.PAUSE && it.latitude == 47.52 }
+        assertEquals(pauseVertex.latitude, pauses.single().event.latitude, 0.0)
+        assertEquals(pauseVertex.longitude, pauses.single().event.longitude, 0.0)
+        assertEquals("Pause", pauses.single().kind.kmlPlacemarkName())
+        assertEquals(1, markers.count { it.kind == EventKind.STOP })
+        assertFalse(markers.any { it.kind == EventKind.PAUSE && it.event.latitude == 47.53 })
+    }
+
+    @Test
+    fun pauseAtStartIsDropped() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.PAUSE, 47.50, 19.05, 500),
+            event(EventKind.MOVE, 47.51, 19.06, 1_000)
+        )
+        val markers = TrackLogExport.markers(events)
+        assertFalse(markers.any { it.kind == EventKind.PAUSE })
+        assertEquals(1, markers.count { it.kind == EventKind.START })
+    }
+
+    @Test
+    fun consecutivePausesCollapseToTheFirstOfTheStandstill() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.51, 19.06, 1_000),
+            event(EventKind.PAUSE, 47.52, 19.07, 2_000),
+            event(EventKind.PAUSE, 47.52001, 19.07001, 3_000),
+            event(EventKind.PAUSE, 47.52002, 19.07002, 4_000),
+            event(EventKind.MOVE, 47.53, 19.08, 5_000)
+        )
+        val pauses = TrackLogExport.markers(events).filter { it.kind == EventKind.PAUSE }
+        assertEquals(1, pauses.size)
+        assertEquals(47.52, pauses.single().event.latitude, 0.0)
+        assertEquals(2_000L, pauses.single().event.timestampMillis)
+    }
+
+    @Test
+    fun singleStopOnlySessionKeepsThatPointAsThePath() {
+        val events = listOf(event(EventKind.STOP, 47.50, 19.05, 0))
+        val path = TrackLogExport.path(events)
+        assertEquals(1, path.size)
+        val markers = TrackLogExport.markers(events)
+        assertEquals(1, markers.count { it.kind == EventKind.START })
+        assertEquals(1, markers.count { it.kind == EventKind.STOP })
+        assertEquals(47.50, markers.single { it.kind == EventKind.STOP }.event.latitude, 0.0)
+    }
+
+    @Test
+    fun builtStopBalloonHasStopNameAvgMaxAndTempNa() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0, speed = 5f),
+            event(EventKind.MOVE, 47.51, 19.06, 60_000, speed = 8f),
+            event(EventKind.STOP, 47.90, 19.40, 61_000, speed = 0f)
+        )
+        val track = KmlTrackBuilder.build("GTL ride", events, MeasurementSystem.METRIC)
+        val stop = track.placemarks.single { it.kind == EventKind.STOP }
+        assertEquals("Stop", stop.name)
+        assertFalse(stop.name.equals("Pause", ignoreCase = true))
+        assertEquals(track.points.last().point.latitude, stop.point.latitude, 0.0)
+        assertEquals(track.points.last().point.longitude, stop.point.longitude, 0.0)
+        assertTrue(stop.description.contains("temp=N/A"))
+        assertTrue(stop.description.contains("Avg. Speed:"))
+        assertTrue(stop.description.contains("Max speed:"))
+        assertTrue(stop.description.contains("Altitude:"))
+        assertFalse(stop.description.lines().any { it.startsWith("Speed:") })
+        assertTrue(stop.description.contains("duration=1 min"))
+        assertTrue(stop.description.contains("distance="))
+        assertEquals(10, stop.drawOrder)
+        assertTrue(track.placemarks.none { it.name == "Pause" && it.kind == EventKind.STOP })
+    }
+
+    private fun event(
+        kind: EventKind,
+        lat: Double,
+        lon: Double,
+        time: Long,
+        speed: Float = 5f
+    ): TrackLogEvent {
+        return TrackLogEvent(
+            timestampMillis = time,
+            latitude = lat,
+            longitude = lon,
+            altitude = 120.0,
+            speedMps = speed,
+            kind = kind
+        )
+    }
+}
+
+class GpxExporterTest {
+    companion object {
+        private const val SAMPLE_TIME = 1_725_500_000_000L
+    }
+
+    @Test
+    fun writesCoreGpxTrackPoint() {
+        val gpx = sampleGpx()
+        assertTrue(gpx.contains("""<?xml version="1.0" encoding="UTF-8"?>"""))
+        assertTrue(gpx.contains("""<gpx version="1.1" creator="GTL" xmlns="http://www.topografix.com/GPX/1/1">"""))
+        assertTrue(gpx.contains("""<trkpt lat="47.5" lon="19.05">"""))
+        assertTrue(gpx.contains("<ele>120.0</ele>"))
+        assertTrue(gpx.contains("<time>2024-09-05T01:33:20Z</time>"))
+        assertFalse(gpx.contains("speed"))
+        assertFalse(gpx.contains("gpxtpx"))
+    }
+
+    @Test
+    fun writesStartAndStopWaypoints() {
+        val gpx = sampleGpx()
+        assertTrue(gpx.contains("<wpt lat=\"47.5\" lon=\"19.05\">"))
+        assertTrue(gpx.contains("<name>START</name>"))
+        assertTrue(gpx.contains("<name>STOP</name>"))
+        assertTrue(gpx.contains("<trkseg>"))
+        assertEquals(1, "<trkseg>".toRegex().findAll(gpx).count())
+    }
+
+    @Test
+    fun escapesTrackName() {
+        val gpx = sampleGpx()
+        assertTrue(gpx.contains("<name>Ride &lt;1&gt;</name>"))
+    }
+
+    @Test
+    fun writesMultipleTracksInOneFile() {
+        val gpx = GpxExporter.export(
+            GpxDocument(
+                tracks = listOf(
+                    GpxTrack(
+                        name = "Morning",
+                        points = listOf(
+                            GpxTrackPoint(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME)
+                        ),
+                        waypoints = emptyList()
+                    ),
+                    GpxTrack(
+                        name = "Evening",
+                        points = listOf(
+                            GpxTrackPoint(GeoPoint(47.6, 19.1, 130.0), SAMPLE_TIME)
+                        ),
+                        waypoints = emptyList()
+                    )
+                )
+            )
+        )
+        assertEquals(2, "<trk>".toRegex().findAll(gpx).count())
+        assertTrue(gpx.contains("<name>Morning</name>"))
+        assertTrue(gpx.contains("<name>Evening</name>"))
+    }
+
+    private fun sampleGpx(): String {
+        return GpxExporter.export(
+            GpxDocument(
+                tracks = listOf(
+                    GpxTrack(
+                        name = "Ride <1>",
+                        points = listOf(
+                            GpxTrackPoint(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME),
+                            GpxTrackPoint(GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000)
+                        ),
+                        waypoints = listOf(
+                            GpxWaypoint("START", GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME),
+                            GpxWaypoint("STOP", GeoPoint(47.51, 19.06, 125.0), SAMPLE_TIME + 1000)
+                        )
+                    )
+                )
+            )
+        )
     }
 }
 
@@ -1007,6 +1322,15 @@ class TrackStatsCalculatorTest {
         assertEquals(18.0f, stats.temperatureRange?.minCelsius)
         assertEquals(21.5f, stats.temperatureRange?.maxCelsius)
         assertEquals(10_000L, stats.elapsedMillis)
+        val along = TrackStatsCalculator.cumulativeOdometerMeters(
+            listOf(
+                GeoPoint(47.0, 19.0, 100.0),
+                GeoPoint(47.001, 19.0, 110.0)
+            )
+        )
+        assertEquals(2, along.size)
+        assertEquals(0.0, along[0], 0.0)
+        assertEquals(stats.odometerMeters, along[1], 0.0)
     }
 }
 
@@ -1610,5 +1934,203 @@ class FixCloudBufferTest {
             accuracyMeters = accuracy,
             speedMps = speedMps
         )
+    }
+}
+
+class BaroAltitudeTest {
+    @Test
+    fun standardPressureIsSeaLevel() {
+        val meters = BaroAltitude.metersFromPressureHpa(BaroAltitude.StandardAtmosphereHpa)
+        assertEquals(0.0, meters ?: Double.NaN, 0.5)
+    }
+
+    @Test
+    fun lowerPressureIsHigherAltitude() {
+        val meters = BaroAltitude.metersFromPressureHpa(850f)
+        assertTrue((meters ?: 0.0) > 1000.0)
+    }
+
+    @Test
+    fun nonPositivePressureIsNull() {
+        assertEquals(null, BaroAltitude.metersFromPressureHpa(0f))
+        assertEquals(null, BaroAltitude.metersFromPressureHpa(-10f))
+    }
+}
+
+class CompassHeadingTest {
+    @Test
+    fun magIgnoresDeclination() {
+        val shown = CompassHeading.display(87f, wantTrue = false, declinationDegrees = 5.4f)
+        assertEquals(87f, shown.degrees, 0.01f)
+        assertFalse(shown.trueNorth)
+        assertFalse(shown.missingFix)
+    }
+
+    @Test
+    fun trueAddsDeclination() {
+        val shown = CompassHeading.display(87f, wantTrue = true, declinationDegrees = 5f)
+        assertEquals(92f, shown.degrees, 0.01f)
+        assertTrue(shown.trueNorth)
+        assertFalse(shown.missingFix)
+    }
+
+    @Test
+    fun trueWrapsPast360() {
+        val shown = CompassHeading.display(358f, wantTrue = true, declinationDegrees = 5f)
+        assertEquals(3f, shown.degrees, 0.01f)
+        assertTrue(shown.trueNorth)
+    }
+
+    @Test
+    fun trueWrapsNegativeDeclination() {
+        val shown = CompassHeading.display(10f, wantTrue = true, declinationDegrees = -15f)
+        assertEquals(355f, shown.degrees, 0.01f)
+        assertTrue(shown.trueNorth)
+    }
+
+    @Test
+    fun trueWithoutFixStaysMag() {
+        val shown = CompassHeading.display(87f, wantTrue = true, declinationDegrees = null)
+        assertEquals(87f, shown.degrees, 0.01f)
+        assertFalse(shown.trueNorth)
+        assertTrue(shown.missingFix)
+    }
+
+    @Test
+    fun figureEightOnLowAndUnreliable() {
+        assertTrue(CompassHeading.needsFigureEight(0))
+        assertTrue(CompassHeading.needsFigureEight(1))
+        assertTrue(CompassHeading.needsFigureEight(-1))
+        assertFalse(CompassHeading.needsFigureEight(2))
+        assertFalse(CompassHeading.needsFigureEight(3))
+    }
+}
+
+class MapHudVisibilityTest {
+    @Test
+    fun fullWhileLogging() {
+        assertEquals(MapHudMode.Full, MapHudVisibility.mode(true, null, true))
+        assertEquals(MapHudMode.Full, MapHudVisibility.mode(true, 12L, true))
+    }
+
+    @Test
+    fun hiddenWhenViewingSavedTrackIdle() {
+        assertEquals(MapHudMode.Hidden, MapHudVisibility.mode(false, 12L, true))
+    }
+
+    @Test
+    fun compactWhenIdleWithFix() {
+        assertEquals(MapHudMode.Compact, MapHudVisibility.mode(false, null, true))
+    }
+
+    @Test
+    fun hiddenWhenIdleWithoutFix() {
+        assertEquals(MapHudMode.Hidden, MapHudVisibility.mode(false, null, false))
+    }
+}
+
+class UnitsHudTest {
+    @Test
+    fun hudSpeedUsesSettingsUnits() {
+        assertEquals("36", Units.hudSpeedNumber(10f, MeasurementSystem.METRIC))
+        assertEquals("km/h", Units.hudSpeedUnit(MeasurementSystem.METRIC))
+        assertEquals("mph", Units.hudSpeedUnit(MeasurementSystem.IMPERIAL))
+        assertEquals("kt", Units.hudSpeedUnit(MeasurementSystem.ICAO))
+    }
+}
+
+class ElevationSeriesTest {
+    @Test
+    fun accumulatesDistanceAndKeepsAltitudes() {
+        val samples = ElevationSeries.fromPoints(
+            listOf(
+                ElevationPoint(47.0, 19.0, 100.0, 98.0),
+                ElevationPoint(47.001, 19.0, 120.0, 119.0)
+            )
+        )
+        assertEquals(2, samples.size)
+        assertEquals(0.0, samples[0].distanceMeters, 0.01)
+        assertTrue(samples[1].distanceMeters > 100.0)
+        assertEquals(120.0, samples[1].gpsAltitude, 0.0)
+        assertEquals(119.0, samples[1].baroAltitude ?: 0.0, 0.0)
+        assertTrue(ElevationSeries.hasBaroLine(samples))
+    }
+
+    @Test
+    fun downsampleKeepsFirstAndLast() {
+        val points = (0 until 500).map { index ->
+            ElevationPoint(47.0 + index * 0.0001, 19.0, 100.0 + index, null)
+        }
+        val samples = ElevationSeries.downsample(ElevationSeries.fromPoints(points), 200)
+        assertEquals(200, samples.size)
+        assertEquals(100.0, samples.first().gpsAltitude, 0.0)
+        assertEquals(599.0, samples.last().gpsAltitude, 0.0)
+        assertFalse(ElevationSeries.hasBaroLine(samples))
+    }
+}
+
+class TrackInspectDumpTest {
+    @Test
+    fun countsBaroAndUsesDashForMissingValues() {
+        val dump = TrackInspectDump.format(
+            sessionId = 12,
+            startedAt = 1_000L,
+            stoppedAt = 2_000L,
+            usageType = "TWO_WHEELERS",
+            measurementSystem = "METRIC",
+            events = listOf(
+                TrackInspectEvent(
+                    id = 1,
+                    timestampMillis = 1_000L,
+                    latitude = 47.5,
+                    longitude = 19.05,
+                    altitude = 120.0,
+                    speedMps = 5.5f,
+                    bearing = 90f,
+                    accuracy = 4f,
+                    satellitesInFix = 12,
+                    ambientTemperature = null,
+                    accelX = null,
+                    accelY = null,
+                    accelZ = null,
+                    leanAngle = null,
+                    usageType = "TWO_WHEELERS",
+                    isPlacemark = true,
+                    eventKind = "START",
+                    baroAltitude = 108.0,
+                    pressureHpa = 1001.2f
+                ),
+                TrackInspectEvent(
+                    id = 2,
+                    timestampMillis = 2_000L,
+                    latitude = 47.51,
+                    longitude = 19.06,
+                    altitude = 125.0,
+                    speedMps = 0f,
+                    bearing = 0f,
+                    accuracy = 5f,
+                    satellitesInFix = 11,
+                    ambientTemperature = null,
+                    accelX = null,
+                    accelY = null,
+                    accelZ = null,
+                    leanAngle = null,
+                    usageType = "TWO_WHEELERS",
+                    isPlacemark = true,
+                    eventKind = "STOP",
+                    baroAltitude = null,
+                    pressureHpa = null
+                )
+            )
+        )
+        assertTrue(dump.contains("sessionId=12"))
+        assertTrue(dump.contains("points=2"))
+        assertTrue(dump.contains("baroNonNull=1"))
+        assertTrue(dump.contains("pressureNonNull=1"))
+        assertTrue(dump.contains("tempNonNull=0"))
+        assertTrue(dump.contains("108.000000"))
+        assertTrue(dump.contains("1001.200"))
+        val stopLine = dump.lineSequence().first { it.startsWith("2\t") }
+        assertTrue(stopLine.contains("\t-\t-\t"))
     }
 }

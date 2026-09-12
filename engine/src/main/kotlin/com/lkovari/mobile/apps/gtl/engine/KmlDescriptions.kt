@@ -6,46 +6,54 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object KmlDescriptions {
-    private val balloonTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'", Locale.US)
+    private val balloonTime = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss", Locale.US)
 
     fun balloon(
         kind: EventKind,
         timestampMillis: Long,
         latitude: Double,
         longitude: Double,
+        altitude: Double,
+        baroAltitude: Double? = null,
         speedMps: Float,
         tempCelsius: Float?,
         maxSpeedMps: Float? = null,
         averageSpeedMps: Float? = null,
         elapsedMillis: Long = 0L,
-        system: MeasurementSystem = MeasurementSystem.METRIC,
-        leanAngle: Float? = null,
-        usageType: String? = null
+        odometerMeters: Double = 0.0,
+        system: MeasurementSystem = MeasurementSystem.METRIC
     ): String {
-        val speed = if (kind == EventKind.PAUSE || kind == EventKind.STOP) {
-            formatSpeed(0f, system)
+        val temp = if (tempCelsius == null) {
+            "N/A"
         } else {
-            formatSpeed(speedMps, system)
+            Units.formatTemperature(tempCelsius, system)
         }
-        val temp = tempCelsius?.toString() ?: "-"
-        val lines = mutableListOf("time=${formatTime(timestampMillis)}")
-        if (
-            (kind == EventKind.START || kind == EventKind.PAUSE || kind == EventKind.STOP) &&
-            !usageType.isNullOrBlank()
-        ) {
-            lines.add("usage=$usageType")
+        val baro = if (baroAltitude == null) {
+            "N/A"
+        } else {
+            Units.formatAltitude(baroAltitude, system)
         }
-        lines.add("lat=${formatCoord(latitude)}")
-        lines.add("lon=${formatCoord(longitude)}")
-        lines.add("speed=$speed")
-        lines.add("temp=$temp")
-        if (leanAngle != null) {
-            lines.add("lean=${String.format(Locale.US, "%.1f", leanAngle)}")
-        }
-        if (kind == EventKind.STOP) {
-            lines.add("Duration: ${formatSessionDuration(elapsedMillis)}")
-            lines.add("Avg. speed: ${formatIntegerSpeed(averageSpeedMps ?: 0f, system)}")
-            lines.add("Max. speed: ${formatIntegerSpeed(maxSpeedMps ?: 0f, system)}")
+        val lines = mutableListOf(
+            formatTime(timestampMillis),
+            "temp=$temp",
+            "lon=${formatCoord(longitude)}",
+            "lat=${formatCoord(latitude)}",
+            "Altitude: ${Units.formatAltitude(altitude, system)}",
+            "Baro: $baro"
+        )
+        when (kind) {
+            EventKind.PAUSE -> {
+                lines.add("Speed: ${Units.formatSpeed(speedMps, system)}")
+                lines.add("duration=${Units.formatBalloonDuration(elapsedMillis)}")
+                lines.add("distance=${Units.formatDistance(odometerMeters, system)}")
+            }
+            EventKind.STOP -> {
+                lines.add("Avg. Speed: ${Units.formatSpeed(averageSpeedMps ?: 0f, system)}")
+                lines.add("Max speed: ${Units.formatSpeed(maxSpeedMps ?: 0f, system)}")
+                lines.add("duration=${Units.formatBalloonDuration(elapsedMillis)}")
+                lines.add("distance=${Units.formatDistance(odometerMeters, system)}")
+            }
+            EventKind.START, EventKind.MOVE -> Unit
         }
         return lines.joinToString("\n")
     }
@@ -56,33 +64,5 @@ object KmlDescriptions {
 
     private fun formatCoord(value: Double): String {
         return String.format(Locale.US, "%.6f", value)
-    }
-
-    private fun formatSpeed(metersPerSecond: Float, system: MeasurementSystem): String {
-        return when (system) {
-            MeasurementSystem.METRIC -> String.format(Locale.US, "%.1f km/h", metersPerSecond * 3.6f)
-            MeasurementSystem.IMPERIAL -> String.format(Locale.US, "%.1f mph", metersPerSecond * 2.2369363f)
-            MeasurementSystem.ICAO -> String.format(Locale.US, "%.1f kt", metersPerSecond * 1.9438445f)
-        }
-    }
-
-    private fun formatSessionDuration(elapsedMillis: Long): String {
-        val totalSeconds = (elapsedMillis / 1000).coerceAtLeast(0)
-        return when {
-            totalSeconds <= 60L -> "$totalSeconds s"
-            totalSeconds < 3600L -> "${totalSeconds / 60} min"
-            else -> Units.formatDuration(elapsedMillis)
-        }
-    }
-
-    private fun formatIntegerSpeed(metersPerSecond: Float, system: MeasurementSystem): String {
-        return when (system) {
-            MeasurementSystem.METRIC ->
-                "${Math.round(metersPerSecond * 3.6f)} km/h"
-            MeasurementSystem.IMPERIAL ->
-                "${Math.round(metersPerSecond * 2.2369363f)} mile/h"
-            MeasurementSystem.ICAO ->
-                "${Math.round(metersPerSecond * 1.9438445f)} kt"
-        }
     }
 }

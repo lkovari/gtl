@@ -2,7 +2,7 @@
 
 [English](README-en.md) · [Magyar](README-hu.md)
 
-Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. KMZ-t (KML + ikonok) oszthatsz meg Google Earth-tel vagy más térképalkalmazással. A mi szerverünkre semmi nem kerül fel.
+Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. KMZ-t (KML + ikonok) oszthatsz meg Google Earth-tel, vagy GPX 1.1 fájlt OsmAnd, Komoot, Garmin Connect, QGIS és más appokkal. A mi szerverünkre semmi nem kerül fel.
 
 A 2014-es Eclipse-app (`gtl-e`) Kotlin + Jetpack Compose újraírása. Alkalmazásazonosító: `com.lkovari.mobile.apps.gtl`.
 
@@ -22,7 +22,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - A fixek csak akkor tárolódnak, ha átmennek a pontossági és műholdszám-kapun. Opcionális **Kalman**-simítás utána elmozdítja a pontot. Az **Okos** vagy **Minden jó fix** sűrűség dönti el, hogy beíródik-e (lásd Beállítások). Futónál az alap: **Csak GNSS** (műholdchip, nem fused hely) simítás nélkül, hogy a kis úttest-alakzatok megmaradjanak a tracklogban. Teljes lánc: [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - Eseménytípusok: `START`, `MOVE`, `PAUSE` (a usage pauza-sebesség alatt), `STOP`.
 - Használati módok: repülő, hajó, autó, motor (alap), kerékpár, futó. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A futó és a kerékpár lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
-- Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), gyorsulásmérő-minták és dőlésszög (gravitáció, tankra szerelve) minden letárolt ponton.
+- Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), barometrikus magasság (`TYPE_PRESSURE`, ISA, üres ha nincs szenzor), gyorsulásmérő-minták és dőlésszög (gravitáció, tankra szerelve) minden letárolt ponton.
 
 
 
@@ -37,7 +37,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Útvonal fül
 
-Az Indítás utáni összesítők: eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor.
+Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta).
 
 ### Térkép fül
 
@@ -46,6 +46,7 @@ Az Indítás utáni összesítők: eltelt idő, út, mozgás ideje, várakozás 
 - **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
 - **OSM Mapsforge**, ha letöltöttél egy régiót, és bekapcsoltad a **Letöltött OSM térkép használata** kapcsolót. Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
+- **HUD** mindkét térképmotor fölött: nagy sebesség (a Beállítások mértékegysége), pontosság, GNSS used/in view. Naplózáskor: út, eltelt idő, pulzáló REC. Idle GPS-fixszel: halkított panel bal lent. Mentett tracknél, ha nincs naplózás, rejtve.
 - Kis piros sziluett a helyeden (repülő, hajó, autó, motor, kerékpár, futó — ugyanaz, mint a Beállításokban). Álló portrén vízszintesen marad. Az északjelző mindig a térképen van.
 - Ha mentett track látszik és nincs naplózás, a bal felső seprő leveszi a vonalat a térképről, a logot nem törli. Indítás vagy Mentett útvonalak → Térképen újra kirajzol.
 - Douglas–Peucker egyszerűsítés a kirajzolt vonalon, ha az **Útvonal egyszerűsítése a térképen** be van (lásd lent). Az SQLite, az Útvonal összesítők és a KMZ soha nem egyszerűsödik.
@@ -54,29 +55,39 @@ Az Indítás utáni összesítők: eltelt idő, út, mozgás ideje, várakozás 
 
 ### Iránytű fül
 
-Mágneses irány és élő tárcsa a forgásérzékelőből. Indítás nélkül is működik.
+Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak = MAG + a last GPS-fix deklinációja). MAG / TRUE ezen a fülön, alap MAG, nem kötődik a usage-hez. GPS-fix nélkül a TRUE MAG marad, Nincs GPS. Alacsony magnetométer-pontosságnál „8-as a levegőben” a dial alatt. Forgó rózsa, rögzített lubber, MAG vagy TRUE plusz háromjegyű heading középen. Indítás nélkül is működik.
 
 ### Mentett útvonalak
 
 - Munkamenetek listája dátummal, használattal, mértékegységgel.
 - **Térképen** a Térkép fület nyitja azon a munkameneten (Google Maps vagy OSM), a sessionben tárolt használati módot beírja a Beállításokba, és azzal rajzolja. Utána a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot. A következő Indít a kiválasztott Beállításokat követi. A seprő leveszi a vonalat, a munkamenetet nem törli.
-- Törlés.
-- Jelölőnégyzetek, **Összes kijelölése**, **Kijelöltek megosztása**:
-  - egy munkamenet → egy KMZ, neve `GTL_yyyyMMdd_HHmmss.kmz`
-  - több munkamenet → egy KMZ, trackenként egy mappával
+- **Magasság** GPS-magasság × távolság chartot nyit (szaggatott baro vonal, ha van minta).
+- **Törlés** minden sessionnél (keskeny kijelzőn a Magasság alá tör). Megerősítés után cascade-törli a SQLite sessiont és a pontjait.
+- Jelölőnégyzetek, **Összes kijelölése**, **Kijelöltek megosztása** → KMZ vagy GPX:
+  - egy munkamenet → `GTL_yyyyMMdd_HHmmss.kmz` vagy `.gpx`
+  - több munkamenet → egy KMZ trackenként mappával, vagy egy GPX több `<trk>`-kel
 
 
 
 ### KMZ export
 
-- Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0).
-- Minden letárolt GPS-pont egy `gx:Track`-en van (`when`, lon/lat/alt, speed).
-- START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva):
-  - Mindhárom: `time=` (UTC), `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle vagy Runner), `lat=`, `lon=`, `speed=`, `temp=`, és `lean=` ha volt dőlésszög.
-  - Pause és stop `speed=0`-t kényszerít.
-  - Stop-nál még: `Duration:` (`20 s`, ha 60 másodperc vagy kevesebb, egész perc 60 perc alatt, különben `HH:MM:SS`), `Avg. speed:` és `Max. speed:` egész számként a `TrackStatsCalculator`-ból (metrikus `km/h`, angolszász `mile/h`, ICAO `kt`).
+- Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0). A vonal és az ikonok `clampToGround`, hogy a Google Earth-ben ugyanazon a tracken üljenek.
+- A vonal a letárolt log; a session végét jelölő STOP sor nem lesz extra horog. A Stop ikon az utolsó path-csúcson van. A Pause ikon a pauza-csúcson van (állásonként egy; Start/Stop átfedésnél elmarad).
+- START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva). A placemark neve **Start**, **Pause**, **Stop**. A leírás HTML (`<br/>`), hogy az Earth details minden mezőt mutasson. Az idő UTC, nincs `time=` előtag és nincs `UTC` utótag. A mértékegység a Beállításokat követi (metrikus: km/h, m / km, °C; angolszász: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). A balloonban **nincs** `usage=` és `lean=`.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A`, ha nincs szenzorminta), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (ISA a barométerből, vagy `N/A`). Nincs Speed / Avg. Speed / Max speed / duration / distance.
+  - **Pause:** ugyanazok a sorok, plusz `Speed:` (pillanatnyi GPS-sebesség a pauza-soron), `duration=` (másodperc, ha 60 s vagy kevesebb, egész perc 60 perc alatt, különben `HH:MM:SS` a Starttól), és `distance=` az addigi út a kiválasztott mértékegységben. Nincs Avg. Speed / Max speed.
+  - **Stop:** ugyanazok a sorok, plusz `Avg. Speed:` és `Max speed:` (egy tizedes) a `TrackStatsCalculator`-ból a pathon, majd `duration=` és `distance=` a teljes sessionre. Nincs pillanatnyi `Speed:`.
+- Minden `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `baro` (ISA méter, üres ha nincs minta). A `gx:coord` magasság GPS marad.
 - MIME `application/vnd.google-earth.kmz`. Nyisd meg Google Earth-tel (ha kell, telepítsd a Play Áruházból).
-- A súgó **KMZ/KML megtekintése** felsorolja ezeket a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
+- A súgó **KMZ és GPX megosztása** felsorolja a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
+
+### GPX export
+
+- GPX 1.1 mag: sessionenként egy `<trk>` / egy `<trkseg>` (az auto-PAUSE nem darabolja a vonalat). A záró STOP marker nem lesz extra `<trkpt>`.
+- Minden letárolt pont `<trkpt>`: `lat`, `lon`, `<ele>` (GPS-magasság), `<time>` (UTC). Nincs speed-kiterjesztés, hogy az OsmAnd, Komoot, Garmin Connect, Relive és QGIS be tudja olvasni.
+- START / PAUSE / STOP `<wpt>` neve Start, Pause, Stop. A Stop waypoint az utolsó path-pont (ugyanaz a pattinás, mint a KMZ).
+- Több kijelölt session → egy `.gpx` több `<trk>`-kel. Fájlnév `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
+- Mentett útvonalak → Kijelöltek megosztása → KMZ vagy GPX.
 
 
 
@@ -103,6 +114,7 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 - **Útvonal egyszerűsítése a térképen** — kevesebb csúcs csak a Térképen. A kapcsoló bekapcsolva **1–20 m** csúszka (1 m-es lépés). A KMZ és az odométer minden letárolt pontot megtart.
 - **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad. A seprő leveszi a kirajzolt mentett tracket, a logot nem törli.
 - **Teljes útvonal a képernyőn** — naplózáskor minden GPS-frissítés a teljes nyomvonalat a képernyőre illeszti. A nagyítás és mozgatás a következő fixig megengedett.
+- **Képernyő bekapcsolva naplózáskor** — alapból ki. Csak felvétel alatt tartja ébren a kijelzőt (tankra szerelt telefon).
 - **Pontossági jelzés megjelenítése** — világos lila kör; a sugár a GPS pontossága. A HUD a nyers helyen marad (chip vagy fused).
 - **Pontfelhő** — pasztell magenta pöttyök a nyers GPS-fixekből, amíg állsz, plusz magenta CEP95-kör a felhő centroidján. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem íródik a naplóba és a KMZ-be.
 - **Csak GNSS** — műholdchip-pozíciók fused hely helyett. Futónál és kerékpárnál be; járműveknél ki.
@@ -129,7 +141,7 @@ Két Gradle-modul:
 
 | Modul     | Szerep                                                                                                                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Tiszta JVM: GNSS-osztályozás, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, térkép-láthatósági szabályok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
+| `:engine` | Tiszta JVM: GNSS-osztályozás, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, iránytű MAG/TRUE heading, magasságprofil, térkép-láthatósági szabályok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
 | `:app`    | Android: Compose UI, Room, DataStore, hely/GNSS/szenzorok, előtér-szolgáltatás, Google Maps, Mapsforge, WorkManager OSM-letöltés, FileProvider megosztás.                            |
 
 
@@ -165,7 +177,7 @@ Indít
   → sűrűségkapu (Okos / Minden jó / keverék) — ez ír vagy kihagy
   → SQLite gps_events (START / MOVE / PAUSE)
 Leállít
-  → STOP placemark (utolsó Kalman-pont, ha a simítás be van, különben az utolsó nyers fix)
+  → STOP placemark (utolsó **elfogadott** letárolt pont, hogy az ikon a tracklog végén legyen)
   → Térkép / Útvonal / KMZ mind a Room-ot olvassa
 ```
 
@@ -189,7 +201,7 @@ Leállít
 
 **Eseménytípus.** Írás után: `START` az első ponton; `PAUSE`, ha a sebesség a usage pauza-küszöb alatt van (0,25 m/s futó, 0,4 m/s járművek); különben `MOVE`. Opcionális környezeti hőmérséklet, utolsó gyorsulásmérő XYZ és dőlésszög (gravitáció, tankra szerelve) a sorra másolódik. Az iránytű azimutja csak HUD, nem tárolódik.
 
-**Leállítás.** Mindig ír egy `STOP` placemarkot (`isPlacemark` true), még ha a sűrűség eldobná is a pontot. Simítás bekapcsolva az a sor az utolsó Kalman-kimenetet használja, hogy a track vége a simított vonallal egyezzen.
+**Leállítás.** Mindig ír egy `STOP` sort (`isPlacemark` true), még ha a sűrűség eldobná is a pontot. A koordináta az utolsó **elfogadott** letárolt fix (nem a nyers HUD-fix, ami pár méterre lehet a logtól). A KMZ/GPX a Stop ikont erre az utolsó path-csúcsra teszi.
 
 **Térképrajzolás.** A `GtlViewModel` a Room-sorokat `displayPoints`-re képezi. A `MapTrackVisibility` akkor mutatja a vonalat, ha naplózás megy, ha az **Utolsó naplózott útvonal a térképen** be van, vagy ha Mentett útvonalak-munkamenet van kiválasztva — hacsak a seprő `mapCleared`-et nem állított (csak idle; naplózáskor akkor is rajzol). Ha az **Útvonal egyszerűsítése a térképen** be van, és több mint 4 pont van, a Douglas–Peucker **csak ezeket a megjelenítési csúcsokat** ritkítja az 1–20 m csúszkán. Az SQLite, az Útvonal-odométer és a KMZ soha nem megy DP-n. Egyszerűsítés **ki** (futó és kerékpár alap) esetén minden letárolt csúcs a térképen van — ezért marad látható egy kis úttest-hurok.
 
@@ -237,7 +249,7 @@ A pontossági és műhold kapuk továbbra is eldobják a rossz fixeket. Ez **nem
 2. Eldobja a fixet, ha a pontosság a usage kapunál rosszabb (30 m, futónál és kerékpárnál 45 m), vagy a fixben lévő műholdak száma 4 alatt van. Az elutasított fixek nem jutnak Kalmanba és SQLite-ba.
 3. Ha a **Rögzített útvonal simítása** be van, lefut a `KalmanTrackFilter.observe`. A szűrő új lat/lon-t ad. Az időbélyeg, magasság, pontosság és műholdszám a GPS-fixé marad. A sebesség és az irányszög a szűrő sebességéből jön, ha az legalább 0,3 m/s. Futó/gyalogos extra helyzet-folyamat-zajt kap, hogy egy 5 m-es hurok ne húzódjon a húrra.
 4. A **Rögzítés sűrűsége** (`FixAcceptance`) dönti el, hogy ezt az (esetleg simított) pontot **beírja-e**. Ha a hézag túl kicsi, a Kalman-állapot ettől még frissül, de a Room nem kap sort.
-5. Leállításkor az utolsó Kalman-kimenet a STOP pont, ha a simítás be van.
+5. Leállításkor a STOP sor az utolsó **elfogadott** letárolt pont, hogy a Térkép, a KMZ és a GPX a logon végződjön.
 
 Tehát a Kalman azt változtatja, **hol** ülnek a letárolt pontok. A sűrűség azt, **hány** van belőlük. A térkép-egyszerűsítés **egyiket sem** — csak a Térképen kirajzolt polyline-t ritkítja.
 
@@ -268,7 +280,7 @@ Ezek a vezérlők változtatják a SQLite `gps_events` táblát, az Útvonal odo
 | **Útvonal egyszerűsítése a térképen** (1–20 m csúszka)                 | **Nem**                         | Kevesebb csúcs csak a Térkép fülön. A letárolt pontok, az odométer és a KMZ változatlan.                                                                                                                                                                                                                                                                                                             |
 | **Pontossági jelzés megjelenítése**                                    | **Nem**                         | Világos lila kör a **nyers** GPS-fixen, akkor is, ha a Kalman be van.                                                                                                                                                                                                                                                                                                                                     |
 | **Pontfelhő**                                                          | **Nem**                         | Pasztell magenta pöttyök a nyers HUD-fixekből állva, CEP95 a centroid körül. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem tárolódik.                                                                                                                                                                          |
-| **Mértékegység**                                                       | Csak címkék                     | Metrikus / angolszász / ICAO formázza az Útvonalat és a KMZ balloonokat. A koordináták WGS-84 maradnak. A repülő és hajó előbeállítás ICAO-t választ.                                                                                                                                                                                                                                                |
+| **Mértékegység**                                                       | Csak címkék                     | Metrikus / angolszász / ICAO formázza az Útvonalat és a KMZ balloonokat (metrikus km/h, m, °C; angolszász mph, ft, °F; ICAO kt, ft, °C). A koordináták WGS-84 maradnak. A repülő és hajó előbeállítás ICAO-t választ.                                                                                                                                                                                                                                                |
 | Pontossági / műhold kapuk                                              | Igen (elutasítás)               | A 30 m-nél (futónál és kerékpárnál 45 m) rosszabb, vagy 4-nél kevesebb műholdas fix Kalman előtt eldobódik. Nincs Settings-csúszkaként megjelenítve.                                                                                                                                                                                                                                                                |
 
 
@@ -367,7 +379,10 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../SpeedAdaptiveSpacing.kt` — méter a pontok között km/h és kanyar szerint
 - `engine/.../DouglasPeucker.kt` — csak térképes polyline-egyszerűsítés (méter, helyi vetület)
 - `engine/.../TrackStats.kt` — odométer, mozgás vs várakozás
-- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ helyi ikonokkal
+- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ helyi ikonokkal, clampToGround, HTML balloon
+- `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (dátumidő, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
+- `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markerek KMZ-hez és GPX-hez
+- `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
 - `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR
 - `engine/.../FixCloud.kt` — memóriabeli állóhelyi pontfelhő / CEP95
 - `engine/.../MapDisplayUsage.kt` — melyik usage és egyszerűsítés szerint rajzol a térkép
@@ -401,7 +416,6 @@ Telefon listing méret: 1080×1920, 24 bites PNG, nincs alfa (Play 9:16). Ezzel 
 
 ## Következő teendők
 
-- GPX export megvalósítása. A GPX (GPS Exchange Format) a legelterjedtebb GPS tracklog-csereformátum.
 - Világos és sötét téma
 
 ---

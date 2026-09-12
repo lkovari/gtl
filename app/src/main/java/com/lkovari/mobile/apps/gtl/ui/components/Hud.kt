@@ -20,8 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -35,8 +40,12 @@ import com.lkovari.mobile.apps.gtl.engine.GnssSnapshot
 import com.lkovari.mobile.apps.gtl.engine.SignalQuality
 import com.lkovari.mobile.apps.gtl.ui.theme.AmberFix
 import com.lkovari.mobile.apps.gtl.ui.theme.CarmineTrack
+import com.lkovari.mobile.apps.gtl.ui.theme.Cockpit
 import com.lkovari.mobile.apps.gtl.ui.theme.GnssLime
+import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.HudTeal
+import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
+import com.lkovari.mobile.apps.gtl.ui.theme.NightInk
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -229,36 +238,87 @@ fun HudMetric(label: String, value: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CompassDial(azimuth: Float, modifier: Modifier = Modifier) {
-    val needle = MaterialTheme.colorScheme.tertiary
-    val ring = MaterialTheme.colorScheme.primary
+fun CompassDial(azimuth: Float, referenceLabel: String, modifier: Modifier = Modifier) {
+    val dark = MaterialTheme.colorScheme.background == Cockpit
+    val bezel = if (dark) HudCyan else HudTeal
+    val cardinal = if (dark) MoonCream else NightInk
     val tick = MaterialTheme.colorScheme.onSurfaceVariant
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxWidth().height(260.dp)) {
-            val radius = size.minDimension / 2.2f
+    val heading = ((azimuth % 360f) + 360f) % 360f
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+            val radius = size.minDimension / 2.15f
             val center = Offset(size.width / 2f, size.height / 2f)
-            drawCircle(color = ring.copy(alpha = 0.25f), radius = radius, center = center)
-            drawCircle(color = ring, radius = radius, center = center, style = Stroke(width = 6f))
-            for (deg in 0 until 360 step 10) {
-                val rad = Math.toRadians(deg.toDouble())
-                val inner = if (deg % 90 == 0) radius - 18f else radius - 10f
-                val start = Offset(
-                    center.x + (inner * sin(rad)).toFloat(),
-                    center.y - (inner * cos(rad)).toFloat()
-                )
-                val end = Offset(
-                    center.x + (radius * sin(rad)).toFloat(),
-                    center.y - (radius * cos(rad)).toFloat()
-                )
-                drawLine(tick, start, end, strokeWidth = if (deg % 90 == 0) 4f else 2f, cap = StrokeCap.Round)
+            drawCircle(color = bezel.copy(alpha = 0.12f), radius = radius, center = center)
+            drawCircle(color = bezel, radius = radius, center = center, style = Stroke(width = 5f))
+            rotate(degrees = -heading, pivot = center) {
+                for (deg in 0 until 360 step 10) {
+                    val rad = Math.toRadians(deg.toDouble())
+                    val major = deg % 30 == 0
+                    val inner = if (major) radius - 22f else radius - 12f
+                    val start = Offset(
+                        center.x + (inner * sin(rad)).toFloat(),
+                        center.y - (inner * cos(rad)).toFloat()
+                    )
+                    val end = Offset(
+                        center.x + ((radius - 4f) * sin(rad)).toFloat(),
+                        center.y - ((radius - 4f) * cos(rad)).toFloat()
+                    )
+                    val color = if (deg == 0) CarmineTrack else tick
+                    drawLine(color, start, end, strokeWidth = if (major) 4.5f else 2f, cap = StrokeCap.Round)
+                }
+                val labelRadius = radius - 48f
+                val paint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    textSize = 34f
+                    isFakeBoldText = true
+                }
+                drawIntoCanvas { canvas ->
+                    val native = canvas.nativeCanvas
+                    fun label(deg: Int, text: String, color: Color) {
+                        paint.color = color.toArgb()
+                        val rad = Math.toRadians(deg.toDouble())
+                        val x = center.x + (labelRadius * sin(rad)).toFloat()
+                        val y = center.y - (labelRadius * cos(rad)).toFloat() + 12f
+                        native.drawText(text, x, y, paint)
+                    }
+                    label(0, "N", CarmineTrack)
+                    label(90, "E", cardinal)
+                    label(180, "S", cardinal)
+                    label(270, "W", cardinal)
+                }
             }
-            val heading = Math.toRadians(azimuth.toDouble())
-            val tip = Offset(
-                center.x + ((radius - 28f) * sin(heading)).toFloat(),
-                center.y - ((radius - 28f) * cos(heading)).toFloat()
+            val lubber = Path().apply {
+                moveTo(center.x, center.y - radius + 6f)
+                lineTo(center.x - 10f, center.y - radius + 28f)
+                lineTo(center.x + 10f, center.y - radius + 28f)
+                close()
+            }
+            drawPath(lubber, CarmineTrack)
+            drawLine(
+                bezel,
+                Offset(center.x, center.y - 36f),
+                Offset(center.x, center.y - radius + 32f),
+                strokeWidth = 3f,
+                cap = StrokeCap.Round
             )
-            drawLine(needle, center, tip, strokeWidth = 8f, cap = StrokeCap.Round)
-            drawCircle(Color.White, 8f, center)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = String.format(java.util.Locale.US, "%03.0f°", heading),
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium,
+                fontSize = 36.sp,
+                color = bezel
+            )
+            Text(
+                text = referenceLabel,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                letterSpacing = 1.sp,
+                color = bezel
+            )
         }
     }
 }

@@ -61,6 +61,7 @@ These were **not** ported:
 - **2.0.3** — Kalman on stored points, Settings sliders, usage presets, map-simplify 1–20 m. Notes: [CHANGELOGS.md](../CHANGELOGS.md).
 - **2.0.4** — **Use GNSS only**, runner smoothing off, 0.5 m pedestrian duplicate floor, heading from consecutive positions when GPS bearing is 0. How the map line is the stored log: [README-en.md — How logging works](../README-en.md#how-logging-works) / [README-hu.md](../README-hu.md#hogyan-működik-a-naplózás). Notes: [CHANGELOGS.md](../CHANGELOGS.md).
 - **2.0.5** — Show fix cloud / Pontfelhő, map usage silhouette and north marker, bicycle usage, `usageType` on every `gps_events` row and on KMZ balloons, Show on map applies the session usage type, Map broom clears the drawn line without deleting the log. Notes: [CHANGELOGS.md](../CHANGELOGS.md).
+- **Unreleased (after 2.0.5)** — KMZ Start/Pause/Stop icons on the stored line (`clampToGround`); Earth details include `Baro:` (ISA) and ExtendedData `baro`; GPS `gx:coord` altitude unchanged. Notes: [CHANGELOGS.md](../CHANGELOGS.md).
 
 ## Not rebuilt (by plan)
 

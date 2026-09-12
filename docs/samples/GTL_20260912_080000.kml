@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+<Document>
+<name>GTL 20260912_080000</name>
+<Style id="track"><LineStyle><color>ff0000ff</color><width>6</width></LineStyle></Style>
+<Style id="start"><IconStyle><scale>0.6</scale><Icon><href>icons/play.png</href></Icon><hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
+<Style id="pause"><IconStyle><scale>0.6</scale><Icon><href>icons/pause.png</href></Icon><hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
+<Style id="stop"><IconStyle><scale>0.6</scale><Icon><href>icons/stop.png</href></Icon><hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>
+<Style id="move"><LabelStyle><scale>0</scale></LabelStyle></Style>
+<Schema id="trackPoint"><gx:SimpleArrayField name="speed" type="float"><displayName>Speed (m/s)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="odometer" type="float"><displayName>Distance (m)</displayName></gx:SimpleArrayField><gx:SimpleArrayField name="baro" type="float"><displayName>Baro (m)</displayName></gx:SimpleArrayField></Schema>
+<Folder>
+<name>GTL 20260912_080000</name>
+<Placemark>
+<name>GTL 20260912_080000</name>
+<styleUrl>#track</styleUrl>
+<gx:Track>
+<altitudeMode>absolute</altitudeMode>
+<when>2026-09-12T06:00:00Z</when>
+<when>2026-09-12T06:00:31Z</when>
+<when>2026-09-12T06:00:51Z</when>
+<when>2026-09-12T06:01:14Z</when>
+<when>2026-09-12T06:01:37Z</when>
+<when>2026-09-12T06:01:59Z</when>
+<when>2026-09-12T06:02:18Z</when>
+<when>2026-09-12T06:02:34Z</when>
+<when>2026-09-12T06:02:49Z</when>
+<when>2026-09-12T06:03:06Z</when>
+<when>2026-09-12T06:03:20Z</when>
+<when>2026-09-12T06:03:38Z</when>
+<when>2026-09-12T06:04:03Z</when>
+<when>2026-09-12T06:07:03Z</when>
+<when>2026-09-12T06:07:15Z</when>
+<when>2026-09-12T06:07:28Z</when>
+<when>2026-09-12T06:07:41Z</when>
+<when>2026-09-12T06:07:54Z</when>
+<when>2026-09-12T06:08:10Z</when>
+<when>2026-09-12T06:08:24Z</when>
+<when>2026-09-12T06:08:39Z</when>
+<when>2026-09-12T06:09:03Z</when>
+<gx:coord>19.0478 47.4852 112.0</gx:coord>
+<gx:coord>19.0502 47.48555 111.0</gx:coord>
+<gx:coord>19.0528 47.4859 110.0</gx:coord>
+<gx:coord>19.0564 47.4863 109.0</gx:coord>
+<gx:coord>19.0598 47.4867 108.0</gx:coord>
+<gx:coord>19.0569 47.4878 107.5</gx:coord>
+<gx:coord>19.0542 47.4888 107.0</gx:coord>
+<gx:coord>19.0522 47.49 106.5</gx:coord>
+<gx:coord>19.0504 47.4912 106.0</gx:coord>
+<gx:coord>19.0492 47.4928 106.0</gx:coord>
+<gx:coord>19.0485 47.494 106.0</gx:coord>
+<gx:coord>19.048 47.4952 106.0</gx:coord>
+<gx:coord>19.0476 47.4965 106.0</gx:coord>
+<gx:coord>19.0475 47.4974 106.0</gx:coord>
+<gx:coord>19.0474 47.4984 106.0</gx:coord>
+<gx:coord>19.0462 47.4994 106.0</gx:coord>
+<gx:coord>19.0454 47.5006 105.8</gx:coord>
+<gx:coord>19.0451 47.502 105.5</gx:coord>
+<gx:coord>19.045 47.5038 105.2</gx:coord>
+<gx:coord>19.0452 47.5052 105.0</gx:coord>
+<gx:coord>19.0456 47.5064 105.0</gx:coord>
+<gx:coord>19.0468 47.5074 105.0</gx:coord>
+<ExtendedData>
+<SchemaData schemaUrl="#trackPoint">
+<gx:SimpleArrayData name="speed">
+<gx:value>0.4</gx:value>
+<gx:value>8.2</gx:value>
+<gx:value>11.4</gx:value>
+<gx:value>12.1</gx:value>
+<gx:value>10.8</gx:value>
+<gx:value>11.6</gx:value>
+<gx:value>12.4</gx:value>
+<gx:value>12.8</gx:value>
+<gx:value>12.2</gx:value>
+<gx:value>11.1</gx:value>
+<gx:value>9.5</gx:value>
+<gx:value>6.2</gx:value>
+<gx:value>0.2</gx:value>
+<gx:value>7.4</gx:value>
+<gx:value>10.6</gx:value>
+<gx:value>11.3</gx:value>
+<gx:value>12.0</gx:value>
+<gx:value>12.5</gx:value>
+<gx:value>12.1</gx:value>
+<gx:value>10.4</gx:value>
+<gx:value>7.8</gx:value>
+<gx:value>0.3</gx:value>
+</gx:SimpleArrayData>
+<gx:SimpleArrayData name="odometer">
+<gx:value>0.0</gx:value>
+<gx:value>184.49500843630005</gx:value>
+<gx:value>383.70441849287965</gx:value>
+<gx:value>657.8481303509913</gx:value>
+<gx:value>917.1720850196385</gx:value>
+<gx:value>1167.0608691504556</gx:value>
+<gx:value>1398.4104672099188</gx:value>
+<gx:value>1599.3759018090566</gx:value>
+<gx:value>1789.364310958078</gx:value>
+<gx:value>1988.8173932078473</gx:value>
+<gx:value>2132.2417404656426</gx:value>
+<gx:value>2270.862573866892</gx:value>
+<gx:value>2418.506621538945</gx:value>
+<gx:value>2518.863646693432</gx:value>
+<gx:value>2630.3120638228584</gx:value>
+<gx:value>2773.45908513872</gx:value>
+<gx:value>2919.8023458815223</gx:value>
+<gx:value>3077.098013001224</gx:value>
+<gx:value>3277.389793075745</gx:value>
+<gx:value>3433.7859122023387</gx:value>
+<gx:value>3570.560707551788</gx:value>
+<gx:value>3713.6990783716333</gx:value>
+</gx:SimpleArrayData>
+<gx:SimpleArrayData name="baro">
+<gx:value>108.0</gx:value>
+<gx:value>107.0</gx:value>
+<gx:value>106.0</gx:value>
+<gx:value>105.0</gx:value>
+<gx:value>104.0</gx:value>
+<gx:value>103.5</gx:value>
+<gx:value>103.0</gx:value>
+<gx:value>102.5</gx:value>
+<gx:value>102.0</gx:value>
+<gx:value>102.0</gx:value>
+<gx:value>102.0</gx:value>
+<gx:value>102.0</gx:value>
+<gx:value>102.0</gx:value>
+<gx:value>102.0</gx:value>
+<gx:value>101.8</gx:value>
+<gx:value>101.5</gx:value>
+<gx:value>101.2</gx:value>
+<gx:value>101.0</gx:value>
+<gx:value>101.0</gx:value>
+<gx:value>101.0</gx:value>
+<gx:value>101.0</gx:value>
+<gx:value>101.0</gx:value>
+</gx:SimpleArrayData>
+</SchemaData>
+</ExtendedData>
+</gx:Track>
+</Placemark>
+<Placemark>
+<name>Start</name>
+<description><![CDATA[2026:09:12 06:00:00<br/>temp=17.0 °C<br/>lon=19.047800<br/>lat=47.485200<br/>Altitude: 112 m<br/>Baro: 108 m]]></description>
+<styleUrl>#start</styleUrl>
+<Point>
+<coordinates>19.0478,47.4852,112.0</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name>Pause</name>
+<description><![CDATA[2026:09:12 06:04:03<br/>temp=17.0 °C<br/>lon=19.047600<br/>lat=47.496500<br/>Altitude: 106 m<br/>Baro: 102 m<br/>Speed: 1.4 km/h<br/>duration=4 min<br/>distance=2.42 km]]></description>
+<styleUrl>#pause</styleUrl>
+<Point>
+<coordinates>19.0476,47.4965,106.0</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name>Stop</name>
+<description><![CDATA[2026:09:12 06:09:03<br/>temp=17.0 °C<br/>lon=19.046800<br/>lat=47.507400<br/>Altitude: 105 m<br/>Baro: 101 m<br/>Avg. Speed: 27.0 km/h<br/>Max speed: 46.0 km/h<br/>duration=9 min<br/>distance=3.71 km]]></description>
+<styleUrl>#stop</styleUrl>
+<Point>
+<coordinates>19.0468,47.5074,105.0</coordinates>
+</Point>
+</Placemark>
+</Folder>
+</Document>
+</kml>

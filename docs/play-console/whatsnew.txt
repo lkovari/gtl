@@ -2,26 +2,24 @@ Release name (Play, not shown to users):
 2.0.5 (23)
 
 What's new — max 500 characters per language.
-Date: 2026-09-10
+Date: 2026-09-12
 
 <en-US>
-Fix cloud, bicycle usage, KMZ session stats, map broom.
+KMZ Earth details.
 
-• KMZ stop: duration (s / min / HH:MM:SS), avg and max speed
-• Play/pause/stop balloons include usage type
-• Fix cloud: raw GPS dots, magenta CEP95 while standing still
-• Saved tracks open in recorded usage and switch Settings
-• Broom clears the drawn line without deleting the log
-• Bicycle: GNSS only, slow curves stay on the map
+• Start / Pause / Stop sit on the stored line
+• Details: UTC datetime, temp=, lon, lat, Altitude, Baro
+• Pause: Speed, duration, distance; Stop: Avg. Speed, Max speed, duration, distance
+• temp=N/A if no sensor; units from Settings
+• Map HUD, GPX 1.1, elevation profile, compass, baro
 </en-US>
 
 <hu-HU>
-Pontfelhő, kerékpár mód, KMZ session adatok, seprő.
+KMZ Earth details.
 
-• KMZ stop: időtartam (mp / perc / HH:MM:SS), átlag- és maxsebesség
-• Play/szünet/stop balloon: használati mód
-• Pontfelhő: nyers GPS-pöttyök, magenta CEP95 állóhelyen
-• Mentett track a felvétel módjában nyílik, Beállítások követik
-• Seprő leveszi a vonalat, a naplót nem törli
-• Kerékpár: csak GNSS, a lassú ívek megmaradnak
+• Start / Pause / Stop a letárolt vonalon
+• Details: UTC datetime, temp=, lon, lat, Altitude, Baro
+• Pause: Speed, duration, distance; Stop: Avg. Speed, Max speed, duration, distance
+• Ha nincs hőmérséklet: temp=N/A; mértékegység a Beállításokból
+• Térkép HUD, GPX 1.1, magasságprofil, iránytű, baro
 </hu-HU>

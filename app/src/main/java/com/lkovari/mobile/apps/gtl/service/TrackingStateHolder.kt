@@ -16,7 +16,11 @@ data class LiveTrackingState(
     val accel: FloatArray? = null,
     val leanAngle: Float? = null,
     val azimuthDegrees: Float? = null,
-    val provider: String? = null
+    val compassAccuracy: Int = 2,
+    val provider: String? = null,
+    val pressureHpa: Float? = null,
+    val baroAltitude: Double? = null,
+    val pressureAvailable: Boolean = false
 )
 
 class TrackingStateHolder {
