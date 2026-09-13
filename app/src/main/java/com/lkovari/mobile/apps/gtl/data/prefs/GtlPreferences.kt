@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl.data.prefs
 
 import android.content.Context
+import android.hardware.SensorManager
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -65,6 +66,7 @@ data class GtlSettings(
     val gnssOnly: Boolean,
     val compassTrueNorth: Boolean,
     val qnhHpa: Float,
+    val baroPressureOffsetHpa: Float,
     val googleMapLayer: GoogleMapLayer
 ) {
     fun toFilter(): FixFilter {
@@ -104,7 +106,8 @@ data class GtlSettings(
                 recordingDensityValue = smoothing.recordingDensity.sliderValue(),
                 gnssOnly = smoothing.gnssOnly,
                 compassTrueNorth = false,
-                qnhHpa = BaroAltitude.StandardAtmosphereHpa,
+                qnhHpa = SensorManager.PRESSURE_STANDARD_ATMOSPHERE,
+                baroPressureOffsetHpa = 0f,
                 googleMapLayer = GoogleMapLayer.NORMAL
             )
         }
@@ -229,6 +232,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.qnhHpa] = BaroAltitude.clampQnh(value) }
     }
 
+    suspend fun setBaroPressureOffsetHpa(value: Float) {
+        dataStore.edit { it[Keys.baroPressureOffsetHpa] = BaroAltitude.clampOffset(value) }
+    }
+
     suspend fun setGoogleMapLayer(value: GoogleMapLayer) {
         dataStore.edit { it[Keys.googleMapLayer] = value.name }
     }
@@ -306,7 +313,10 @@ class GtlPreferences(context: Context) {
             gnssOnly = prefs[Keys.gnssOnly] ?: smoothing.gnssOnly,
             compassTrueNorth = prefs[Keys.compassTrueNorth] ?: false,
             qnhHpa = BaroAltitude.clampQnh(
-                prefs[Keys.qnhHpa] ?: BaroAltitude.StandardAtmosphereHpa
+                prefs[Keys.qnhHpa] ?: SensorManager.PRESSURE_STANDARD_ATMOSPHERE
+            ),
+            baroPressureOffsetHpa = BaroAltitude.clampOffset(
+                prefs[Keys.baroPressureOffsetHpa] ?: 0f
             ),
             googleMapLayer = GoogleMapLayer.fromStored(prefs[Keys.googleMapLayer])
         )
@@ -374,6 +384,7 @@ class GtlPreferences(context: Context) {
         val gnssOnly = booleanPreferencesKey("gnss_only")
         val compassTrueNorth = booleanPreferencesKey("compass_true_north")
         val qnhHpa = floatPreferencesKey("qnh_hpa")
+        val baroPressureOffsetHpa = floatPreferencesKey("baro_pressure_offset_hpa")
         val googleMapLayer = stringPreferencesKey("google_map_layer")
     }
 

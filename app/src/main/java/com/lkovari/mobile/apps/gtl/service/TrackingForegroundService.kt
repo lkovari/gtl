@@ -21,7 +21,7 @@ import com.lkovari.mobile.apps.gtl.data.sensor.AccelerometerSource
 import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
-import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
+import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
@@ -134,12 +134,12 @@ class TrackingForegroundService : LifecycleService() {
                     app.pressureSource.pressures(),
                     app.preferences.settings
                 ) { value, prefs ->
-                    value to prefs.qnhHpa
-                }.collectLatest { (value, qnh) ->
+                    Triple(value, prefs.qnhHpa, prefs.baroPressureOffsetHpa)
+                }.collectLatest { (value, qnh, offset) ->
                     app.trackingState.update {
                         it.copy(
                             pressureHpa = value,
-                            baroAltitude = BaroAltitude.metersFromPressureHpa(value, qnh),
+                            baroAltitude = AndroidBaroAltitude.metersFromPressureHpa(value, qnh, offset),
                             pressureAvailable = true
                         )
                     }

@@ -675,7 +675,7 @@ class KmlExporterTest {
         assertTrue(kml.contains("<gx:coord>19.06 47.51 0</gx:coord>"))
         assertTrue(kml.contains("19.05,47.5,0"))
         assertTrue(kml.contains("<gx:value>108.0</gx:value>"))
-        assertTrue(kml.contains("<gx:value></gx:value>"))
+        assertTrue(kml.contains("<gx:value>-</gx:value>"))
         assertFalse(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
         assertFalse(kml.contains("<gx:coord>19.05 47.5 108.0</gx:coord>"))
     }
@@ -708,7 +708,7 @@ class KmlExporterTest {
                 "lon=19.050000",
                 "lat=47.500000",
                 "Altitude: 184 m",
-                "Baro: N/A"
+                "Baro: -"
             ),
             start.lines()
         )
@@ -740,7 +740,7 @@ class KmlExporterTest {
                 "lon=19.050000",
                 "lat=47.500000",
                 "Altitude: 184 m",
-                "Baro: N/A",
+                "Baro: -",
                 "Speed: 4.0 km/h",
                 "duration=45 s",
                 "distance=184 m"
@@ -773,7 +773,7 @@ class KmlExporterTest {
                 "lon=19.050000",
                 "lat=47.500000",
                 "Altitude: 184 m",
-                "Baro: N/A",
+                "Baro: -",
                 "Avg. Speed: 21.6 km/h",
                 "Max speed: 43.2 km/h",
                 "duration=9 min",
@@ -884,7 +884,7 @@ class KmlExporterTest {
         assertTrue(withBaro.contains("Altitude: 184 m"))
         assertTrue(withBaro.contains("Baro: 108 m"))
         assertTrue(imperial.contains("Baro: 354 ft"))
-        assertFalse(withBaro.contains("Baro: N/A"))
+        assertFalse(withBaro.contains("Baro: -"))
     }
 
     @Test
@@ -957,7 +957,7 @@ class KmlExporterTest {
         assertTrue(pause.description.contains("lat=47.520000"))
         assertTrue(pause.description.contains("temp=N/A"))
         assertTrue(pause.description.contains("Altitude: 120 m"))
-        assertTrue(pause.description.contains("Baro: N/A"))
+        assertTrue(pause.description.contains("Baro: -"))
         assertTrue(pause.description.contains("Speed: 0.0 km/h"))
         assertTrue(pause.description.contains("duration=2 s"))
         assertTrue(pause.description.contains("distance="))
@@ -2255,6 +2255,36 @@ class BaroAltitudeTest {
     @Test
     fun displayedMetersFallsBackToStoredWhenNoPressure() {
         assertEquals(184.0, BaroAltitude.displayedMeters(null, 184.0, 1013.25f))
+    }
+
+    @Test
+    fun clampOffsetStaysInRange() {
+        assertEquals(BaroAltitude.MinOffsetHpa, BaroAltitude.clampOffset(-20f))
+        assertEquals(BaroAltitude.MaxOffsetHpa, BaroAltitude.clampOffset(20f))
+        assertEquals(0f, BaroAltitude.clampOffset(0f))
+    }
+
+    @Test
+    fun offsetZeroMatchesUncorrectedIsa() {
+        val plain = BaroAltitude.metersFromPressureHpa(990f, 1013.25f)
+        val withZero = BaroAltitude.metersFromPressureHpa(990f, 1013.25f, 0f)
+        assertEquals(plain, withZero)
+    }
+
+    @Test
+    fun expectedStationAtSeaLevelIsQnh() {
+        val expected = BaroAltitude.expectedStationHpa(0.0, 1013.25f)
+        assertEquals(1013.25f, expected ?: 0f, 0.2f)
+    }
+
+    @Test
+    fun gpsCalibrationOffsetMakesBaroMatchGps() {
+        val qnh = 1023f
+        val gpsMeters = 124.0
+        val chipHpa = 1010f
+        val offset = BaroAltitude.offsetHpa(chipHpa, gpsMeters, qnh)
+        val shown = BaroAltitude.metersFromPressureHpa(chipHpa, qnh, offset) ?: 0.0
+        assertEquals(gpsMeters, shown, 1.0)
     }
 }
 

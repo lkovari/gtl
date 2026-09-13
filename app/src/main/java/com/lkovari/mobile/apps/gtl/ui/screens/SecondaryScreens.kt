@@ -10,10 +10,13 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,10 +75,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
@@ -83,6 +91,7 @@ import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
+import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.ui.usageIcon
@@ -174,165 +183,325 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
     }
     SecondaryScaffold(stringResource(R.string.settings_title), onBack, compactTopBar = true) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 0.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(stringResource(R.string.settings_usage), style = MaterialTheme.typography.titleSmall)
-            Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
-                UsageType.selectable.chunked(3).forEach { rowTypes ->
-                    Row(
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp)
+            ) {
+                val short = maxHeight < 520.dp
+                val lineTrim = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.Both
+                )
+                val titleStyle = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = 15.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeightStyle = lineTrim
+                )
+                val labelStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 14.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeightStyle = lineTrim
+                )
+                val chipStyle = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeightStyle = lineTrim
+                )
+                val usageStyle = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 13.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeightStyle = lineTrim
+                )
+                val iconSize = if (short) 16.dp else 18.dp
+                val chipHeight = if (short) 22.dp else 26.dp
+                val switchScale = if (short) 0.58f else 0.68f
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.Top
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        rowTypes.forEach { type ->
-                            val selected = state.settings.usageType == type
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .selectable(
-                                        selected = selected,
-                                        onClick = { viewModel.setUsage(type) },
-                                        role = Role.RadioButton
-                                    )
-                                    .padding(vertical = 0.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                        Text(stringResource(R.string.settings_usage), style = titleStyle, maxLines = 1)
+                        Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+                        UsageType.selectable.chunked(3).forEach { rowTypes ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = usageIcon(type),
-                                    contentDescription = stringResource(usageLabel(type)),
-                                    modifier = Modifier.size(16.dp),
-                                    tint = if (selected) TitleMagenta else MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = stringResource(usageLabel(type)),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
-                                )
+                                rowTypes.forEach { type ->
+                                    val selected = state.settings.usageType == type
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .selectable(
+                                                selected = selected,
+                                                onClick = { viewModel.setUsage(type) },
+                                                role = Role.RadioButton
+                                            ),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            imageVector = usageIcon(type),
+                                            contentDescription = stringResource(usageLabel(type)),
+                                            modifier = Modifier.size(iconSize),
+                                            tint = if (selected) TitleMagenta else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = stringResource(usageLabel(type)),
+                                            style = usageStyle,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(stringResource(R.string.settings_units), style = MaterialTheme.typography.titleSmall)
-                MeasurementSystem.entries.forEach { system ->
-                    FilterChip(
-                        selected = state.settings.measurementSystem == system,
-                        onClick = { viewModel.setUnits(system) },
-                        label = {
-                            Text(
-                                system.name.lowercase().replaceFirstChar { it.titlecase() },
-                                style = MaterialTheme.typography.labelSmall
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_units),
+                            style = titleStyle,
+                            maxLines = 1
+                        )
+                        MeasurementSystem.entries.forEach { system ->
+                            FilterChip(
+                                selected = state.settings.measurementSystem == system,
+                                onClick = { viewModel.setUnits(system) },
+                                label = {
+                                    Text(
+                                        system.name.lowercase().replaceFirstChar { it.titlecase() },
+                                        style = chipStyle,
+                                        maxLines = 1
+                                    )
+                                },
+                                modifier = Modifier.heightIn(max = chipHeight)
                             )
-                        },
-                        modifier = Modifier.height(22.dp)
-                    )
+                        }
+                    }
+                    if (state.live.pressureAvailable) {
+                        val gpsFix = state.live.lastLocation
+                        val canCalibrate = state.live.pressureHpa != null &&
+                            gpsFix != null &&
+                            gpsFix.hasAltitude() &&
+                            GpsAltitude.isPlausible(gpsFix.altitude)
+                        val canReset = state.settings.baroPressureOffsetHpa != 0f
+                        SettingSliderGroup {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_qnh, qnhValue.toInt()),
+                                    style = titleStyle,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { viewModel.calibrateBaroFromGps() },
+                                    enabled = canCalibrate,
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.settings_qnh_calibrate),
+                                            style = chipStyle,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    modifier = Modifier.heightIn(max = chipHeight)
+                                )
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { viewModel.resetBaroPressureOffset() },
+                                    enabled = canReset,
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.settings_qnh_reset),
+                                            style = chipStyle,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    modifier = Modifier.heightIn(max = chipHeight)
+                                )
+                            }
+                            EndpointSlider(
+                                value = qnhValue,
+                                onValueChange = { qnhValue = it },
+                                onValueChangeFinished = { viewModel.setQnhHpa(qnhValue) },
+                                valueRange = BaroAltitude.MinQnhHpa..BaroAltitude.MaxQnhHpa,
+                                steps = 199,
+                                startLabel = BaroAltitude.MinQnhHpa.toInt().toString(),
+                                endLabel = BaroAltitude.MaxQnhHpa.toInt().toString(),
+                                labelStyle = chipStyle
+                            )
+                        }
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_offline),
+                        state.settings.useOfflineMap,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setUseOfflineMap(it)
+                    }
+                    SettingSliderGroup {
+                        SettingSwitch(
+                            stringResource(R.string.settings_optimize),
+                            state.settings.optimizationActive,
+                            labelStyle,
+                            switchScale
+                        ) {
+                            viewModel.setOptimization(it)
+                        }
+                        if (state.settings.optimizationActive) {
+                            EndpointSlider(
+                                value = dpValue,
+                                onValueChange = { dpValue = it },
+                                onValueChangeFinished = {
+                                    viewModel.setOptimizationTolerance(dpValue.toDouble())
+                                },
+                                valueRange = DouglasPeucker.MinToleranceMeters.toFloat()..
+                                    DouglasPeucker.MaxToleranceMeters.toFloat(),
+                                steps = 18,
+                                startLabel = stringResource(
+                                    R.string.settings_meters,
+                                    DouglasPeucker.MinToleranceMeters.toInt()
+                                ),
+                                endLabel = stringResource(
+                                    R.string.settings_meters,
+                                    DouglasPeucker.MaxToleranceMeters.toInt()
+                                ),
+                                labelStyle = chipStyle
+                            )
+                        }
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_show_track),
+                        state.settings.showLastTrackOnMap,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setShowLastTrackOnMap(it)
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_keep_whole_track),
+                        state.settings.keepWholeTrackOnScreen,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setKeepWholeTrackOnScreen(it)
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_keep_screen_on),
+                        state.settings.keepScreenOnWhileLogging,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setKeepScreenOnWhileLogging(it)
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_show_accuracy),
+                        state.settings.showAccuracyMarker,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setShowAccuracyMarker(it)
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_show_fix_cloud),
+                        state.settings.showFixCloud,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setShowFixCloud(it)
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_gnss_only),
+                        state.settings.gnssOnly,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setGnssOnly(it)
+                    }
+                    SettingSliderGroup {
+                        SettingSwitch(
+                            stringResource(R.string.settings_track_smoothing),
+                            state.settings.trackSmoothingEnabled,
+                            labelStyle,
+                            switchScale
+                        ) {
+                            viewModel.setTrackSmoothing(it)
+                        }
+                        if (state.settings.trackSmoothingEnabled) {
+                            EndpointSlider(
+                                value = strengthValue,
+                                onValueChange = { strengthValue = it },
+                                onValueChangeFinished = { viewModel.setSmoothingStrength(strengthValue) },
+                                valueRange = 0f..1f,
+                                steps = 0,
+                                startLabel = stringResource(R.string.settings_smoothing_low),
+                                endLabel = stringResource(R.string.settings_smoothing_high),
+                                labelStyle = chipStyle
+                            )
+                        }
+                    }
+                    SettingSwitch(
+                        stringResource(R.string.settings_stationary_lock),
+                        state.settings.stationaryLockEnabled,
+                        labelStyle,
+                        switchScale
+                    ) {
+                        viewModel.setStationaryLock(it)
+                    }
+                    SettingSliderGroup {
+                        Text(
+                            text = stringResource(R.string.settings_recording_density),
+                            style = labelStyle,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        EndpointSlider(
+                            value = densityValue,
+                            onValueChange = { densityValue = it },
+                            onValueChangeFinished = { viewModel.setRecordingDensity(densityValue) },
+                            valueRange = 0f..1f,
+                            steps = 0,
+                            startLabel = stringResource(R.string.settings_density_smart),
+                            endLabel = stringResource(R.string.settings_density_every_fix),
+                            labelStyle = chipStyle
+                        )
+                    }
                 }
             }
-            Text(
-                text = stringResource(R.string.settings_qnh, qnhValue.toInt()),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.settings_qnh_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            EndpointSlider(
-                value = qnhValue,
-                onValueChange = { qnhValue = it },
-                onValueChangeFinished = { viewModel.setQnhHpa(qnhValue) },
-                valueRange = BaroAltitude.MinQnhHpa..BaroAltitude.MaxQnhHpa,
-                steps = 199,
-                startLabel = BaroAltitude.MinQnhHpa.toInt().toString(),
-                endLabel = BaroAltitude.MaxQnhHpa.toInt().toString()
-            )
-            SettingSwitch(stringResource(R.string.settings_offline), state.settings.useOfflineMap) {
-                viewModel.setUseOfflineMap(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_optimize), state.settings.optimizationActive) {
-                viewModel.setOptimization(it)
-            }
-            if (state.settings.optimizationActive) {
-                EndpointSlider(
-                    value = dpValue,
-                    onValueChange = { dpValue = it },
-                    onValueChangeFinished = {
-                        viewModel.setOptimizationTolerance(dpValue.toDouble())
-                    },
-                    valueRange = DouglasPeucker.MinToleranceMeters.toFloat()..
-                        DouglasPeucker.MaxToleranceMeters.toFloat(),
-                    steps = 18,
-                    startLabel = stringResource(
-                        R.string.settings_meters,
-                        DouglasPeucker.MinToleranceMeters.toInt()
-                    ),
-                    endLabel = stringResource(
-                        R.string.settings_meters,
-                        DouglasPeucker.MaxToleranceMeters.toInt()
-                    )
-                )
-            }
-            SettingSwitch(stringResource(R.string.settings_show_track), state.settings.showLastTrackOnMap) {
-                viewModel.setShowLastTrackOnMap(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_keep_whole_track), state.settings.keepWholeTrackOnScreen) {
-                viewModel.setKeepWholeTrackOnScreen(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_keep_screen_on), state.settings.keepScreenOnWhileLogging) {
-                viewModel.setKeepScreenOnWhileLogging(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_show_accuracy), state.settings.showAccuracyMarker) {
-                viewModel.setShowAccuracyMarker(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_show_fix_cloud), state.settings.showFixCloud) {
-                viewModel.setShowFixCloud(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_gnss_only), state.settings.gnssOnly) {
-                viewModel.setGnssOnly(it)
-            }
-            SettingSwitch(stringResource(R.string.settings_track_smoothing), state.settings.trackSmoothingEnabled) {
-                viewModel.setTrackSmoothing(it)
-            }
-            if (state.settings.trackSmoothingEnabled) {
-                EndpointSlider(
-                    value = strengthValue,
-                    onValueChange = { strengthValue = it },
-                    onValueChangeFinished = { viewModel.setSmoothingStrength(strengthValue) },
-                    valueRange = 0f..1f,
-                    steps = 0,
-                    startLabel = stringResource(R.string.settings_smoothing_low),
-                    endLabel = stringResource(R.string.settings_smoothing_high)
-                )
-            }
-            SettingSwitch(stringResource(R.string.settings_stationary_lock), state.settings.stationaryLockEnabled) {
-                viewModel.setStationaryLock(it)
-            }
-            Text(
-                text = stringResource(R.string.settings_recording_density),
-                style = MaterialTheme.typography.bodySmall
-            )
-            EndpointSlider(
-                value = densityValue,
-                onValueChange = { densityValue = it },
-                onValueChangeFinished = { viewModel.setRecordingDensity(densityValue) },
-                valueRange = 0f..1f,
-                steps = 0,
-                startLabel = stringResource(R.string.settings_density_smart),
-                endLabel = stringResource(R.string.settings_density_every_fix)
-            )
-        }
         }
     }
+}
+
+@Composable
+private fun SettingSliderGroup(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        content = content
+    )
 }
 
 @Composable
@@ -343,17 +512,20 @@ private fun EndpointSlider(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
     startLabel: String,
-    endLabel: String
+    endLabel: String,
+    labelStyle: TextStyle,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
             text = startLabel,
-            style = MaterialTheme.typography.labelSmall,
+            style = labelStyle,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(min = 36.dp)
         )
         Slider(
@@ -366,8 +538,9 @@ private fun EndpointSlider(
         )
         Text(
             text = endLabel,
-            style = MaterialTheme.typography.labelSmall,
+            style = labelStyle,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(min = 36.dp)
         )
     }
@@ -410,9 +583,16 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SettingSwitch(
+    label: String,
+    checked: Boolean,
+    labelStyle: TextStyle,
+    switchScale: Float,
+    modifier: Modifier = Modifier,
+    onChange: (Boolean) -> Unit
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 22.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -421,17 +601,18 @@ private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -
         Text(
             text = label,
             modifier = Modifier.weight(1f).padding(end = 8.dp),
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 2
+            style = labelStyle,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
         Box(
-            modifier = Modifier.size(width = 38.dp, height = 20.dp),
+            modifier = Modifier.size(width = 42.dp, height = 22.dp),
             contentAlignment = Alignment.Center
         ) {
             Switch(
                 checked = checked,
                 onCheckedChange = onChange,
-                modifier = Modifier.scale(0.62f)
+                modifier = Modifier.scale(switchScale)
             )
         }
     }

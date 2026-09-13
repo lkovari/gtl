@@ -3,11 +3,20 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.6** / `versionCode` **24** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.7** / `versionCode` **25** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.7] — 2026-09-13
+
+Play production track **25 (2.0.7)** (signed AAB). Baro from QNH; Calibrate from GPS.
+
+### Changed
+
+- Live and profile barometric altitude use `SensorManager.getAltitude(qnh, pressure − offset)` (`AndroidBaroAltitude`). Default QNH is `PRESSURE_STANDARD_ATMOSPHERE` (1013.25 hPa). The Settings QNH slider is shown only when the phone has a pressure sensor. **Calibrate from GPS** stores a DataStore pressure offset (±10 hPa) so the dashed baro line can match a trusted GPS altitude; it does not overwrite METAR QNH. Reset baro clears the offset. Help names METAR, ATIS, and airport weather as the QNH source (no URL), and describes Map HUD fields plus GPS / Baro. KMZ balloons and ExtendedData show `-` when baro is missing (`temp=N/A` unchanged). GPS altitude is unchanged.
+- Play listing `map.png` and `settings.png` recaptured 2026-09-13 as 1080×2160 RGB PNG (no alpha, 2:1; full device frame scaled to Play long-edge ≤ 2× short-edge, no UI cropped): idle Map HUD with S/E track; Settings QNH Calibrate / Reset through recording density. Logging HUD Map and the feature graphic still wait on dark tiles.
 
 ## [2.0.6] — 2026-09-12
 
@@ -135,7 +144,7 @@ Play production track **22 (2.0.4)** (signed AAB). GNSS-only option, runner spor
 - If GPS bearing is 0, curve detection can use heading from consecutive positions.
 - Pedestrian Kalman (if you turn smoothing back on) adds extra position process noise so a 5 m road loop is not pulled onto the street.
 - Settings page has no vertical scrollbar. Help Settings / Track logging document the new switch and Runner preset (EN/HU).
-- README, GPS data-flow (EN/HU), SQLite schema, Kalman brief, and renewal report match GNSS-only, runner smoothing-off, 0.5 m pedestrian duplicate floor, and map-from-Room.
+- README, GPS data-flow (EN/HU), SQLite schema, and Kalman brief match GNSS-only, runner smoothing-off, 0.5 m pedestrian duplicate floor, and map-from-Room.
 
 ### Fixed
 

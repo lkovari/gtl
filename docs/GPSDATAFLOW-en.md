@@ -79,14 +79,32 @@ flowchart TD
 | Source | What it feeds |
 |---|---|
 | `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, or `GPS_PROVIDER` when **Use GNSS only** is on. Interval from settings, at least 500 ms. Min distance on the request is `0`; spacing is applied later. If the GPS provider is disabled, fused is used. Fused still listens to `GPS_PROVIDER` for altitude. HUD/store altitude is `GpsAltitude.pick` in this order: GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid. Values outside −430…9000 m are dropped; if none remain, altitude is removed from the `Location`. While the app is open and not logging, `GtlViewModel` also listens about once a second for the GPS/Map HUD. After Start, only the foreground service writes SQLite. |
-| `GnssStatusSource` | Satellite counts and SNR for the GPS tab; per-satellite azimuth/elevation on `GnssSnapshot.satellites` for the polar skyplot; `satellitesInFix` on each stored row. The constellation mix and skyplot are memory-only. |
+| `GnssStatusSource` | Satellite counts and SNR for the GPS tab; per-satellite azimuth/elevation on `GnssSnapshot.satellites` for the polar skyplot; `satellitesInFix` on each stored row. The constellation mix and skyplot are memory-only. See [Skyplot circles](#skyplot-circles-gps-tab). |
 | `AmbientTemperatureSource` | Optional; copied onto the row if the sensor exists. |
 | `AccelerometerSource` | Optional; last XYZ on the row. |
 | `GravitySource` | Optional; `TYPE_GRAVITY` (else accelerometer) → lean angle on the row and Route HUD. |
-| `PressureSource` | Optional; `TYPE_PRESSURE` → `pressureHpa` and `baroAltitude` from `BaroAltitude.metersFromPressureHpa` using the current Settings QNH (900–1100 hPa, default ISA 1013.25). |
+| `PressureSource` | Optional; `TYPE_PRESSURE` → raw `pressureHpa` and `baroAltitude` from `SensorManager.getAltitude` (`AndroidBaroAltitude`) using the current Settings QNH minus the DataStore pressure offset (900–1100 hPa QNH, default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25; offset ±10 hPa, default 0). |
 | `CompassSource` | Compass tab only; **not** written to SQLite. MAG is the rotation-vector heading. TRUE adds `GeomagneticField.declination` from the last GPS fix. |
 
 All of this runs under a **visible** location foreground notification. There is no `ACCESS_BACKGROUND_LOCATION`.
+
+## Skyplot circles (GPS tab)
+
+The skyplot sits on the `GnssStatusSource` → `LiveTrackingState.gnss` → GPS tab path. Two kinds of circles: the **grid** (sky geometry) and the **satellite markers**. Full write-up: [README-en.md — GNSS Skyplot](../README-en.md#gnss-skyplot).
+
+**Grid (large concentric rings).** Polar map, north up. Centre is the zenith (satellite overhead); the outer thick ring is the **horizon** (0° elevation). The two thinner rings are **30°** and **60°**. Closer to the centre means higher elevation.
+
+**Satellite markers (small circles).** Each marker is one satellite (L1+L5 rows of the same SVID are one point).
+
+| Mark | Meaning |
+|---|---|
+| **Filled** disk | **Used** — in the current position fix |
+| **Hollow** ring | **In view** — the chip sees it, but it is not in the fix |
+| **Inner ring** on the disk | **L5** — L5-class carrier (~1176.45 MHz; GPS L5, Galileo E5a too) |
+
+**Colour** is the constellation, the same as the GPS-tab chips: GPS blue, Galileo lime, GLONASS carmine, BeiDou amber, QZSS magenta, NavIC cyan.
+
+Marker **size is fixed**; signal strength (SNR) stays on the bar above, not on the circle size. The skyplot is live chip data only (`GnssSnapshot.satellites`); it is not written to `gps_events`, KMZ, or GPX. Kalman, recording density, and **Use GNSS only** change *where the fix comes from*, not this plot.
 
 ## Gate: `FixAcceptance`
 
@@ -120,10 +138,10 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 
 `GtlViewModel` observes `gps_events` for the live session, a Saved-tracks selection, or the last session if **Show last logged route on map** is on. The Map polyline **is** those Room coordinates. There is no in-memory sketch, so what you see on Map is the log that was stored (optionally thinned by Douglas–Peucker for drawing only).
 
-- **Route** totals from `TrackStatsCalculator` whenever the session has events (logging, last-track, selected session). Elevation profile from Room GPS `altitude` and baro via `BaroAltitude.displayedMeters` (`pressureHpa` + current Settings QNH, else stored `baroAltitude`). Axis min/max is GPS and baro together, at least 50 m (`ElevationSeries.plotScale`).
+- **Route** totals from `TrackStatsCalculator` whenever the session has events (logging, last-track, selected session). Elevation profile from Room GPS `altitude` and baro via `AndroidBaroAltitude.displayedMeters` (`pressureHpa` − DataStore offset + current Settings QNH through `SensorManager.getAltitude`, else stored `baroAltitude`). Axis min/max is GPS and baro together, at least 50 m (`ElevationSeries.plotScale`).
 - **Map** polyline from Room; optional Douglas–Peucker (below); hidden unless logging, last-track, or a selected session (`MapTrackVisibility`). The Map broom (idle, saved track shown) sets `mapCleared` so the line hides without deleting the log; Start or Show on map draws again. Logging always draws. Green **S** / red **E** mark track start and end (end hidden while logging). Compose **HUD** over both map engines: raw speed/accuracy, GNSS used/in view; while logging: trip, elapsed, REC. OSM: Mapsforge tiles swap on `onDraw`; Compose must invalidate parent views after `repaint()`, and the OSM `MapView` stays laid out when you leave the Map tab. Camera starts on the `.map` start/bounds when the GPS fix is outside that file (emulator California + Hungary map is otherwise a blank tile). Live follow only inside the file. A failed open or unreadable file clears **Use downloaded OSM map** so the next launch is not a crash loop. Download keeps only files with magic `mapsforge binary OSM` and a matching header file size (`OsmMapFile.isReadable`).
-- **GPS tab** constellation chips, SNR, and polar skyplot from in-memory `GnssSnapshot` (azimuth/elevation per satellite). Not Room. Live without Start. Altitude is the trusted pick on `lastLocation`. Baro when `pressureAvailable`.
-- **Share** builds KMZ (`gx:Track` + balloons) or GPX 1.1 (`trk` / `trkpt` / Start-Pause-Stop `wpt`) from the same Room rows. Neither is simplified. The KMZ line and icons use `clampToGround`. The visible line is a tessellated `LineString` at height 0 (Earth Android does not drape `gx:Track` GPS altitude). A trailing STOP marker is snapped to the last path vertex (last accepted log point), so Stop is not a HUD hook off the line. Pause icons that overlap Start/Stop are omitted. Balloons are HTML. All three: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` (session unit or `N/A`), `lon=`, `lat=`, `Altitude:` (GPS, session unit), `Baro:` (stored baro at insert QNH, or `N/A`). Pause adds `Speed:`, `duration=` (from Start), and `distance=` so far. Stop is named **Stop** and adds `Avg. Speed:` and `Max speed:` from `TrackStatsCalculator` on the path (not the STOP row’s `speed`), plus session `duration=` and `distance=`. KMZ ExtendedData `baro` is stored baro metres and `alt` is GPS metres; `gx:coord` height is 0. GPX `ele` is GPS altitude; baro stays in SQLite and KMZ ExtendedData / balloons. No `usage=` or `lean=` in the balloon.
+- **GPS tab** constellation chips, SNR, and polar skyplot from in-memory `GnssSnapshot` (azimuth/elevation per satellite). Not Room. Live without Start. Altitude is the trusted pick on `lastLocation`. Baro when `pressureAvailable` (`getAltitude` with Settings QNH and DataStore offset). Skyplot circles: [Skyplot circles](#skyplot-circles-gps-tab).
+- **Share** builds KMZ (`gx:Track` + balloons) or GPX 1.1 (`trk` / `trkpt` / Start-Pause-Stop `wpt`) from the same Room rows. Neither is simplified. The KMZ line and icons use `clampToGround`. The visible line is a tessellated `LineString` at height 0 (Earth Android does not drape `gx:Track` GPS altitude). A trailing STOP marker is snapped to the last path vertex (last accepted log point), so Stop is not a HUD hook off the line. Pause icons that overlap Start/Stop are omitted. Balloons are HTML. All three: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` (session unit or `N/A`), `lon=`, `lat=`, `Altitude:` (GPS, session unit), `Baro:` (stored baro at insert QNH, or `-`). Pause adds `Speed:`, `duration=` (from Start), and `distance=` so far. Stop is named **Stop** and adds `Avg. Speed:` and `Max speed:` from `TrackStatsCalculator` on the path (not the STOP row’s `speed`), plus session `duration=` and `distance=`. KMZ ExtendedData `baro` is stored baro metres (`-` if missing) and `alt` is GPS metres; `gx:coord` height is 0. GPX `ele` is GPS altitude; baro stays in SQLite and KMZ ExtendedData / balloons. No `usage=` or `lean=` in the balloon.
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 

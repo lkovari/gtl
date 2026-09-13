@@ -17,6 +17,7 @@ import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.GpxExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
+import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
@@ -27,6 +28,7 @@ import com.lkovari.mobile.apps.gtl.engine.FixCloudBuffer
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
+import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
@@ -181,7 +183,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private fun listenPressure() {
         pressureJob?.cancel()
         pressureJob = viewModelScope.launch {
-            settings.map { it.qnhHpa }.distinctUntilChanged().collectLatest { qnh ->
+            settings.map { it.qnhHpa to it.baroPressureOffsetHpa }.distinctUntilChanged().collectLatest { (qnh, offset) ->
                 app.trackingState.update {
                     it.copy(pressureAvailable = app.pressureSource.isAvailable)
                 }
@@ -189,7 +191,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                     app.trackingState.update {
                         it.copy(
                             pressureHpa = value,
-                            baroAltitude = BaroAltitude.metersFromPressureHpa(value, qnh),
+                            baroAltitude = AndroidBaroAltitude.metersFromPressureHpa(value, qnh, offset),
                             pressureAvailable = true
                         )
                     }
@@ -269,10 +271,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun observeSavedElevationQnh() {
         viewModelScope.launch {
-            settings.map { it.qnhHpa }.distinctUntilChanged().collectLatest { qnh ->
+            settings.map { it.qnhHpa to it.baroPressureOffsetHpa }.distinctUntilChanged().collectLatest { (qnh, offset) ->
                 val id = savedElevationSessionId.value ?: return@collectLatest
                 val events = app.trackRepository.eventsFor(id)
-                savedElevationSamples.value = elevationSamplesOf(events, qnh)
+                savedElevationSamples.value = elevationSamplesOf(events, qnh, offset)
             }
         }
     }
@@ -489,7 +491,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             }
             val events = app.trackRepository.eventsFor(sessionId)
             savedElevationSessionId.value = sessionId
-            savedElevationSamples.value = elevationSamplesOf(events, settings.value.qnhHpa)
+            savedElevationSamples.value = elevationSamplesOf(
+                events,
+                settings.value.qnhHpa,
+                settings.value.baroPressureOffsetHpa
+            )
         }
     }
 
@@ -583,6 +589,30 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setQnhHpa(value) }
     }
 
+    fun calibrateBaroFromGps() {
+        viewModelScope.launch {
+            val live = app.trackingState.state.value
+            val pressure = live.pressureHpa ?: return@launch
+            val location = live.lastLocation ?: return@launch
+            if (!location.hasAltitude()) {
+                return@launch
+            }
+            if (!GpsAltitude.isPlausible(location.altitude)) {
+                return@launch
+            }
+            val offset = BaroAltitude.offsetHpa(
+                pressure,
+                location.altitude,
+                settings.value.qnhHpa
+            )
+            app.preferences.setBaroPressureOffsetHpa(offset)
+        }
+    }
+
+    fun resetBaroPressureOffset() {
+        viewModelScope.launch { app.preferences.setBaroPressureOffsetHpa(0f) }
+    }
+
     fun setGoogleMapLayer(value: GoogleMapLayer) {
         viewModelScope.launch { app.preferences.setGoogleMapLayer(value) }
     }
@@ -644,7 +674,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun elevationSamplesOf(events: List<GpsEventEntity>, qnhHpa: Float): List<ElevationSample> {
+    private fun elevationSamplesOf(
+        events: List<GpsEventEntity>,
+        qnhHpa: Float,
+        offsetHpa: Float
+    ): List<ElevationSample> {
         return ElevationSeries.downsample(
             ElevationSeries.fromPoints(
                 events.map { event ->
@@ -652,10 +686,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                         latitude = event.latitude,
                         longitude = event.longitude,
                         gpsAltitude = event.altitude,
-                        baroAltitude = BaroAltitude.displayedMeters(
+                        baroAltitude = AndroidBaroAltitude.displayedMeters(
                             event.pressureHpa,
                             event.baroAltitude,
-                            qnhHpa
+                            qnhHpa,
+                            offsetHpa
                         )
                     )
                 }

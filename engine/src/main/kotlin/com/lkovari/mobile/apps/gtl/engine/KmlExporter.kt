@@ -90,7 +90,7 @@ object KmlExporter {
                 track.points.forEach { vertex ->
                     val baro = vertex.baroAltitude
                     if (baro == null) {
-                        builder.appendLine("<gx:value></gx:value>")
+                        builder.appendLine("<gx:value>-</gx:value>")
                     } else {
                         builder.appendLine("<gx:value>$baro</gx:value>")
                     }

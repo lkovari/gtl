@@ -29,7 +29,7 @@ object KmlDescriptions {
             Units.formatTemperature(tempCelsius, system)
         }
         val baro = if (baroAltitude == null) {
-            "N/A"
+            "-"
         } else {
             Units.formatAltitude(baroAltitude, system)
         }

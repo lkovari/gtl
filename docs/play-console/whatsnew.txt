@@ -1,27 +1,25 @@
 Release name (Play, not shown to users):
-2.0.6 (24)
+2.0.7 (25)
 
 What's new — max 500 characters per language.
-Date: 2026-09-12
+Date: 2026-09-13
 
 <en-US>
-Skyplot, elevation, compass, OSM.
+Baro from QNH; calibrate from GPS.
 
-• Polar skyplot under SNR; GPS / Baro altitude; Settings QNH 900–1100 hPa
-• Elevation profile on Route and Saved tracks (GPS solid, baro dashed)
-• Compass MAG / TRUE rose
-• Green S / red E on Map; HUD while logging
-• Share KMZ or GPX 1.1
-• Invalid OSM map no longer crashes; camera stays on the downloaded region
+• Barometric altitude uses Settings QNH (default 1013.25 hPa)
+• Stand still, set METAR QNH, tap Calibrate from GPS to correct the phone barometer
+• QNH slider only if this phone has a barometer
+• KMZ Baro shows - when there is no pressure sensor
+• Polar skyplot; GPS / Baro; Map HUD; KMZ or GPX 1.1
 </en-US>
 
 <hu-HU>
-Skyplot, magasságprofil, iránytű, OSM.
+Baro a QNH-ból; kalibrálás GPS-ből.
 
-• Polar skyplot az SNR alatt; GPS / Baro magasság; QNH 900–1100 hPa
-• Magasságprofil az Útvonalon és a Mentett trackeken (GPS folytonos, baro szaggatott)
-• Iránytű MAG / TRUE rózsa
-• Zöld S / piros E a Térképen; HUD naplózáskor
-• KMZ vagy GPX 1.1 megosztás
-• Érvénytelen OSM térkép nem lövi ki az appot; a kamera a letöltött régión marad
+• A barometrikus magasság a Beállítások QNH-ját használja (alap 1013,25 hPa)
+• Állj, állítsd a METAR QNH-t, koppints a Kalibrálás GPS-ből gombra a telefon barométeréhez
+• QNH csúszka csak barométeres telefonon
+• KMZ Baro: - ha nincs nyomásszenzor
+• Polar skyplot; GPS / Baro; térkép HUD; KMZ vagy GPX 1.1
 </hu-HU>

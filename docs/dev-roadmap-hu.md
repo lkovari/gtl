@@ -2,17 +2,17 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Állapot:** termékterv a 2.0.6 (versionCode 24) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás és az OSM fájl/kamera védelem.  
+**Állapot:** termékterv a 2.0.7 (versionCode 25) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás és az OSM fájl/kamera védelem.  
 **Nem kódspec:** ez a sorrend *miértjét* és a hullámokat rögzíti. Implementáció előtt a kiválasztott hullámra külön brief / tesztlista kell.  
 **Effort:** egy, a kódbázist ismerő fejlesztő naptári napja (nem emberhónap, nem naptári hét csapatra).
 
-Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md), [RENEWAL-REPORT.md](RENEWAL-REPORT.md), [DBSTRUCT-en.md](DBSTRUCT-en.md), [GPSDATAFLOW-hu.md](GPSDATAFLOW-hu.md), [all-gps-systems-hu.md](all-gps-systems-hu.md).
+Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md), [DBSTRUCT-en.md](DBSTRUCT-en.md), [GPSDATAFLOW-hu.md](GPSDATAFLOW-hu.md), [all-gps-systems-hu.md](all-gps-systems-hu.md).
 
 ---
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő. A 2.0.6 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő. A 2.0.7 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
 
 A következő hiány **éjszakai használat, archívum és a második eye-catcher**: a térkép nappali marad, az értesítés statikus, a mentett lista dátum, a vonal egy színű. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD és a skyplot már egyezik, a sötét csempe és a sebesség-szín még nem.
 
@@ -59,7 +59,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 
 ### Ami gyenge a listinghez és a használathoz
 
-- **Térkép éjjel:** HUD van, a csempe nappali. A listing `docs/screenshots/` képei (2026-09-12) a GPS skyplotot, az Útvonal magasságprofilt, az Iránytű MAG rózsát, a Beállítások QNH-ját, a Mentett track Magasságot és a Térkép S/E-t mutatják. A HUD-os Térkép még hiányzik a listingről (a HUD rejtve, ha mentett track látszik).
+- **Térkép éjjel:** HUD van, a csempe nappali. A listing `docs/screenshots/` képei a GPS skyplotot, az Útvonal magasságprofilt, az Iránytű MAG rózsát, a Beállítások QNH-ját, a Mentett track Magasságot és a Térkép idle HUD + S/E-t mutatják (`map.png` / `settings.png` újra véve 2026-09-13). A naplózás közbeni HUD-os Térkép és a feature graphic még vár.
 - **Útvonal fül:** 2×4 `HudMetric` kártya plusz magasságprofil. A sebesség nem *a* szám.
 - **Mentett útvonalak:** dátum + nyers `usageType` enum + `METRIC`. Van Magasság, törlés-megerősítés, KMZ/GPX. Nincs név, táv, mini-térkép.
 - **Téma:** a cockpit paletta kész, a **térkép nappali marad**, nincs in-app Rendszer / Világos / Sötét, a `themes.xml` status bar light.
@@ -68,7 +68,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 
 ### Szándékosan nincs (és maradjon így)
 
-Lásd a renewal jelentést: IMEI, élő lat/lng feltöltés, follow-me web, távoli feloldás, Google Directions, app által kapcsolt GPS, boot auto-start. A `RemoteTrackSync` no-op csonk; **ne töltsd meg** backenddel, amíg a termék helyi logger.
+IMEI, élő lat/lng feltöltés, follow-me web, távoli feloldás, Google Directions, app által kapcsolt GPS, boot auto-start. A `RemoteTrackSync` no-op csonk; **ne töltsd meg** backenddel, amíg a termék helyi logger.
 
 ---
 
@@ -97,7 +97,7 @@ Ami a feature graphicot igazzá teszi:
 2. **Skyplot** a GPS fülön — kész
 3. **Sebesség-színezett** vonal sötét térképen — következő látvány
 
-A Play listing (2026-09-12) GPS skyplotot, Útvonal magasságprofilt, Iránytűt, Beállítások QNH-ját, Mentett trackeket és Térkép S/E-t mutat — nem a HUD-os Térképet (a HUD rejtve a kirajzolt mentett tracken). Vegyél HUD-os Térképet naplózás közben, és cseréld a feature graphicot **valódi UI-kivágásra**, ha a sötét csempe és a színezett vonal már egyezik.
+A Play listing GPS skyplotot, Útvonal magasságprofilt, Iránytűt, Beállítások QNH-ját, Mentett trackeket és Térkép idle HUD + S/E-t mutat (2026-09-13). Vegyél HUD-os Térképet naplózás közben, és cseréld a feature graphicot **valódi UI-kivágásra**, ha a sötét csempe és a színezett vonal már egyezik.
 
 Motor az alap usage: az eye-catchernek **nappal és éjjel, kesztyűben, villantásra** is működnie kell (nagy szám, kevés koppintás, sötét térkép).
 
@@ -253,7 +253,7 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 
 ## Kiadási hullámok
 
-A verziószámok **javaslatok**. A 2.0.6 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
+A verziószámok **javaslatok**. A 2.0.7 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
 
 ### Hullám 1 — „éjjel is látod” (kb. 3,5–5,5 nap)
 
@@ -265,7 +265,7 @@ Cél: éjjel nem vakít, az értesítésben ugyanazok a számok, a listing a val
 | 2 | Értesítés élő számokkal | 1–2 nap |
 | — | Play screenshot + feature graphic frissítés a **valódi** HUD-os térképről | 0,5 nap |
 
-GPS / Útvonal / Iránytű / Beállítások / Mentett trackek / Térkép S/E listing képek újra véve 2026-09-12 (1080×1920, alsó fülek megmaradnak). Hátravan: HUD-os Térkép naplózás közben, és a feature graphic.
+GPS / Útvonal / Iránytű / Beállítások / Mentett trackek listing képek újra véve 2026-09-12 (1080×1920). Térkép HUD + Beállítások teljes kép újra véve 2026-09-13 (1080×2160, Play 2:1, UI nincs vágva). Hátravan: HUD-os Térkép naplózás közben, és a feature graphic.
 
 **Kész, ha:** sötét módban a csempe sötét; az értesítésben van km/h és km; a listing új 9:16 képe a HUD-os Térkép, nem az idle S/E track.
 
@@ -318,7 +318,7 @@ Nem opcionális toldalék:
 - [docs/play-console/whatsnew.txt](play-console/whatsnew.txt) (500 karakter / nyelv)
 - Súgó EN/HU a új vezérlőkre
 - README funkciólista, ha a felhasználó látja
-- Screenshot 1080×1920, 24 bit, nincs alfa; GPS skyplot, Útvonal magasságprofil, Iránytű, Beállítások QNH, Mentett trackek és Térkép S/E újra véve 2026-09-12. HUD-os Térkép (naplózás) és feature graphic a sötét csempe után.
+- Screenshot 24 bites PNG, nincs alfa; GPS skyplot, Útvonal magasságprofil, Iránytű, Mentett trackek 1080×1920 (2026-09-12); Térkép idle HUD + S/E és Beállítások teljes kép 1080×2160 (2026-09-13). HUD-os Térkép (naplózás) és feature graphic a sötét csempe után.
 
 A [GPSDATAFLOW](GPSDATAFLOW-hu.md) csak akkor változik, ha a lánc írása változik. Session név: [DBSTRUCT](DBSTRUCT-en.md) migráció 4→5.
 

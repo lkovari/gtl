@@ -6,7 +6,7 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.6 (versionCode 24)  
+**Version:** 2.0.7 (versionCode 25)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
@@ -77,10 +77,10 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 - Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0). The **visible** line is a KML `LineString` with `tessellate` and `clampToGround` at height 0, so Google Earth drapes it on the terrain (a `gx:Track` with GPS altitude as the 3rd `gx:coord` floats beside the road at close zoom and can vanish under the camera). Start / Pause / Stop Points also use height 0. A hidden `gx:Track` still stores `when`, speed, odometer, GPS `alt`, and `baro`.
 - Path vertices are the stored log; a trailing STOP row that is only a session marker is not drawn as an extra hook. The Stop icon is on the last path vertex. Pause icons sit on pause vertices (one icon per standstill; omitted if they overlap Start or Stop).
 - START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth). Placemark names are **Start**, **Pause**, **Stop**. Description is HTML (`<br/>`) so every field shows in Earth details. Time is UTC with no `time=` prefix and no `UTC` suffix. Units follow Settings (metric: km/h, m / km, °C; imperial: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). Balloons do **not** include `usage=` or `lean=`.
-  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (from the stored pressure sample at the QNH then selected, or `N/A`). No Speed / Avg. Speed / Max speed / duration / distance.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (from the stored pressure sample at the QNH then selected, or `-`). No Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** the same lines, plus `Speed:` (instantaneous GPS speed at that pause row), `duration=` (seconds if 60 s or less, whole minutes under 60 min, otherwise `HH:MM:SS` from Start), and `distance=` so far in the selected unit. No Avg. Speed / Max speed.
   - **Stop:** the same lines, plus `Avg. Speed:` and `Max speed:` (one decimal) from `TrackStatsCalculator` on the path, then `duration=` and `distance=` for the full session. No instant `Speed:`.
-- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (metres at the QNH used when the row was stored, empty if no sample). `gx:coord` height is 0 so Earth does not lift the timed track.
+- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (metres at the QNH used when the row was stored, `-` if no sample). `gx:coord` height is 0 so Earth does not lift the timed track.
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
 - Help **Sharing KMZ and GPX** lists balloon fields (EN/HU) and the SQLite `gps_events` fields.
 
@@ -113,7 +113,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
-- **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default ISA 1013.25). Live baro and the elevation dashed line use the current value. Stored `pressureHpa` is unchanged; `baroAltitude` at insert uses the QNH in force then.
+- **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro and the elevation dashed line use `getAltitude(QNH, pressure − offset)`. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it.
 - **Use downloaded OSM map** — Mapsforge file versus Google Maps. A missing or invalid `.map` turns the switch off.
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
@@ -152,7 +152,7 @@ Two Gradle modules:
 ```
 app/     Compose, Room, services, maps
 engine/  Domain algorithms (no Android SDK)
-docs/    Privacy policy, Play assets, renewal notes
+docs/    Privacy policy, Play assets
 ```
 
 
@@ -160,7 +160,7 @@ docs/    Privacy policy, Play assets, renewal notes
 ### Data
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
-- **DataStore:** disclaimer, usage, units, QNH, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
+- **DataStore:** disclaimer, usage, units, QNH, baro pressure offset, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
 - **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
 
@@ -228,17 +228,27 @@ Pipeline mermaid (same flow, more boxes): [docs/GPSDATAFLOW-en.md](docs/GPSDATAF
 
 ### GNSS Skyplot
 
-The GPS tab polar plot is a **map of the sky as the chip sees it**, not a 3D globe and not a second tracklog. It sits under SNR, after the constellation chips. Those chips stay: they are the glanceable `used/in view` counts (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). The skyplot shows **where** those birds are.
+The GPS tab polar plot is a **map of the sky as the chip sees it**, not a 3D globe and not a second tracklog. It sits under SNR, after the constellation chips. Those chips stay: they are the glanceable `used/in view` counts (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). The skyplot shows **where** those satellites are. Data path: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md#skyplot-circles-gps-tab).
 
-**Geometry.** Centre is the zenith (90° elevation). The outer ring is the horizon (0°). Inner rings are 30° and 60° elevation. Twelve o’clock is north (azimuth 0°); east, south, and west follow clockwise. The plot does **not** rotate with the phone — the Compass tab does that. A satellite below the horizon is omitted.
+There are two kinds of circles: the **grid** (sky geometry) and the **satellite markers**.
 
-**Marks.** Colour is the constellation (GPS blue, Galileo lime, GLONASS carmine, BeiDou amber, QZSS magenta, NavIC cyan; SBAS/unknown muted). A **filled** disk is used in the current position fix. A **hollow** ring is in view but not used. An **inner ring** means an L5-class carrier (the same ~1176.45 MHz window as the GPS L5 chip, so Galileo E5a counts too). Marker size is fixed; SNR stays on the bar above.
+**Grid (large concentric rings).** Polar map, north up. Centre is the zenith (90° elevation, satellite overhead). The outer thick ring is the **horizon** (0°). The two thinner rings are **30°** and **60°**. Closer to the centre means higher elevation. Twelve o’clock is north (azimuth 0°); east, south, and west follow clockwise. The plot does **not** rotate with the phone — the Compass tab does that. A satellite below the horizon is omitted.
+
+**Satellite markers (small circles).** Each marker is one satellite (L1+L5 rows of the same SVID are one point).
+
+| Mark | Meaning |
+|---|---|
+| **Filled** disk | **Used** — in the current position fix |
+| **Hollow** ring | **In view** — the chip sees it, but it is not in the fix |
+| **Inner ring** on the disk | **L5** — L5-class carrier (~1176.45 MHz; GPS L5, Galileo E5a too) |
+
+**Colour** is the constellation, the same as the chips above: GPS blue, Galileo lime, GLONASS carmine, BeiDou amber, QZSS magenta, NavIC cyan; SBAS/unknown muted. Marker **size is fixed**; signal strength (SNR) stays on the bar above, not on the circle size.
 
 **Dual frequency.** Android reports L1 and L5 of the same SVID as two `GnssStatus` rows at the same azimuth/elevation. The plot merges them into one point so you do not see two stacked dots. The chips still count those rows separately (`satellitesInView` is the raw row count, same as the Map HUD `used/in view`).
 
 **Data path.** `GnssStatus.Callback` → per-satellite `SatelliteSample` (azimuth, elevation, CN0, used, constellation, carrier) → `GnssSnapshot.satellites` in memory → polar canvas. Nothing is written to `gps_events`, KMZ, or GPX. Kalman, recording density, and **Use GNSS only** change *where the fix comes from*, not this plot. The skyplot is the chip’s current sky, fused or not.
 
-**When it runs.** Live as soon as the app has location permission, like the compass and the GPS numbers. Start is not required. Empty rings until birds appear (or if permission is missing). It does not cache the last “pretty” sky in a tunnel.
+**When it runs.** Live as soon as the app has location permission, like the compass and the GPS numbers. Start is not required. Empty rings until satellites appear (or if permission is missing). It does not cache the last “pretty” sky in a tunnel.
 
 Engine: `Gnss.kt` (sample + snapshot) and `Skyplot.kt` (projection + L1/L5 merge). UI: `GnssSkyplot` on the GPS tab. Map HUD is unchanged.
 
@@ -301,7 +311,7 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | **Show accuracy marker**                                          | **No**                        | Pale purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                       |
 | **Show fix cloud**                                                | **No**                        | Pastel magenta dots of raw HUD fixes while standing, CEP95 around the centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while moving. Not stored.                                                                                                                                                                    |
 | **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons (metric km/h, m, °C; imperial mph, ft, °F; ICAO kt, ft, °C). Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
-| **QNH** (900–1100 hPa)                                            | Baro at insert                | Live baro and the elevation dashed line use the current slider. `baroAltitude` stored on the row uses the QNH in force then; `pressureHpa` is unchanged so you can recalibrate later. Default ISA 1013.25.                                                                                                                                                                                      |
+| **QNH** (900–1100 hPa)                                            | Baro at insert                | Live baro and the elevation dashed line use `getAltitude(QNH, pressure − offset)`. `baroAltitude` stored on the row uses the QNH and offset in force then; raw `pressureHpa` is unchanged. **Calibrate from GPS** writes a DataStore offset (±10 hPa) without changing the slider. Default ISA 1013.25. |
 | Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
 
 
@@ -382,7 +392,6 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | [CHANGELOGS.md](CHANGELOGS.md)                                                 | Canonical version history (2.0.0 rewrite through Unreleased, English and Hungarian)                                 |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console release name and EN/HU what’s-new text                                                                 |
-| [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md)                               | Rewrite report: what was rebuilt, what was dropped for Play policy, follow-ups                                      |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page)                                                                 |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic                                                                                          |
 | [docs/screenshots/](docs/screenshots/)                                         | Play listing screenshots (GPS, route, map/tracking, compass, settings, saved tracks, help, about, Google Earth KMZ) |
@@ -429,18 +438,18 @@ Engine entry points worth reading:
 - `gps-idle.png` — GPS tab: constellation chips, SNR, polar skyplot, GPS / Baro altitude, bottom tabs (idle, waiting for a fix). Recaptured 2026-09-12.
 - `gps-logging.png` — older GPS tab while logging (pre-skyplot layout, 460×1024)
 - `route.png` — Route totals, lean, GPS/baro elevation profile, bottom tabs. Recaptured 2026-09-12.
-- `map.png` — Map with a shown track, green S / red E, Google Maps, bottom tabs (idle; HUD is hidden when a saved track is shown). Recaptured 2026-09-12.
+- `map.png` — Full phone frame: Map with a shown track, green S / red E, idle Map HUD (speed, place, accuracy, GNSS used/in view), Google Maps, bottom tabs. Recaptured 2026-09-13 (1080×2160).
 - `tracking.png` — older Map while recording (pre-S/E, 460×1024)
 - `googleearth.png` — shared KMZ in Google Earth
 - `compass.png` — Compass MAG / TRUE rose, bottom tabs. Recaptured 2026-09-12.
 - `about.png`
-- `settings.png` — Settings: six usage types (Runner selected), QNH 900–1100 hPa, Keep screen on while logging, GNSS only, recording density Every good. Recaptured 2026-09-12.
+- `settings.png` — Full phone frame: six usage types (Watercraft selected), QNH 1023 hPa with Calibrate / Reset, OSM, simplify, GNSS only, smooth, hold still, recording density. Recaptured 2026-09-13 (1080×2160).
 - `saved-tracks.png` — Saved tracks: Show on map, Elevation, Delete, GPS/baro profile. Recaptured 2026-09-12.
 - `settings-density.png` — Older Settings layout with simplify / smoothing sliders (2.0.3)
 - `help.png` — Help topics (2.0.3)
 - `app-icon.png`
 
-Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Status bar and home indicator cropped; bottom GPS / Route / Map / Compass tabs kept. Upload `gps-idle.png`, `route.png`, `map.png`, `compass.png`, `settings.png`, and `saved-tracks.png` with this release. HUD Map listing and the feature graphic wait on dark tiles (see the roadmap).
+Phone listing: 24-bit PNG, no alpha. Older shots (`gps-idle.png`, `route.png`, `compass.png`, `saved-tracks.png`) are 1080×1920 (9:16, chrome cropped). `map.png` and `settings.png` are the full device frame scaled to 1080×2160 (Play long-edge = 2× short-edge; no UI cropped). Upload those six with this release. Logging HUD Map and the feature graphic wait on dark tiles (see the roadmap).
 
 ---
 
@@ -456,4 +465,4 @@ Phone listing size: 1080×1920, 24-bit PNG, no alpha (Play 9:16). Status bar and
 
 ## Not in this app
 
-Intentionally not ported from 2014 (policy or dead APIs): IMEI / `READ_PHONE_STATE`, live lat/lng upload, follow-me web page, remote unlock, Google Directions, app-driven GPS/Wi-Fi toggles, boot auto-start. See [docs/RENEWAL-REPORT.md](docs/RENEWAL-REPORT.md).
+Intentionally not ported from 2014 (policy or dead APIs): IMEI / `READ_PHONE_STATE`, live lat/lng upload, follow-me web page, remote unlock, Google Directions, app-driven GPS/Wi-Fi toggles, boot auto-start.

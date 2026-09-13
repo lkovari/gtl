@@ -2,17 +2,17 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Status:** Product plan after 2.0.6 (versionCode 24). The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, and OSM file/camera guards.  
+**Status:** Product plan after 2.0.7 (versionCode 25). The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, and OSM file/camera guards.  
 **Not a code spec:** this document records *why* the order is this order, and the release waves. Write a short brief / test list for the wave you actually start.  
 **Effort:** calendar days for one developer who already knows this repo (not person-months, not a team week).
 
-Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [RENEWAL-REPORT.md](RENEWAL-REPORT.md), [DBSTRUCT-en.md](DBSTRUCT-en.md), [GPSDATAFLOW-en.md](GPSDATAFLOW-en.md).
+Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [DBSTRUCT-en.md](DBSTRUCT-en.md), [GPSDATAFLOW-en.md](GPSDATAFLOW-en.md).
 
 ---
 
 ## How to read this
 
-GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for runner/bicycle, KMZ, OSM, fix cloud. After 2.0.6 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), and OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region).
+GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for runner/bicycle, KMZ, OSM, fix cloud. After 2.0.7 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), and OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region).
 
 The remaining gap is **night use, archive, and the second eye-catcher**: the map stays daylight, the notification is static, the saved list is a date, the line is one colour. The Play feature graphic promises a dark cockpit and a glowing track; HUD and skyplot already match, dark tiles and speed colour do not.
 
@@ -59,7 +59,7 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 
 ### What is weak for listing and for use
 
-- **Map at night:** HUD is there, tiles stay daylight. Listing shots in `docs/screenshots/` (2026-09-12) show GPS skyplot, Route elevation, Compass MAG rose, Settings QNH, Saved-track elevation, and Map with S/E. Map HUD is still missing from the listing (HUD is hidden when a saved track is shown).
+- **Map at night:** HUD is there, tiles stay daylight. Listing shots in `docs/screenshots/` show GPS skyplot, Route elevation, Compass MAG rose, Settings QNH, Saved-track elevation, and Map with idle HUD + S/E (`map.png` / `settings.png` recaptured 2026-09-13). Logging HUD Map and the feature graphic still wait.
 - **Route tab:** 2×4 `HudMetric` cards plus an elevation profile. Speed is not *the* number.
 - **Saved tracks:** date + raw `usageType` enum + `METRIC`. Elevation, delete confirm, and KMZ/GPX share exist. No name, distance, or mini-map.
 - **Theme:** cockpit colours exist, but the **map stays daylight**, there is no in-app System / Light / Dark control, and `themes.xml` keeps a light status bar.
@@ -68,7 +68,7 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 
 ### Intentionally absent (keep it that way)
 
-See the renewal report: IMEI, live lat/lng upload, follow-me web, remote unlock, Google Directions, app-toggled GPS, boot auto-start. `RemoteTrackSync` is a no-op stub; **do not fill it** with a backend while the product is a local logger.
+IMEI, live lat/lng upload, follow-me web, remote unlock, Google Directions, app-toggled GPS, boot auto-start. `RemoteTrackSync` is a no-op stub; **do not fill it** with a backend while the product is a local logger.
 
 ---
 
@@ -97,7 +97,7 @@ What makes the feature graphic honest:
 2. **Skyplot** on the GPS tab — done
 3. **Speed-coloured** line on a dark map — the remaining visual
 
-Play listing (2026-09-12) has GPS skyplot, Route elevation, Compass, Settings QNH, Saved tracks, and Map with S/E — not the HUD Map (HUD is hidden on a shown saved track). Recapture a logging HUD Map and replace the feature graphic with a **real UI crop** once dark tiles and the coloured line match it.
+Play listing has GPS skyplot, Route elevation, Compass, Settings QNH, Saved tracks, and Map with idle HUD + S/E (2026-09-13). Recapture a logging HUD Map and replace the feature graphic with a **real UI crop** once dark tiles and the coloured line match it.
 
 Default usage is motorbike: the eye-catcher must work **day and night, in gloves, at a glance** (large digits, few taps, dark map).
 
@@ -253,7 +253,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ## Release waves
 
-Version numbers are **suggestions**. 2.0.6 can stay a hotfix line; the next minor is the rest of wave 1.
+Version numbers are **suggestions**. 2.0.7 can stay a hotfix line; the next minor is the rest of wave 1.
 
 ### Wave 1 — “you can see it at night” (about 3.5–5.5 days)
 
@@ -265,7 +265,7 @@ Goal: night does not glare, the notification shows the same numbers, listing is 
 | 2 | Notification with live numbers | 1–2 days |
 | — | Play screenshots + feature graphic from the **real** HUD map | 0.5 day |
 
-GPS / Route / Compass / Settings / Saved tracks / Map S/E listing shots recaptured 2026-09-12 (1080×1920, bottom tabs kept). Remaining: HUD Map while logging, and the feature graphic.
+GPS / Route / Compass / Settings / Saved tracks listing shots recaptured 2026-09-12 (1080×1920). Map HUD + Settings full-frame recaptured 2026-09-13 (1080×2160, Play 2:1, no UI cropped). Remaining: HUD Map while logging, and the feature graphic.
 
 **Done when:** dark mode uses dark tiles; the notification shows km/h and km; the new 9:16 listing shot is the HUD Map, not the idle S/E track.
 
@@ -318,7 +318,7 @@ Not optional wrap-up:
 - [docs/play-console/whatsnew.txt](play-console/whatsnew.txt) (500 characters per language)
 - Help EN/HU for new controls
 - README feature list if the user can see it
-- Screenshots 1080×1920, 24-bit, no alpha; GPS skyplot, Route elevation, Compass, Settings QNH, Saved tracks, and Map S/E recaptured 2026-09-12. Recapture HUD Map (logging) and the feature graphic after dark tiles.
+- Screenshots 24-bit PNG, no alpha; GPS skyplot, Route elevation, Compass, Saved tracks 1080×1920 (2026-09-12); Map idle HUD + S/E and Settings full frame 1080×2160 (2026-09-13). Recapture HUD Map (logging) and the feature graphic after dark tiles.
 
 [GPSDATAFLOW](GPSDATAFLOW-en.md) only changes if the write chain changes. Session name: [DBSTRUCT](DBSTRUCT-en.md) migration 4→5.
 

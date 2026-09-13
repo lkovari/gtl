@@ -36,7 +36,7 @@ erDiagram
         TEXT usageType "UsageType name, nullable on old rows until migrated"
         INTEGER isPlacemark "1 = START PAUSE STOP"
         TEXT eventKind "START MOVE PAUSE STOP"
-        REAL baroAltitude "ISA m from TYPE_PRESSURE, nullable"
+        REAL baroAltitude "getAltitude m from TYPE_PRESSURE, nullable"
         REAL pressureHpa "hPa, nullable"
     }
 ```
@@ -74,10 +74,10 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `usageType` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER` copied at insert (session usage); backfilled from `track_sessions` on migrate 2→3 |
 | `isPlacemark` | `true` for START / PAUSE / STOP (KMZ icons) |
 | `eventKind` | `START`, `MOVE`, `PAUSE`, `STOP` |
-| `baroAltitude` | metres from `TYPE_PRESSURE` via `BaroAltitude.metersFromPressureHpa` using Settings QNH at insert (default ISA 1013.25 hPa); **null** if the phone has no barometer or no sample yet |
+| `baroAltitude` | metres from `TYPE_PRESSURE` via `SensorManager.getAltitude` (`AndroidBaroAltitude`) using Settings QNH at insert (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25 hPa); **null** if the phone has no barometer or no sample yet |
 | `pressureHpa` | raw hectopascals at insert; **null** if no sensor. Elevation profile and live baro recompute with the current Settings QNH |
 
-`MOVE` rows are the dense track. START / PAUSE / STOP are also stored as points and marked as placemarks. KMZ export places Start / Pause / Stop icons on the path (`TrackLogExport`); a trailing STOP that would sit off the log is snapped to the last path vertex. Earth balloons: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (stored baro at insert QNH, or `N/A`); Pause adds `Speed:`, `duration=` from Start, and `distance=` so far; Stop adds `Avg. Speed:`, `Max speed:`, session `duration=` and `distance=`. KMZ ExtendedData `baro` is stored baro metres and `alt` is GPS metres; the visible line is a ground-draped `LineString`. Missing `ambientTemperature` is `temp=N/A`.
+`MOVE` rows are the dense track. START / PAUSE / STOP are also stored as points and marked as placemarks. KMZ export places Start / Pause / Stop icons on the path (`TrackLogExport`); a trailing STOP that would sit off the log is snapped to the last path vertex. Earth balloons: UTC `YYYY:MM:DD HH:MM:SS`, `temp=` in session units or `temp=N/A`, `lon=` then `lat=`, `Altitude:` (GPS) and `Baro:` (stored baro at insert QNH, or `-`); Pause adds `Speed:`, `duration=` from Start, and `distance=` so far; Stop adds `Avg. Speed:`, `Max speed:`, session `duration=` and `distance=`. KMZ ExtendedData `baro` is stored baro metres (`-` if missing) and `alt` is GPS metres; the visible line is a ground-draped `LineString`. Missing `ambientTemperature` is `temp=N/A`.
 
 ## Not stored
 

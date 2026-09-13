@@ -54,7 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.CompassHeading
-import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
+import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
 import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
 import com.lkovari.mobile.apps.gtl.engine.Units
@@ -479,7 +479,8 @@ private fun RoutePane(state: GtlUiState) {
             )
         }
         val qnh = state.settings.qnhHpa
-        val elevation = remember(state.events, qnh) {
+        val offset = state.settings.baroPressureOffsetHpa
+        val elevation = remember(state.events, qnh, offset) {
             ElevationSeries.downsample(
                 ElevationSeries.fromPoints(
                     state.events.map { event ->
@@ -487,10 +488,11 @@ private fun RoutePane(state: GtlUiState) {
                             latitude = event.latitude,
                             longitude = event.longitude,
                             gpsAltitude = event.altitude,
-                            baroAltitude = BaroAltitude.displayedMeters(
+                            baroAltitude = AndroidBaroAltitude.displayedMeters(
                                 event.pressureHpa,
                                 event.baroAltitude,
-                                qnh
+                                qnh,
+                                offset
                             )
                         )
                     }
