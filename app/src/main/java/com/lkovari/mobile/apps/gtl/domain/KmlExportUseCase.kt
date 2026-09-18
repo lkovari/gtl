@@ -17,11 +17,20 @@ import java.util.Date
 import java.util.Locale
 
 class KmlExportUseCase(private val context: Context) {
-    fun write(session: TrackSessionEntity, events: List<GpsEventEntity>): File {
-        return write(listOf(session to events))
+    fun write(
+        session: TrackSessionEntity,
+        events: List<GpsEventEntity>,
+        qnhHpa: Float,
+        offsetHpa: Float
+    ): File {
+        return write(listOf(session to events), qnhHpa, offsetHpa)
     }
 
-    fun write(items: List<Pair<TrackSessionEntity, List<GpsEventEntity>>>): File {
+    fun write(
+        items: List<Pair<TrackSessionEntity, List<GpsEventEntity>>>,
+        qnhHpa: Float,
+        offsetHpa: Float
+    ): File {
         val dir = File(context.filesDir, "gtltracklogs")
         dir.mkdirs()
         val stampFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
@@ -46,10 +55,11 @@ class KmlExportUseCase(private val context: Context) {
                     tempCelsius = event.ambientTemperature,
                     leanAngle = event.leanAngle,
                     usageType = UsageType.kmlLabelOf(event.usageType ?: session.usageType),
-                    baroAltitude = event.baroAltitude
+                    baroAltitude = event.baroAltitude,
+                    pressureHpa = event.pressureHpa
                 )
             }
-            KmlTrackBuilder.build("GTL $stamp", logEvents, system)
+            KmlTrackBuilder.build("GTL $stamp", logEvents, system, qnhHpa, offsetHpa)
         }
         val documentName = if (tracks.size == 1) tracks.first().name else "GTL export $fileStamp"
         val kml = KmlExporter.export(

@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Status:** Product plan after 2.0.7 (versionCode 25). The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, and OSM file/camera guards.  
+**Status:** Product plan after 2.0.8 (versionCode 26). The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, and OSM file/camera guards.  
 **Not a code spec:** this document records *why* the order is this order, and the release waves. Write a short brief / test list for the wave you actually start.  
 **Effort:** calendar days for one developer who already knows this repo (not person-months, not a team week).
 
@@ -12,7 +12,7 @@ Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [DB
 
 ## How to read this
 
-GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for runner/bicycle, KMZ, OSM, fix cloud. After 2.0.7 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), and OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region).
+GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for runner/bicycle, KMZ, OSM, fix cloud. After 2.0.8 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), and OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region).
 
 The remaining gap is **night use, archive, and the second eye-catcher**: the map stays daylight, the notification is static, the saved list is a date, the line is one colour. The Play feature graphic promises a dark cockpit and a glowing track; HUD and skyplot already match, dark tiles and speed colour do not.
 
@@ -50,9 +50,9 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 - Filter chain: accuracy / satellites → optional Kalman → density → Room → Map / Route / KMZ / GPX
 - Map HUD (large speed, accuracy, GNSS used/in view; while logging: trip, elapsed, pulsing REC); keep-screen-on setting
 - GPS tab: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; altitude from `GpsAltitude.pick`; baro when a pressure sensor exists
-- KMZ tessellated `LineString` (visible, height 0) plus hidden `gx:Track` for timed data; Start / Pause / Stop balloons on the stored line (Stop is the last accepted point)
+- KMZ tessellated `LineString` (visible, height 0) plus hidden `gx:Track` for timed data; Start / Pause / Stop balloons on the stored line (Stop is the last accepted point; `Baro:` / ExtendedData `baro` from `pressureHpa` at share-time QNH, 1500 m GPS guard; `IconStyle` scale 0.8)
 - GPX 1.1 share (one file, several `trk`; START/PAUSE/STOP `wpt`)
-- Elevation profile (GPS × distance; dashed baro using Settings QNH 900–1100 hPa; axis at least 50 m)
+- Elevation profile (GPS × distance; dashed baro using Settings QNH 900–1100 hPa; 1500 m GPS guard; axis at least 50 m)
 - OSM Mapsforge region download with `OsmMapFile` checks; failed open turns **Use downloaded OSM map** off; camera stays on the `.map` when GPS is outside it. Google Maps when `MAPS_API_KEY` is set
 - Green **S** / red **E** on the drawn track (end hidden while logging)
 - Compose palette: light sage/paper, dark **Cockpit** (`Theme.kt`); dark follows the system theme
@@ -253,7 +253,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ## Release waves
 
-Version numbers are **suggestions**. 2.0.7 can stay a hotfix line; the next minor is the rest of wave 1.
+Version numbers are **suggestions**. 2.0.8 can stay a hotfix line; the next minor is the rest of wave 1.
 
 ### Wave 1 — “you can see it at night” (about 3.5–5.5 days)
 

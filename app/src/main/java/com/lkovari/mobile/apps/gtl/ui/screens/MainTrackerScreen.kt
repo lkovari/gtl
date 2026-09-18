@@ -492,7 +492,8 @@ private fun RoutePane(state: GtlUiState) {
                                 event.pressureHpa,
                                 event.baroAltitude,
                                 qnh,
-                                offset
+                                offset,
+                                event.altitude
                             )
                         )
                     }

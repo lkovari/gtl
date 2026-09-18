@@ -6,11 +6,45 @@ Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. 
 
 A 2014-es Eclipse-app (`gtl-e`) Kotlin + Jetpack Compose újraírása. Alkalmazásazonosító: `com.lkovari.mobile.apps.gtl`.
 
-**Verzió:** 2.0.7 (versionCode 25)  
+**Verzió:** 2.0.8 (versionCode 26)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** angol és magyar, Material 3, álló (portrait)
 
 Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html](https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html)
+
+---
+
+## Tartalomjegyzék
+
+- [Funkciók](#funkciók)
+  - [Naplózás](#naplózás)
+  - [GPS fül](#gps-fül)
+  - [Útvonal fül](#útvonal-fül)
+  - [Térkép fül](#térkép-fül)
+  - [Iránytű fül](#iránytű-fül)
+  - [Mentett útvonalak](#mentett-útvonalak)
+  - [KMZ export](#kmz-export)
+  - [GPX export](#gpx-export)
+  - [Beállítások](#beállítások)
+  - [További képernyők](#további-képernyők)
+- [Architektúra](#architektúra)
+  - [Adatok](#adatok)
+  - [Hogyan működik a naplózás](#hogyan-működik-a-naplózás)
+  - [GNSS skyplot](#gnss-skyplot)
+  - [Barometrikus magasság (Baro)](#barometrikus-magasság-baro)
+  - [Hogyan naplóz a Futó, mint egy sportóra](#hogyan-naplóz-a-futó-mint-egy-sportóra)
+  - [Kalman-szűrő (hogyan simulnak a letárolt pontok)](#kalman-szűrő-hogyan-simulnak-a-letárolt-pontok)
+  - [A beállítások hatása a tracklogra](#a-beállítások-hatása-a-tracklogra)
+  - [Rögzítés sűrűsége](#rögzítés-sűrűsége)
+  - [Douglas–Peucker (térkép-egyszerűsítés)](#douglaspeucker-térkép-egyszerűsítés)
+  - [Engedélyek](#engedélyek)
+- [Beüzemelés](#beüzemelés)
+  - [Fordítás](#fordítás)
+  - [Stack](#stack)
+- [Technikai dokumentumok](#technikai-dokumentumok)
+- [Play listing képernyőképek](#play-listing-képernyőképek)
+- [Következő teendők](#következő-teendők)
+- [Ami nincs ebben az appban](#ami-nincs-ebben-az-appban)
 
 ---
 
@@ -22,16 +56,16 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - A fixek csak akkor tárolódnak, ha átmennek a pontossági és műholdszám-kapun. Opcionális **Kalman**-simítás utána elmozdítja a pontot. Az **Okos** vagy **Minden jó fix** sűrűség dönti el, hogy beíródik-e (lásd Beállítások). Futónál az alap: **Csak GNSS** (műholdchip, nem fused hely) simítás nélkül, hogy a kis úttest-alakzatok megmaradjanak a tracklogban. Teljes lánc: [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - Eseménytípusok: `START`, `MOVE`, `PAUSE` (a usage pauza-sebesség alatt), `STOP`.
 - Használati módok: repülő, hajó, autó, motor (alap), kerékpár, futó. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A futó és a kerékpár lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
-- Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), barometrikus magasság (`TYPE_PRESSURE`, ISA, üres ha nincs szenzor), gyorsulásmérő-minták és dőlésszög (gravitáció, tankra szerelve) minden letárolt ponton.
+- Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), barometrikus magasság (`TYPE_PRESSURE`; lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro)), gyorsulásmérő-minták és dőlésszög (gravitáció, tankra szerelve) minden letárolt ponton.
 
 
 
 ### GPS fül
 
 - Élő műholdszámok: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC. A chippek színe megegyezik a skyplotéval.
-- Polar **skyplot** az SNR alatt (észak fent, used vs in view, L5 gyűrű). Lásd [GNSS skyplot](#gnss-skyplot).
+- Polar **skyplot** az SNR alatt (észak fent, Használatban vs Látható, L5 gyűrű). Lásd [GNSS skyplot](#gnss-skyplot). Rendszerek és sávok: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md).
 - SNR minőség (kiváló / jó / közepes / gyenge / nincs jel).
-- Szélesség, hosszúság, pontosság, forrás, magasság, naplózási állapot. **Baro**, ha van nyomásszenzor (QNH a Beállításokban). Környezeti hőmérséklet.
+- Szélesség, hosszúság, pontosság, forrás, magasság, naplózási állapot. **Baro**, ha van nyomásszenzor (QNH a Beállításokban; [hogyan számolódik a Baro](#barometrikus-magasság-baro)). Környezeti hőmérséklet.
 - A **magasság** először MSL, aztán GNSS ellipszoid, aztán fused ellipszoid (`GpsAltitude.pick`). A −430…9000 m-en kívüli érték (néhány telefonon fused −1800 m körüli szemét) hiányzik.
 - Ha a **Pontfelhő** be van: n, RMS, CEP95, medián jelentett pontosság, plusz álló / mozgás / várakozás felirat (ugyanaz a memóriabeli ablak, mint a térkép pöttyei; a CEP95-höz 8 minta kell).
 
@@ -39,7 +73,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Útvonal fül
 
-Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját használja.
+Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
 
 ### Térkép fül
 
@@ -64,7 +98,7 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 
 - Munkamenetek listája dátummal, használattal, mértékegységgel.
 - **Térképen** a Térkép fület nyitja azon a munkameneten (Google Maps vagy OSM), a sessionben tárolt használati módot beírja a Beállításokba, és azzal rajzolja. Utána a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot. A következő Indít a kiválasztott Beállításokat követi. A seprő leveszi a vonalat, a munkamenetet nem törli.
-- **Magasság** GPS-magasság × távolság chartot nyit (szaggatott baro vonal, ha van minta).
+- **Magasság** GPS-magasság × távolság chartot nyit (szaggatott baro vonal, ha van minta; ugyanazok a Baro-szabályok, mint a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) alatt).
 - **Törlés** minden sessionnél (keskeny kijelzőn a Magasság alá tör). Megerősítés után cascade-törli a SQLite sessiont és a pontjait.
 - Jelölőnégyzetek, **Összes kijelölése**, **Kijelöltek megosztása** → KMZ vagy GPX:
   - egy munkamenet → `GTL_yyyyMMdd_HHmmss.kmz` vagy `.gpx`
@@ -74,20 +108,20 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 
 ### KMZ export
 
-- Csomagolt play (indítás), pause és stop ikonok; a térképfeliratok rejtettek (`LabelStyle` scale 0). A **látható** vonal KML `LineString`, `tessellate` és `clampToGround`, magasság 0, hogy a Google Earth a terepre feszítse (a `gx:Track` GPS-magassággal a 3. `gx:coord`-on közeli zoomnál az utca mellé emelkedik, és a kamera alá tűnhet). A Start / Pause / Stop Point magassága is 0. Egy rejtett `gx:Track` tárolja a `when`, speed, odometer, GPS `alt` és `baro` adatot.
+- Csomagolt play (indítás), pause és stop ikonok (`IconStyle` scale **0.8**); a térképfeliratok rejtettek (`LabelStyle` scale 0). A **látható** vonal KML `LineString`, `tessellate` és `clampToGround`, magasság 0, hogy a Google Earth a terepre feszítse (a `gx:Track` GPS-magassággal a 3. `gx:coord`-on közeli zoomnál az utca mellé emelkedik, és a kamera alá tűnhet). A Start / Pause / Stop Point magassága is 0. Egy rejtett `gx:Track` tárolja a `when`, speed, odometer, GPS `alt` és `baro` adatot.
 - A vonal a letárolt log; a session végét jelölő STOP sor nem lesz extra horog. A Stop ikon az utolsó path-csúcson van. A Pause ikon a pauza-csúcson van (állásonként egy; Start/Stop átfedésnél elmarad).
 - START / PAUSE / STOP balloonok (a Google Earth play, pause vagy stop ikonjára koppintva). A placemark neve **Start**, **Pause**, **Stop**. A leírás HTML (`<br/>`), hogy az Earth details minden mezőt mutasson. Az idő UTC, nincs `time=` előtag és nincs `UTC` utótag. A mértékegység a Beállításokat követi (metrikus: km/h, m / km, °C; angolszász: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). A balloonban **nincs** `usage=` és `lean=`.
-  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A`, ha nincs szenzorminta), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (a letárolt nyomásminta az akkor kiválasztott QNH-val, vagy `-`). Nincs Speed / Avg. Speed / Max speed / duration / distance.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A`, ha nincs szenzorminta), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (a letárolt `pressureHpa` a **jelenlegi** Beállítások QNH-jával és GPS-kalibrációs offsettel megosztáskor, ugyanaz, mint a magasságprofil szaggatott vonala, vagy `-`; kimarad, ha több mint 1500 m-re van a pont GPS-magasságától). Nincs Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** ugyanazok a sorok, plusz `Speed:` (pillanatnyi GPS-sebesség a pauza-soron), `duration=` (másodperc, ha 60 s vagy kevesebb, egész perc 60 perc alatt, különben `HH:MM:SS` a Starttól), és `distance=` az addigi út a kiválasztott mértékegységben. Nincs Avg. Speed / Max speed.
   - **Stop:** ugyanazok a sorok, plusz `Avg. Speed:` és `Max speed:` (egy tizedes) a `TrackStatsCalculator`-ból a pathon, majd `duration=` és `distance=` a teljes sessionre. Nincs pillanatnyi `Speed:`.
-- Minden rejtett `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `alt` (GPS méter), `baro` (méter a sor írásakor érvényes QNH-val, `-` ha nincs minta). A `gx:coord` magasság 0.
+- Minden rejtett `gx:Track` pont ExtendedData: `speed` (m/s), `odometer` (m), `alt` (GPS méter), `baro` (méter a `pressureHpa`-ból a megosztáskori QNH-val és offsettel, `-` ha nincs minta, vagy ha az érték több mint 1500 m-re van a GPS-magasságtól). A `gx:coord` magasság 0. QNH- vagy Kalibrálás GPS-ből változtatás után oszd meg újra a KMZ-t. Képlet: [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 - MIME `application/vnd.google-earth.kmz`. Nyisd meg Google Earth-tel (ha kell, telepítsd a Play Áruházból).
 - A súgó **KMZ és GPX megosztása** felsorolja a balloon mezőket (EN/HU) és a SQLite `gps_events` mezőit.
 
 ### GPX export
 
 - GPX 1.1 mag: sessionenként egy `<trk>` / egy `<trkseg>` (az auto-PAUSE nem darabolja a vonalat). A záró STOP marker nem lesz extra `<trkpt>`.
-- Minden letárolt pont `<trkpt>`: `lat`, `lon`, `<ele>` (GPS-magasság), `<time>` (UTC). Nincs speed-kiterjesztés, hogy az OsmAnd, Komoot, Garmin Connect, Relive és QGIS be tudja olvasni.
+- Minden letárolt pont `<trkpt>`: `lat`, `lon`, `<ele>` (GPS-magasság), `<time>` (UTC). Nincs speed-kiterjesztés, hogy az OsmAnd, Komoot, Garmin Connect, Relive és QGIS be tudja olvasni. A baro nem kerül a GPX-be; SQLite-ban és KMZ-ben marad. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 - START / PAUSE / STOP `<wpt>` neve Start, Pause, Stop. A Stop waypoint az utolsó path-pont (ugyanaz a pattinás, mint a KMZ).
 - Több kijelölt session → egy `.gpx` több `<trk>`-kel. Fájlnév `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
 - Mentett útvonalak → Kijelöltek megosztása → KMZ vagy GPX.
@@ -113,7 +147,7 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 
 - **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (futó és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
 - **Mértékegység** — metrikus, angolszász vagy ICAO az Útvonalon (km/h és méter; mph és láb/mérföld; csomó, tengeri mérföld és láb). A letárolt koordinátákat nem mozgatja.
-- **QNH** — tengerszinti nyomás a barométerhez, **900–1100 hPa** (alap `PRESSURE_STANDARD_ATMOSPHERE` 1013,25). Csak akkor látszik, ha a telefonnak van nyomásszenzora. Az élő baro és a magasságprofil szaggatott vonala `getAltitude(QNH, nyomás − offset)`. A letárolt `pressureHpa` nyers; a `baroAltitude` íráskor az akkor érvényes QNH-t és offsetet használja. Valós tengerszinti QNH-t METAR-ból, ATIS-ból vagy reptéri időjárásból nézz (nem állomásnyomás). **Kalibrálás GPS-ből** (állj, jó GPS-magasság) a chip offsetjét a DataStore-ba írja (±10 hPa), a QNH csúszkát nem; **Baro visszaállítás** törli.
+- **QNH** — tengerszinti nyomás a barométerhez, **900–1100 hPa** (alap `PRESSURE_STANDARD_ATMOSPHERE` 1013,25). Csak akkor látszik, ha a telefonnak van nyomásszenzora. Az élő baro, a magasságprofil szaggatott vonala és a KMZ `Baro:` / ExtendedData `baro` a `getAltitude(QNH, nyomás − offset)` (KMZ **megosztáskor**). Ha ez a magasság több mint 1500 m-re van a pont GPS-magasságától, a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad. A letárolt `pressureHpa` nyers; a `baroAltitude` íráskor az akkor érvényes QNH-t és offsetet használja. Valós tengerszinti QNH-t METAR-ból, ATIS-ból vagy reptéri időjárásból nézz (nem állomásnyomás). **Kalibrálás GPS-ből** (állj, jó GPS-magasság) a chip offsetjét a DataStore-ba írja (±10 hPa), a QNH csúszkát nem; **Baro visszaállítás** törli. Részletek: [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 - **Letöltött OSM térkép használata** — Mapsforge fájl a Google Maps helyett. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót.
 - **Útvonal egyszerűsítése a térképen** — kevesebb csúcs csak a Térképen. A kapcsoló bekapcsolva **1–20 m** csúszka (1 m-es lépés). A KMZ és az odométer minden letárolt pontot megtart.
 - **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad. A seprő leveszi a kirajzolt mentett tracket, a logot nem törli.
@@ -203,7 +237,7 @@ Leállít
 - A csúszka köztes állásai az Okos térközt keverik a Minden-jó padlóval; a min-idő / kanyar út akkor is elfogadhat egy pontot.
 - Ha a GPS `bearing` 0 (kocogáskor gyakori), a kanyardetekció a szomszédos pozíciókból számolt irányszöget is használhatja.
 
-**Eseménytípus.** Írás után: `START` az első ponton; `PAUSE`, ha a sebesség a usage pauza-küszöb alatt van (0,25 m/s futó, 0,4 m/s járművek); különben `MOVE`. Opcionális környezeti hőmérséklet, utolsó gyorsulásmérő XYZ és dőlésszög (gravitáció, tankra szerelve) a sorra másolódik. Az iránytű azimutja csak HUD, nem tárolódik.
+**Eseménytípus.** Írás után: `START` az első ponton; `PAUSE`, ha a sebesség a usage pauza-küszöb alatt van (0,25 m/s futó, 0,4 m/s járművek); különben `MOVE`. Opcionális környezeti hőmérséklet, utolsó gyorsulásmérő XYZ, dőlésszög (gravitáció, tankra szerelve), nyers `pressureHpa` és íráskori `baroAltitude` a sorra másolódik. Az iránytű azimutja csak HUD, nem tárolódik. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 
 **Leállítás.** Mindig ír egy `STOP` sort (`isPlacemark` true), még ha a sűrűség eldobná is a pontot. A koordináta az utolsó **elfogadott** letárolt fix (nem a nyers HUD-fix, ami pár méterre lehet a logtól). A KMZ/GPX a Stop ikont erre az utolsó path-csúcsra teszi.
 
@@ -244,6 +278,8 @@ Kétféle kör van a skyploton: a **rács** (az ég geometriája) és a **műhol
 
 A **szín** a konstelláció, ugyanaz, mint a fenti chipeken: GPS kék, Galileo lime, GLONASS carmine, BeiDou borostyán, QZSS magenta, NavIC cián; SBAS/ismeretlen halk. A marker **mérete fix**; a jelerősség (SNR) a felette lévő sávon van, nem a kör nagyságán.
 
+**Sarkok.** Bal fent **SKYPLOT**. Jobb fent **Látható** (üres kör). Bal lent **Használatban** (kitöltött). Jobb lent **L5** (kitöltött + belső gyűrű). Az égtájak a horizon-gyűrűn: **N** carmine 12 óránál, majd **E**, **S**, **W**.
+
 **Kétfrekvenciás.** Az Android ugyanannak az SVID-nek az L1 és L5 sorát két `GnssStatus` sorként adja, azonos azimuttal/elevációval. A plot egy ponttá vonja össze, hogy ne legyen két egymásra tett pötty. A chippek ezeket a sorokat továbbra is külön számolják (`satellitesInView` a nyers sorszám, mint a Térkép HUD `used/in view`).
 
 **Adatút.** `GnssStatus.Callback` → műholdankénti `SatelliteSample` (azimut, eleváció, CN0, used, konstelláció, vivő) → `GnssSnapshot.satellites` memóriában → polar canvas. Sem a `gps_events`, sem a KMZ, sem a GPX nem kapja. A Kalman, a sűrűség és a **Csak GNSS** azt változtatja, *honnan jön a fix*, nem ezt a plotot. A skyplot a chip aktuális egét mutatja, fused-től függetlenül.
@@ -251,6 +287,40 @@ A **szín** a konstelláció, ugyanaz, mint a fenti chipeken: GPS kék, Galileo 
 **Mikor él.** Amint van helyengedély, mint az iránytű és a GPS számok. Indítás nem kell. Üres gyűrűk, amíg nincs műhold (vagy ha nincs engedély). Alagútban nem cache-eli az utolsó „szép” eget.
 
 Engine: `Gnss.kt` (minta + snapshot) és `Skyplot.kt` (projekció + L1/L5 összevonás). UI: `GnssSkyplot` a GPS fülön. A Térkép HUD változatlan.
+
+### Barometrikus magasság (Baro)
+
+**Mi ez.** Magasság a telefon légnyomás-szenzorából (`TYPE_PRESSURE`), nem GPS-magasság és nem a Google Earth terep-DEM-je. A szám repülős **QNH-magasság**: tengerszinti nyomás plusz a Nemzetközi Standard Atmoszféra (ISA), hogy az eredmény közelítő méter legyen közepes tengerszint felett (MSL). Az időjárás, a chip hibája és a rossz QNH a GPS-hez képest eltolhatja.
+
+**Hogyan számolódik.** Az élő és a letárolt átszámítás Android `SensorManager.getAltitude(qnhHpa, pressureHpa − offsetHpa)`. A `:engine` másolat (`BaroAltitude.metersFromPressureHpa`) ugyanaz az ISA-képlet:
+
+`h = 44330 × (1 − (p_corr / QNH)^(1 / 5.255))`
+
+ahol `p_corr` a nyers hektopascal mínusz a GPS-kalibrációs offset. A QNH **900–1100 hPa**, alap `PRESSURE_STANDARD_ATMOSPHERE` **1013,25**. Az offset **±10 hPa**. Tengerszinti QNH-t METAR-ból, ATIS-ból vagy reptéri időjárásból nézz — nem állomásnyomást (QFE).
+
+**Kalibrálás GPS-ből.** Állj, megbízható GPS-magassággal. Az app kiszámolja, milyen állomásnyomást várna az ISA ezen a magasságon és QNH-n (`expectedStationHpa`), majd a `pressureHpa − expected` értéket DataStore offsetként tárolja. A QNH csúszka nem mozdul. A **Baro visszaállítás** törli az offsetet.
+
+**Íráskor vs képernyőn.** Minden `gps_events` sor nyers `pressureHpa`-t és `baroAltitude`-ot tárol, az **akkor** érvényes QNH-val és offsettel. A GPS-fül Baro, az Útvonal / Mentett útvonalak szaggatott magasságvonala és a KMZ `Baro:` / ExtendedData `baro` a `pressureHpa`-ból számol a **jelenlegi** QNH-val és offsettel (`displayedMeters`; KMZ **megosztáskor**). A QNH utólagos változtatása ezeket a megjelenítéseket frissíti, a SQLite-ot nem írja újra. QNH- vagy Kalibrálás-változtatás után oszd meg újra a KMZ-t.
+
+**1500 m-es GPS-őr.** Ha az újraszámolt magasság több mint `MaxGpsDeltaMeters` (**1500 m**) a pont GPS-magasságától, a `pickDisplayed` a letárolt `baroAltitude`-ot használja, ha az 1500 m-en belül van a GPS-től; különben a baro kimarad (`Baro: -` / nincs szaggatott minta). Néhány tíz méter az ISA 1013,25 és egy valódi METAR között (például LHBP ~1022 hPa, kb. 70 m az ISA-hoz képest, GPS ~140 m) érvényes, megmarad. Kb. 2000 m a 140 m-es GPS mellett elutasítva (hamis ~800 hPa minta).
+
+**GPX.** A `<ele>` csak GPS-magasság. A baro SQLite-ban és a KMZ balloon / ExtendedData mezőben marad.
+
+Engine: `BaroAltitude.kt`. App: `AndroidBaroAltitude.kt`.
+
+**Pontosság — ez becslés, nem mérés.** A `TYPE_PRESSURE` csak a környezeti légnyomást méri; a „magasság” ennek a nyomásnak a számított átalakítása az ISA-modellen keresztül, nem közvetlen mérés. Pontos helyi tengerszinti nyomást (QNH) igényel, és elcsúszik, ahogy a valós időjárás eltávolodik ettől a referenciától — semmilyen szenzorpontosság nem javítja ki a rossz vagy elavult QNH-t. Ezt maga az Android dokumentálja, nem csak ebben az appban megfigyelt viselkedés.
+
+**Hivatalos dokumentáció.** A `SensorManager.getAltitude(p0, p)` fölötti Javadoc az AOSP-ben (`frameworks/base/core/java/android/hardware/SensorManager.java`):
+
+> „A tengerszinti nyomást ismerni kell [...] Ha ismeretlen, a `PRESSURE_STANDARD_ATMOSPHERE` közelítésként használható, de az abszolút magasságok nem lesznek pontosak.”
+
+— és két magasság közti *különbség* számítására ajánlja a függvényt, nem az abszolút érték bizalmára. A metódusban (és ennek az appnak a `BaroAltitude.metersFromPressureHpa` függvényében) szereplő `44330` skálamagasság és `1/5,255` kitevő nem Android-specifikus: a Nemzetközi Standard Atmoszféra (ISA) hipszometrikus képletét valósítja meg, amelyet az ICAO szabványosított, ezzel egyenértékű az U.S. Standard Atmosphere, 1976 is.
+
+**Hivatkozások:**
+- Android API-referencia: [`SensorManager.getAltitude(float, float)`](https://developer.android.com/reference/android/hardware/SensorManager#getAltitude(float,%20float))
+- AOSP forrás, szó szerinti Javadoc és implementáció: [`SensorManager.java`](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/hardware/SensorManager.java)
+- ICAO Doc 7488, *Manual of the ICAO Standard Atmosphere* — a barometrikus képlet konstansainak forrása
+- U.S. Standard Atmosphere, 1976 (NOAA / NASA / USAF) — ezzel egyenértékű standard atmoszféra modell
 
 ### Hogyan naplóz a Futó, mint egy sportóra
 
@@ -311,7 +381,7 @@ Ezek a vezérlők változtatják a SQLite `gps_events` táblát, az Útvonal odo
 | **Pontossági jelzés megjelenítése**                                    | **Nem**                         | Világos lila kör a **nyers** GPS-fixen, akkor is, ha a Kalman be van.                                                                                                                                                                                                                                                                                                                                     |
 | **Pontfelhő**                                                          | **Nem**                         | Pasztell magenta pöttyök a nyers HUD-fixekből állva, CEP95 a centroid körül. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem tárolódik.                                                                                                                                                                          |
 | **Mértékegység**                                                       | Csak címkék                     | Metrikus / angolszász / ICAO formázza az Útvonalat és a KMZ balloonokat (metrikus km/h, m, °C; angolszász mph, ft, °F; ICAO kt, ft, °C). A koordináták WGS-84 maradnak. A repülő és hajó előbeállítás ICAO-t választ.                                                                                                                                                                                                                                                |
-| **QNH** (900–1100 hPa)                                                 | Baro íráskor                    | Az élő baro és a magasságprofil szaggatott vonala `getAltitude(QNH, nyomás − offset)`. A sorra írt `baroAltitude` az akkor érvényes QNH és offset; a nyers `pressureHpa` változatlan. A **Kalibrálás GPS-ből** DataStore offsetet ír (±10 hPa), a csúszkát nem. Alap ISA 1013,25. |
+| **QNH** (900–1100 hPa)                                                 | Baro íráskor; KMZ megosztáskor  | Az élő baro, a magasságprofil szaggatott vonala és a KMZ balloon / ExtendedData `baro` a `getAltitude(QNH, nyomás − offset)` (KMZ megosztáskor). Ha ez több mint 1500 m-re van a GPS-magasságtól, a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad. A sorra írt `baroAltitude` az akkor érvényes QNH és offset; a nyers `pressureHpa` változatlan. A **Kalibrálás GPS-ből** DataStore offsetet ír (±10 hPa), a csúszkát nem. Alap ISA 1013,25. |
 | Pontossági / műhold kapuk                                              | Igen (elutasítás)               | A 30 m-nél (futónál és kerékpárnál 45 m) rosszabb, vagy 4-nél kevesebb műholdas fix Kalman előtt eldobódik. Nincs Settings-csúszkaként megjelenítve.                                                                                                                                                                                                                                                                |
 
 
@@ -410,14 +480,14 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../SpeedAdaptiveSpacing.kt` — méter a pontok között km/h és kanyar szerint
 - `engine/.../DouglasPeucker.kt` — csak térképes polyline-egyszerűsítés (méter, helyi vetület)
 - `engine/.../TrackStats.kt` — odométer, mozgás vs várakozás
-- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ helyi ikonokkal, clampToGround, HTML balloon
+- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ helyi ikonokkal (`IconStyle` scale 0.8), clampToGround, HTML balloon
 - `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (dátumidő, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
-- `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markerek KMZ-hez és GPX-hez
+- `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markerek KMZ-hez és GPX-hez; KMZ baro a `pressureHpa`-ból a megosztáskori QNH-val (`displayedMeters`, 1500 m GPS-őr)
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
 - `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR / műholdlista
 - `engine/.../Skyplot.kt` — polar projekció / kétfrekvenciás összevonás
 - `engine/.../GpsAltitude.kt` — MSL, majd GNSS, majd fused; −430…9000 m-en kívül eldobva
-- `engine/.../BaroAltitude.kt` — ISA / QNH méter a `pressureHpa`-ból
+- `engine/.../BaroAltitude.kt` — ISA / QNH méter a `pressureHpa`-ból; `displayedMeters` / `pickDisplayed` (1500 m a GPS-hez képest)
 - `engine/.../OsmMapFile.kt` — Mapsforge mágia + header fájlméret
 - `engine/.../OsmMapCamera.kt` — OSM közép/zoom a `.map` boundsön belül
 - `engine/.../OsmMapViewRedraw.kt` — mikor kell a Compose-nak OSM csempét invalidálni

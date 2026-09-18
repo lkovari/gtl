@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Állapot:** termékterv a 2.0.7 (versionCode 25) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás és az OSM fájl/kamera védelem.  
+**Állapot:** termékterv a 2.0.8 (versionCode 26) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás és az OSM fájl/kamera védelem.  
 **Nem kódspec:** ez a sorrend *miértjét* és a hullámokat rögzíti. Implementáció előtt a kiválasztott hullámra külön brief / tesztlista kell.  
 **Effort:** egy, a kódbázist ismerő fejlesztő naptári napja (nem emberhónap, nem naptári hét csapatra).
 
@@ -12,7 +12,7 @@ Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md)
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő. A 2.0.7 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő. A 2.0.8 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
 
 A következő hiány **éjszakai használat, archívum és a második eye-catcher**: a térkép nappali marad, az értesítés statikus, a mentett lista dátum, a vonal egy színű. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD és a skyplot már egyezik, a sötét csempe és a sebesség-szín még nem.
 
@@ -50,9 +50,9 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 - Szűrőlánc: pontosság / műhold → opcionális Kalman → sűrűség → Room → Térkép / Útvonal / KMZ / GPX
 - Térkép HUD (nagy sebesség, pontosság, GNSS used/in view; naplózáskor út, idő, pulzáló REC); keep-screen-on beállítás
 - GPS fül: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; magasság a `GpsAltitude.pick`-ből; baro, ha van nyomásszenzor
-- KMZ terepre feszített `LineString` (látható, magasság 0) plusz rejtett `gx:Track` az idősorhoz; Start / Pause / Stop balloon a letárolt vonalon (a Stop az utolsó elfogadott pont)
+- KMZ terepre feszített `LineString` (látható, magasság 0) plusz rejtett `gx:Track` az idősorhoz; Start / Pause / Stop balloon a letárolt vonalon (a Stop az utolsó elfogadott pont; `Baro:` / ExtendedData `baro` a `pressureHpa`-ból a megosztáskori QNH-val, 1500 m GPS-őr; `IconStyle` scale 0.8)
 - GPX 1.1 megosztás (egy fájl, több `trk`; START/PAUSE/STOP `wpt`)
-- Magasságprofil (GPS × táv; szaggatott baro, QNH 900–1100 hPa a Beállításokból; tengely legalább 50 m)
+- Magasságprofil (GPS × táv; szaggatott baro, QNH 900–1100 hPa a Beállításokból; 1500 m GPS-őr; tengely legalább 50 m)
 - OSM Mapsforge régióletöltés `OsmMapFile` ellenőrzéssel; sikertelen nyitás kikapcsolja a **Letöltött OSM térkép használatát**; a kamera a `.map`-en marad, ha a GPS azon kívül van. Google Maps, ha van `MAPS_API_KEY`
 - Zöld **S** / piros **E** a kirajzolt tracken (a vég rejtve naplózáskor)
 - Compose paletta: világos sage/papír, sötét **Cockpit** (`Theme.kt`); a sötét a rendszer témáját követi
@@ -253,7 +253,7 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 
 ## Kiadási hullámok
 
-A verziószámok **javaslatok**. A 2.0.7 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
+A verziószámok **javaslatok**. A 2.0.8 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
 
 ### Hullám 1 — „éjjel is látod” (kb. 3,5–5,5 nap)
 

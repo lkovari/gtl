@@ -21,9 +21,10 @@ object AndroidBaroAltitude {
         pressureHpa: Float?,
         storedBaro: Double?,
         qnhHpa: Float,
-        offsetHpa: Float = 0f
+        offsetHpa: Float = 0f,
+        gpsMeters: Double? = null
     ): Double? {
         val fromPressure = pressureHpa?.let { metersFromPressureHpa(it, qnhHpa, offsetHpa) }
-        return fromPressure ?: storedBaro
+        return BaroAltitude.pickDisplayed(fromPressure, storedBaro, gpsMeters)
     }
 }

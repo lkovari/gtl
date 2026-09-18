@@ -1,25 +1,21 @@
 Release name (Play, not shown to users):
-2.0.7 (25)
+2.0.8 (26)
 
 What's new — max 500 characters per language.
-Date: 2026-09-13
+Date: 2026-09-14
 
 <en-US>
-Baro from QNH; calibrate from GPS.
+KMZ baro matches the chart; larger Earth icons.
 
-• Barometric altitude uses Settings QNH (default 1013.25 hPa)
-• Stand still, set METAR QNH, tap Calibrate from GPS to correct the phone barometer
-• QNH slider only if this phone has a barometer
-• KMZ Baro shows - when there is no pressure sensor
-• Polar skyplot; GPS / Baro; Map HUD; KMZ or GPX 1.1
+• KMZ Baro uses current Settings QNH and GPS calibration, same as the elevation dashed line
+• Re-share KMZ after this update; older files still have insert-time baro
+• Start, Pause and Stop icons in Google Earth are a bit larger to tap
 </en-US>
 
 <hu-HU>
-Baro a QNH-ból; kalibrálás GPS-ből.
+A KMZ baro egyezik a grafikonnal; nagyobb Earth-ikonok.
 
-• A barometrikus magasság a Beállítások QNH-ját használja (alap 1013,25 hPa)
-• Állj, állítsd a METAR QNH-t, koppints a Kalibrálás GPS-ből gombra a telefon barométeréhez
-• QNH csúszka csak barométeres telefonon
-• KMZ Baro: - ha nincs nyomásszenzor
-• Polar skyplot; GPS / Baro; térkép HUD; KMZ vagy GPX 1.1
+• A KMZ Baro a jelenlegi Beállítások QNH-ját és GPS-kalibrációját használja, mint a magasságprofil szaggatott vonala
+• A frissítés után oszd meg újra a KMZ-t; a régi fájlokban az íráskori baro marad
+• A Google Earth Start, Pause és Stop ikonjai kicsit nagyobbak, könnyebb koppintani
 </hu-HU>

@@ -897,6 +897,233 @@ class KmlExporterTest {
     }
 
     @Test
+    fun trackBuilderKeepsStoredBaroDespiteDifferentShareQnh() {
+        val pressure = 1003.73f
+        val stored = 78.0
+        val qnh = 1021.16f
+        val recomputedAtShareTime = BaroAltitude.metersFromPressureHpa(pressure, qnh)
+        assertTrue(recomputedAtShareTime != null)
+        if (recomputedAtShareTime == null) {
+            return
+        }
+        assertTrue(recomputedAtShareTime != stored)
+        val events = listOf(
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME,
+                latitude = 47.50,
+                longitude = 19.05,
+                altitude = 137.0,
+                speedMps = 5f,
+                kind = EventKind.START,
+                baroAltitude = stored,
+                pressureHpa = pressure
+            ),
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME + 1_000,
+                latitude = 47.51,
+                longitude = 19.06,
+                altitude = 137.0,
+                speedMps = 8f,
+                kind = EventKind.MOVE,
+                baroAltitude = stored,
+                pressureHpa = pressure
+            ),
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME + 2_000,
+                latitude = 47.80,
+                longitude = 19.40,
+                altitude = 137.0,
+                speedMps = 0f,
+                kind = EventKind.STOP,
+                baroAltitude = stored,
+                pressureHpa = pressure
+            )
+        )
+        val track = KmlTrackBuilder.build(
+            "GTL ride",
+            events,
+            MeasurementSystem.METRIC,
+            qnhHpa = qnh
+        )
+        val expected = Units.formatAltitude(stored, MeasurementSystem.METRIC)
+        val recomputedFormatted = Units.formatAltitude(recomputedAtShareTime, MeasurementSystem.METRIC)
+        val stop = track.placemarks.single { it.kind == EventKind.STOP }
+        assertTrue(stop.description.contains("Baro: $expected"))
+        assertFalse(stop.description.contains("Baro: $recomputedFormatted"))
+        assertEquals(stored, track.points.last().baroAltitude)
+        val start = track.placemarks.single { it.kind == EventKind.START }
+        assertTrue(start.description.contains("Baro: $expected"))
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "GTL ride",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(track)
+            )
+        )
+        assertTrue(kml.contains("<gx:value>$stored</gx:value>"))
+        assertFalse(kml.contains("<gx:value>$recomputedAtShareTime</gx:value>"))
+    }
+
+    @Test
+    fun trackBuilderRecomputesFromPressureWhenStoredBaroIsMissing() {
+        val pressure = 1003.73f
+        val qnh = 1021.16f
+        val recomputed = BaroAltitude.metersFromPressureHpa(pressure, qnh)
+        assertTrue(recomputed != null)
+        if (recomputed == null) {
+            return
+        }
+        val events = listOf(
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME,
+                latitude = 47.50,
+                longitude = 19.05,
+                altitude = 137.0,
+                speedMps = 5f,
+                kind = EventKind.START,
+                pressureHpa = pressure
+            ),
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME + 1_000,
+                latitude = 47.51,
+                longitude = 19.06,
+                altitude = 137.0,
+                speedMps = 0f,
+                kind = EventKind.STOP,
+                pressureHpa = pressure
+            )
+        )
+        val track = KmlTrackBuilder.build(
+            "GTL ride",
+            events,
+            MeasurementSystem.METRIC,
+            qnhHpa = qnh
+        )
+        val expected = Units.formatAltitude(recomputed, MeasurementSystem.METRIC)
+        val stop = track.placemarks.single { it.kind == EventKind.STOP }
+        assertTrue(stop.description.contains("Baro: $expected"))
+        assertEquals(recomputed, track.points.last().baroAltitude)
+    }
+
+    @Test
+    fun trackBuilderKeepsStoredBaroWhenPressureIsMissing() {
+        val events = listOf(
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME,
+                latitude = 47.50,
+                longitude = 19.05,
+                altitude = 137.0,
+                speedMps = 5f,
+                kind = EventKind.START,
+                baroAltitude = 78.0
+            ),
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME + 1_000,
+                latitude = 47.51,
+                longitude = 19.06,
+                altitude = 137.0,
+                speedMps = 0f,
+                kind = EventKind.STOP,
+                baroAltitude = 78.0
+            )
+        )
+        val track = KmlTrackBuilder.build(
+            "GTL ride",
+            events,
+            MeasurementSystem.METRIC,
+            qnhHpa = 1022f
+        )
+        val stop = track.placemarks.single { it.kind == EventKind.STOP }
+        assertTrue(stop.description.contains("Baro: 78 m"))
+        assertEquals(78.0, track.points.last().baroAltitude)
+    }
+
+    @Test
+    fun trackBuilderKeepsStoredBaroDespiteShareBaroOffset() {
+        val pressure = 1003.73f
+        val stored = 78.0
+        val recomputedAtShareTime = BaroAltitude.metersFromPressureHpa(pressure, 1013.25f, 7.8f)
+        assertTrue(recomputedAtShareTime != null)
+        if (recomputedAtShareTime == null) {
+            return
+        }
+        assertTrue(recomputedAtShareTime != stored)
+        val events = listOf(
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME,
+                latitude = 47.50,
+                longitude = 19.05,
+                altitude = 137.0,
+                speedMps = 5f,
+                kind = EventKind.START,
+                baroAltitude = stored,
+                pressureHpa = pressure
+            ),
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME + 1_000,
+                latitude = 47.51,
+                longitude = 19.06,
+                altitude = 137.0,
+                speedMps = 0f,
+                kind = EventKind.STOP,
+                baroAltitude = stored,
+                pressureHpa = pressure
+            )
+        )
+        val track = KmlTrackBuilder.build(
+            "GTL ride",
+            events,
+            MeasurementSystem.METRIC,
+            qnhHpa = 1013.25f,
+            offsetHpa = 7.8f
+        )
+        val expected = Units.formatAltitude(stored, MeasurementSystem.METRIC)
+        val recomputedFormatted = Units.formatAltitude(recomputedAtShareTime, MeasurementSystem.METRIC)
+        val stop = track.placemarks.single { it.kind == EventKind.STOP }
+        assertTrue(stop.description.contains("Baro: $expected"))
+        assertFalse(stop.description.contains("Baro: $recomputedFormatted"))
+        assertEquals(stored, track.points.last().baroAltitude)
+    }
+
+    @Test
+    fun trackBuilderKeepsStoredBaroWhenPressureRecomputeIsImpossibleVsGps() {
+        val events = listOf(
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME,
+                latitude = 47.50,
+                longitude = 19.05,
+                altitude = 140.0,
+                speedMps = 5f,
+                kind = EventKind.START,
+                baroAltitude = 78.0,
+                pressureHpa = 800f
+            ),
+            TrackLogEvent(
+                timestampMillis = SAMPLE_TIME + 1_000,
+                latitude = 47.51,
+                longitude = 19.06,
+                altitude = 140.0,
+                speedMps = 0f,
+                kind = EventKind.STOP,
+                baroAltitude = 78.0,
+                pressureHpa = 800f
+            )
+        )
+        val track = KmlTrackBuilder.build(
+            "GTL ride",
+            events,
+            MeasurementSystem.METRIC,
+            qnhHpa = 1013.25f
+        )
+        val stop = track.placemarks.single { it.kind == EventKind.STOP }
+        assertTrue(stop.description.contains("Baro: 78 m"))
+        assertFalse(stop.description.contains("Baro: 197"))
+        assertFalse(stop.description.contains("Baro: 203"))
+        assertEquals(78.0, track.points.last().baroAltitude)
+    }
+
+    @Test
     fun drapesTrackAndPointIconsOnTheGround() {
         val kml = sampleKml()
         assertTrue(kml.contains("<gx:Track>"))
@@ -908,6 +1135,8 @@ class KmlExporterTest {
         assertTrue(kml.contains("<coordinates>19.05,47.5,0</coordinates>"))
         assertTrue(kml.contains("<styleUrl>#trackData</styleUrl>"))
         assertTrue(kml.contains("<visibility>0</visibility>"))
+        assertEquals(3, "<IconStyle><scale>0.8</scale>".toRegex().findAll(kml).count())
+        assertFalse(kml.contains("<IconStyle><scale>0.6</scale>"))
     }
 
     @Test
@@ -2242,19 +2471,67 @@ class BaroAltitudeTest {
     }
 
     @Test
-    fun displayedMetersPrefersRecomputeFromPressure() {
+    fun displayedMetersPrefersStoredOverLiveRecompute() {
         val shown = BaroAltitude.displayedMeters(
             pressureHpa = 990f,
             storedBaro = 10.0,
             qnhHpa = 1013.25f
         )
-        val recomputed = BaroAltitude.metersFromPressureHpa(990f)
-        assertEquals(recomputed, shown)
+        assertEquals(10.0, shown)
     }
 
     @Test
     fun displayedMetersFallsBackToStoredWhenNoPressure() {
         assertEquals(184.0, BaroAltitude.displayedMeters(null, 184.0, 1013.25f))
+    }
+
+    @Test
+    fun displayedMetersRecomputesFromPressureWhenStoredIsMissing() {
+        val shown = BaroAltitude.displayedMeters(
+            pressureHpa = 1003.73f,
+            storedBaro = null,
+            qnhHpa = 1021.16f,
+            gpsMeters = 137.0
+        )
+        val recomputed = BaroAltitude.metersFromPressureHpa(1003.73f, 1021.16f)
+        assertEquals(recomputed, shown)
+    }
+
+    @Test
+    fun displayedMetersFallsBackToRecomputeWhenStoredIsImplausibleVsGps() {
+        val shown = BaroAltitude.displayedMeters(
+            pressureHpa = 990f,
+            storedBaro = 2000.0,
+            qnhHpa = 1013.25f,
+            gpsMeters = 140.0
+        )
+        val recomputed = BaroAltitude.metersFromPressureHpa(990f, 1013.25f)
+        assertTrue(recomputed != null)
+        assertEquals(recomputed, shown)
+    }
+
+    @Test
+    fun displayedMetersFallsBackToStoredWhenRecomputeIsImpossibleVsGps() {
+        val shown = BaroAltitude.displayedMeters(
+            pressureHpa = 800f,
+            storedBaro = 78.0,
+            qnhHpa = 1013.25f,
+            gpsMeters = 140.0
+        )
+        val recomputed = BaroAltitude.metersFromPressureHpa(800f, 1013.25f)
+        assertTrue(recomputed != null && recomputed > 1500.0)
+        assertEquals(78.0, shown)
+    }
+
+    @Test
+    fun displayedMetersDropsBaroWhenStoredAndRecomputeAreImpossibleVsGps() {
+        val shown = BaroAltitude.displayedMeters(
+            pressureHpa = 800f,
+            storedBaro = 2000.0,
+            qnhHpa = 1013.25f,
+            gpsMeters = 140.0
+        )
+        assertEquals(null, shown)
     }
 
     @Test

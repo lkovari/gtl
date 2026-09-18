@@ -143,7 +143,7 @@ object KmlExporter {
 
     private fun appendIconStyle(builder: StringBuilder, id: String, href: String) {
         builder.appendLine(
-            """<Style id="$id"><IconStyle><scale>0.6</scale><Icon><href>$href</href></Icon><hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle><LabelStyle><scale>0</scale></LabelStyle><BalloonStyle><text><![CDATA[${'$'}[description]]]></text></BalloonStyle></Style>"""
+            """<Style id="$id"><IconStyle><scale>0.8</scale><Icon><href>$href</href></Icon><hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle><LabelStyle><scale>0</scale></LabelStyle><BalloonStyle><text><![CDATA[${'$'}[description]]]></text></BalloonStyle></Style>"""
         )
     }
 

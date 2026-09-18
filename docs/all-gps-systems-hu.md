@@ -187,7 +187,7 @@ A mai multi-GNSS vevő ezeket nem „választja”, hanem **összefésüli**.
 
 ## GTL-ben
 
-A GTL a chip `GnssStatus` mintáit mutatja (konstelláció, vivő, used vs in view, skyplot). A **Csak GNSS** kapcsoló az Android `GPS_PROVIDER`-t kéri — a szolgáltató neve történeti, a chip **minden** fenti konstellációt használhatja, amit a telefon támogat.
+A GTL a chip `GnssStatus` mintáit mutatja (konstelláció, vivő, used vs in view, polar skyplot). A skyplot sarkain **SKYPLOT**, **Látható**, **Használatban**, **L5**; a horizon-gyűrűn **N E S W**. A **Csak GNSS** kapcsoló az Android `GPS_PROVIDER`-t kéri — a szolgáltató neve történeti, a chip **minden** fenti konstellációt használhatja, amit a telefon támogat.
 
 Naplózási lánc: [GPSDATAFLOW-hu.md](GPSDATAFLOW-hu.md). Skyplot és Csak GNSS: [README-hu.md](../README-hu.md#gnss-skyplot).
 

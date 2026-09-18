@@ -6,6 +6,7 @@ object BaroAltitude {
     const val MaxQnhHpa = 1100f
     const val MinOffsetHpa = -10f
     const val MaxOffsetHpa = 10f
+    const val MaxGpsDeltaMeters = 1500.0
     private const val IsaScale = 44330.0
     private const val IsaExponent = 5.255
 
@@ -51,9 +52,34 @@ object BaroAltitude {
         pressureHpa: Float?,
         storedBaro: Double?,
         qnhHpa: Float,
-        offsetHpa: Float = 0f
+        offsetHpa: Float = 0f,
+        gpsMeters: Double? = null
     ): Double? {
         val fromPressure = pressureHpa?.let { metersFromPressureHpa(it, qnhHpa, offsetHpa) }
-        return fromPressure ?: storedBaro
+        return pickDisplayed(fromPressure, storedBaro, gpsMeters)
+    }
+
+    fun pickDisplayed(
+        fromPressure: Double?,
+        storedBaro: Double?,
+        gpsMeters: Double?
+    ): Double? {
+        val candidate = storedBaro ?: fromPressure
+        if (candidate == null) {
+            return null
+        }
+        if (gpsMeters == null || !gpsMeters.isFinite()) {
+            return candidate
+        }
+        if (kotlin.math.abs(candidate - gpsMeters) <= MaxGpsDeltaMeters) {
+            return candidate
+        }
+        if (storedBaro != null && kotlin.math.abs(storedBaro - gpsMeters) <= MaxGpsDeltaMeters) {
+            return storedBaro
+        }
+        if (fromPressure != null && kotlin.math.abs(fromPressure - gpsMeters) <= MaxGpsDeltaMeters) {
+            return fromPressure
+        }
+        return null
     }
 }

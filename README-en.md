@@ -6,11 +6,45 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.7 (versionCode 25)  
+**Version:** 2.0.8 (versionCode 26)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
 Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html](https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-policy.html)
+
+---
+
+## Table of contents
+
+- [Features](#features)
+  - [Logging](#logging)
+  - [GPS tab](#gps-tab)
+  - [Route tab](#route-tab)
+  - [Map tab](#map-tab)
+  - [Compass tab](#compass-tab)
+  - [Saved tracks](#saved-tracks)
+  - [KMZ export](#kmz-export)
+  - [GPX export](#gpx-export)
+  - [Settings](#settings)
+  - [Other screens](#other-screens)
+- [Architecture](#architecture)
+  - [Data](#data)
+  - [How logging works](#how-logging-works)
+  - [GNSS Skyplot](#gnss-skyplot)
+  - [Barometric altitude (Baro)](#barometric-altitude-baro)
+  - [How Runner logs like a sports watch](#how-runner-logs-like-a-sports-watch)
+  - [Kalman filter (how stored points are smoothed)](#kalman-filter-how-stored-points-are-smoothed)
+  - [Effect of settings on the tracklog](#effect-of-settings-on-the-tracklog)
+  - [Recording density](#recording-density)
+  - [Douglas–Peucker (map simplify)](#douglaspeucker-map-simplify)
+  - [Permissions](#permissions)
+- [Setup](#setup)
+  - [Build](#build)
+  - [Stack](#stack)
+- [Technical documents](#technical-documents)
+- [Play listing screenshots](#play-listing-screenshots)
+- [Next to do](#next-to-do)
+- [Not in this app](#not-in-this-app)
 
 ---
 
@@ -22,16 +56,16 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Runner default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
 - Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, runner. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Runner and bicycle use a looser accuracy filter and a lower pause threshold.
-- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), barometric altitude (`TYPE_PRESSURE`, ISA, nullable), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
+- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), barometric altitude (`TYPE_PRESSURE`; see [Barometric altitude (Baro)](#barometric-altitude-baro)), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
 
 
 
 ### GPS tab
 
 - Live satellite counts: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC. Chip colours match the skyplot.
-- Polar **skyplot** under SNR (north-up, used vs in view, L5 ring). See [GNSS Skyplot](#gnss-skyplot).
+- Polar **skyplot** under SNR (north-up, used vs in view, L5 ring). See [GNSS Skyplot](#gnss-skyplot). Constellation and band primer: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md) (Hungarian).
 - SNR quality (excellent / good / fair / poor / none).
-- Latitude, longitude, accuracy, provider, altitude, logging status. **Baro** when a pressure sensor exists (Settings QNH). Ambient temperature.
+- Latitude, longitude, accuracy, provider, altitude, logging status. **Baro** when a pressure sensor exists (Settings QNH; [how Baro is calculated](#barometric-altitude-baro)). Ambient temperature.
 - **Altitude** prefers Mean Sea Level, then GNSS ellipsoid, then fused ellipsoid (`GpsAltitude.pick`). Values outside −430…9000 m (fused junk near −1800 m on some phones) are treated as missing.
 - When **Show fix cloud** is on: n, RMS, CEP95, median reported accuracy, and a standing / moving / wait caption (same in-memory window as the map dots; CEP95 needs 8 samples).
 
@@ -39,7 +73,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Route tab
 
-Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH.
+Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 ### Map tab
 
@@ -64,7 +98,7 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 
 - List of sessions with date, usage, units.
 - **Show on map** opens the Map tab on that session (Google Maps or OSM), switches Settings to the usage stored on the session, and draws it with those settings. After that, changing usage or sliders redraws the same log that way. Next Start uses the Settings then selected. The Map broom takes that line off without deleting the session.
-- **Elevation** opens a GPS altitude vs distance chart for that session (dashed barometric line when those samples exist).
+- **Elevation** opens a GPS altitude vs distance chart for that session (dashed barometric line when those samples exist; same Baro rules as [Barometric altitude (Baro)](#barometric-altitude-baro)).
 - **Delete** on each session (wraps under Elevation on a narrow phone). Confirms, then cascade-deletes the SQLite session and its points.
 - Checkboxes, **Select all**, **Share selected** → KMZ or GPX:
   - one session → `GTL_yyyyMMdd_HHmmss.kmz` or `.gpx`
@@ -74,20 +108,20 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 
 ### KMZ export
 
-- Bundled play (start), pause, and stop icons; map labels hidden (`LabelStyle` scale 0). The **visible** line is a KML `LineString` with `tessellate` and `clampToGround` at height 0, so Google Earth drapes it on the terrain (a `gx:Track` with GPS altitude as the 3rd `gx:coord` floats beside the road at close zoom and can vanish under the camera). Start / Pause / Stop Points also use height 0. A hidden `gx:Track` still stores `when`, speed, odometer, GPS `alt`, and `baro`.
+- Bundled play (start), pause, and stop icons (`IconStyle` scale **0.8**); map labels hidden (`LabelStyle` scale 0). The **visible** line is a KML `LineString` with `tessellate` and `clampToGround` at height 0, so Google Earth drapes it on the terrain (a `gx:Track` with GPS altitude as the 3rd `gx:coord` floats beside the road at close zoom and can vanish under the camera). Start / Pause / Stop Points also use height 0. A hidden `gx:Track` still stores `when`, speed, odometer, GPS `alt`, and `baro`.
 - Path vertices are the stored log; a trailing STOP row that is only a session marker is not drawn as an extra hook. The Stop icon is on the last path vertex. Pause icons sit on pause vertices (one icon per standstill; omitted if they overlap Start or Stop).
 - START / PAUSE / STOP balloons (tap the play, pause, or stop icon in Google Earth). Placemark names are **Start**, **Pause**, **Stop**. Description is HTML (`<br/>`) so every field shows in Earth details. Time is UTC with no `time=` prefix and no `UTC` suffix. Units follow Settings (metric: km/h, m / km, °C; imperial: mph, ft / mi, °F; ICAO: kt, ft / NM, °C). Balloons do **not** include `usage=` or `lean=`.
-  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (from the stored pressure sample at the QNH then selected, or `-`). No Speed / Avg. Speed / Max speed / duration / distance.
+  - **Start:** `YYYY:MM:DD HH:MM:SS`, `temp=` (`N/A` when no sensor sample), `lon=`, `lat=`, `Altitude:` (GPS), `Baro:` (from stored `pressureHpa` at the **current** Settings QNH and GPS-calibration offset when you share, same as the elevation dashed line, or `-`; omitted if more than 1500 m from that point’s GPS altitude). No Speed / Avg. Speed / Max speed / duration / distance.
   - **Pause:** the same lines, plus `Speed:` (instantaneous GPS speed at that pause row), `duration=` (seconds if 60 s or less, whole minutes under 60 min, otherwise `HH:MM:SS` from Start), and `distance=` so far in the selected unit. No Avg. Speed / Max speed.
   - **Stop:** the same lines, plus `Avg. Speed:` and `Max speed:` (one decimal) from `TrackStatsCalculator` on the path, then `duration=` and `distance=` for the full session. No instant `Speed:`.
-- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (metres at the QNH used when the row was stored, `-` if no sample). `gx:coord` height is 0 so Earth does not lift the timed track.
+- Each hidden `gx:Track` point carries ExtendedData `speed` (m/s), `odometer` (m), `alt` (GPS metres), and `baro` (metres from `pressureHpa` at share-time QNH and offset, `-` if no sample or if the value is more than 1500 m from GPS altitude). `gx:coord` height is 0 so Earth does not lift the timed track. Re-share after changing QNH or Calibrate from GPS. Full formula: [Barometric altitude (Baro)](#barometric-altitude-baro).
 - MIME `application/vnd.google-earth.kmz`. Open with Google Earth (install from Play if needed).
 - Help **Sharing KMZ and GPX** lists balloon fields (EN/HU) and the SQLite `gps_events` fields.
 
 ### GPX export
 
 - GPX 1.1 core: one `<trk>` / one `<trkseg>` per session (auto-PAUSE does not split the line). A trailing STOP marker is not an extra `<trkpt>`.
-- Each stored point is a `<trkpt>` with `lat`, `lon`, `<ele>` (GPS altitude), `<time>` (UTC). No speed extension, so OsmAnd, Komoot, Garmin Connect, Relive, and QGIS can import it.
+- Each stored point is a `<trkpt>` with `lat`, `lon`, `<ele>` (GPS altitude), `<time>` (UTC). No speed extension, so OsmAnd, Komoot, Garmin Connect, Relive, and QGIS can import it. Baro is not written to GPX; it stays in SQLite and KMZ. See [Barometric altitude (Baro)](#barometric-altitude-baro).
 - START / PAUSE / STOP are `<wpt>` named Start, Pause, Stop. The Stop waypoint uses the last path point (same snap as KMZ).
 - Several selected sessions → one `.gpx` with several `<trk>`. Filename `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
 - Saved tracks → Share selected → KMZ or GPX.
@@ -113,7 +147,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
-- **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro and the elevation dashed line use `getAltitude(QNH, pressure − offset)`. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it.
+- **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro, the elevation dashed line, and KMZ `Baro:` / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ at **share** time). If that height is more than 1500 m from the point’s GPS altitude, the stored insert-time `baroAltitude` is used instead, or baro is omitted. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it. Full write-up: [Barometric altitude (Baro)](#barometric-altitude-baro).
 - **Use downloaded OSM map** — Mapsforge file versus Google Maps. A missing or invalid `.map` turns the switch off.
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
@@ -203,7 +237,7 @@ Stop
 - Slider positions between the ends mix Smart spacing with the Every-good floor; the min-time / curve path can still accept a point.
 - If GPS `bearing` is 0 (common when jogging), curve detection can use heading from consecutive positions.
 
-**Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, and lean angle (gravity, tank-mount) are copied onto the row. Compass azimuth is HUD-only and is not stored.
+**Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, lean angle (gravity, tank-mount), raw `pressureHpa`, and insert-time `baroAltitude` are copied onto the row. Compass azimuth is HUD-only and is not stored. See [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 **Stop.** Always writes a `STOP` row (`isPlacemark` true) even if density would have dropped the point. Coordinates are the last **accepted** stored fix (not the raw HUD fix, which can sit a few metres off the log). KMZ/GPX then place the Stop icon on that last path vertex.
 
@@ -228,7 +262,7 @@ Pipeline mermaid (same flow, more boxes): [docs/GPSDATAFLOW-en.md](docs/GPSDATAF
 
 ### GNSS Skyplot
 
-The GPS tab polar plot is a **map of the sky as the chip sees it**, not a 3D globe and not a second tracklog. It sits under SNR, after the constellation chips. Those chips stay: they are the glanceable `used/in view` counts (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). The skyplot shows **where** those satellites are. Data path: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md#skyplot-circles-gps-tab).
+The GPS tab polar plot is a **map of the sky as the chip sees it**, not a 3D globe and not a second tracklog. It sits under SNR, after the constellation chips. Those chips stay: they are the glanceable `used/in view` counts (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). The skyplot shows **where** those satellites are. Constellation and band primer: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md) (Hungarian). Data path: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md#skyplot-circles-gps-tab).
 
 There are two kinds of circles: the **grid** (sky geometry) and the **satellite markers**.
 
@@ -244,6 +278,8 @@ There are two kinds of circles: the **grid** (sky geometry) and the **satellite 
 
 **Colour** is the constellation, the same as the chips above: GPS blue, Galileo lime, GLONASS carmine, BeiDou amber, QZSS magenta, NavIC cyan; SBAS/unknown muted. Marker **size is fixed**; signal strength (SNR) stays on the bar above, not on the circle size.
 
+**Overlays.** Upper-left title **SKYPLOT**. Upper-right **In view** (hollow ring). Lower-left **Used** (filled). Lower-right **L5** (filled plus inner ring). Cardinal letters sit on the horizon ring: **N** carmine at 12 o’clock, then **E**, **S**, **W**.
+
 **Dual frequency.** Android reports L1 and L5 of the same SVID as two `GnssStatus` rows at the same azimuth/elevation. The plot merges them into one point so you do not see two stacked dots. The chips still count those rows separately (`satellitesInView` is the raw row count, same as the Map HUD `used/in view`).
 
 **Data path.** `GnssStatus.Callback` → per-satellite `SatelliteSample` (azimuth, elevation, CN0, used, constellation, carrier) → `GnssSnapshot.satellites` in memory → polar canvas. Nothing is written to `gps_events`, KMZ, or GPX. Kalman, recording density, and **Use GNSS only** change *where the fix comes from*, not this plot. The skyplot is the chip’s current sky, fused or not.
@@ -251,6 +287,40 @@ There are two kinds of circles: the **grid** (sky geometry) and the **satellite 
 **When it runs.** Live as soon as the app has location permission, like the compass and the GPS numbers. Start is not required. Empty rings until satellites appear (or if permission is missing). It does not cache the last “pretty” sky in a tunnel.
 
 Engine: `Gnss.kt` (sample + snapshot) and `Skyplot.kt` (projection + L1/L5 merge). UI: `GnssSkyplot` on the GPS tab. Map HUD is unchanged.
+
+### Barometric altitude (Baro)
+
+**What it is.** Height from the phone’s air-pressure sensor (`TYPE_PRESSURE`), not GPS altitude and not Google Earth’s terrain DEM. The number is aviation **QNH altitude**: sea-level pressure plus the International Standard Atmosphere (ISA) so the result is approximate metres above mean sea level. Weather, chip bias, and a wrong QNH still shift it versus GPS.
+
+**How it is calculated.** Live and stored conversion uses Android `SensorManager.getAltitude(qnhHpa, pressureHpa − offsetHpa)`. The `:engine` copy (`BaroAltitude.metersFromPressureHpa`) is the same ISA formula:
+
+`h = 44330 × (1 − (p_corr / QNH)^(1 / 5.255))`
+
+where `p_corr` is raw hectopascals minus the GPS-calibration offset. QNH is **900–1100 hPa**, default `PRESSURE_STANDARD_ATMOSPHERE` **1013.25**. The offset is **±10 hPa**. Look up sea-level QNH from METAR, ATIS, or airport weather — not station pressure (QFE).
+
+**Calibrate from GPS.** Stand still with a trusted GPS altitude. The app computes the station pressure the ISA would expect at that height and QNH (`expectedStationHpa`), then stores `pressureHpa − expected` as the DataStore offset. The QNH slider does not move. **Reset baro** clears the offset.
+
+**At insert vs on screen.** Each `gps_events` row stores raw `pressureHpa` and `baroAltitude` computed with the QNH and offset **then**. The GPS-tab Baro, Route / Saved-tracks dashed elevation line, and KMZ `Baro:` / ExtendedData `baro` recompute from `pressureHpa` with the **current** QNH and offset (`displayedMeters`; KMZ at **share** time). Changing QNH after the ride updates those displays without rewriting SQLite. Re-share the KMZ after a QNH or Calibrate change.
+
+**1500 m GPS guard.** If the recomputed height is more than `MaxGpsDeltaMeters` (**1500 m**) from that point’s GPS altitude, `pickDisplayed` uses stored `baroAltitude` when that value is within 1500 m of GPS; otherwise baro is omitted (`Baro: -` / no dashed sample). A few tens of metres between ISA 1013.25 and a real METAR (for example LHBP ~1022 hPa, about 70 m vs ISA, with GPS ~140 m) is valid and kept. About 2000 m next to 140 m GPS is rejected (a bogus ~800 hPa sample).
+
+**GPX.** `<ele>` is GPS altitude only. Baro stays in SQLite and in KMZ balloons / ExtendedData.
+
+Engine: `BaroAltitude.kt`. App: `AndroidBaroAltitude.kt`.
+
+**Accuracy — this is an estimate, not a measurement.** `TYPE_PRESSURE` only reports ambient air pressure; "altitude" is a computed conversion of that pressure through the ISA model, not a direct reading. It requires the local sea-level pressure (QNH) to be accurate, and drifts as real weather moves away from that reference — no sensor precision fixes a wrong or stale QNH. This is documented by Android itself, not just behaviour observed in this app.
+
+**Official documentation.** The Javadoc directly above `SensorManager.getAltitude(p0, p)` in AOSP (`frameworks/base/core/java/android/hardware/SensorManager.java`) says:
+
+> "The pressure at sea level must be known [...] If unknown, you can use `PRESSURE_STANDARD_ATMOSPHERE` as an approximation, but absolute altitudes won't be accurate."
+
+— and recommends using the function for the *difference* between two altitudes rather than trusting the absolute value. The `44330` scale height and `1/5.255` exponent in that method (and in this app's `BaroAltitude.metersFromPressureHpa`) are not Android-specific: they implement the International Standard Atmosphere (ISA) hypsometric formula, standardized by ICAO and equivalently by the U.S. Standard Atmosphere, 1976.
+
+**References:**
+- Android API reference: [`SensorManager.getAltitude(float, float)`](https://developer.android.com/reference/android/hardware/SensorManager#getAltitude(float,%20float))
+- AOSP source, verbatim Javadoc and implementation: [`SensorManager.java`](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/hardware/SensorManager.java)
+- ICAO Doc 7488, *Manual of the ICAO Standard Atmosphere* — defines the barometric formula's constants
+- U.S. Standard Atmosphere, 1976 (NOAA / NASA / USAF) — equivalent standard atmosphere model
 
 ### How Runner logs like a sports watch
 
@@ -311,7 +381,7 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | **Show accuracy marker**                                          | **No**                        | Pale purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                       |
 | **Show fix cloud**                                                | **No**                        | Pastel magenta dots of raw HUD fixes while standing, CEP95 around the centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while moving. Not stored.                                                                                                                                                                    |
 | **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons (metric km/h, m, °C; imperial mph, ft, °F; ICAO kt, ft, °C). Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
-| **QNH** (900–1100 hPa)                                            | Baro at insert                | Live baro and the elevation dashed line use `getAltitude(QNH, pressure − offset)`. `baroAltitude` stored on the row uses the QNH and offset in force then; raw `pressureHpa` is unchanged. **Calibrate from GPS** writes a DataStore offset (±10 hPa) without changing the slider. Default ISA 1013.25. |
+| **QNH** (900–1100 hPa)                                            | Baro at insert; KMZ at share  | Live baro, the elevation dashed line, and KMZ balloons / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ when you share). If that height is more than 1500 m from GPS altitude, stored insert-time `baroAltitude` is used, or baro is omitted. `baroAltitude` stored on the row uses the QNH and offset in force then; raw `pressureHpa` is unchanged. **Calibrate from GPS** writes a DataStore offset (±10 hPa) without changing the slider. Default ISA 1013.25. |
 | Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
 
 
@@ -398,6 +468,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | [docs/DBSTRUCT-en.md](docs/DBSTRUCT-en.md)                                     | SQLite schema (`gtl.db`) mermaid                                                                                    |
 | [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md)                               | GPS listen → filter → Room → UI / KMZ (EN); mermaid of the logging pipeline                                         |
 | [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md)                               | GPS figyelés → szűrés → Room → UI / KMZ (HU)                                                                        |
+| [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md)                       | GNSS systems and bands: GPS L1/L5, Galileo, BeiDou, GLONASS, QZSS, NavIC (Hungarian primer)                         |
 | [docs/dp-kalman-smoothing-en.md](docs/dp-kalman-smoothing-en.md)               | Original Kalman implementation brief; **as-built notes at the top** (current behaviour is this README)              |
 
 
@@ -409,14 +480,14 @@ Engine entry points worth reading:
 - `engine/.../SpeedAdaptiveSpacing.kt` — metres between points by km/h and curves
 - `engine/.../DouglasPeucker.kt` — map-only polyline simplify (metres, local projection)
 - `engine/.../TrackStats.kt` — odometer, moving vs waiting
-- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ with local icons, clampToGround, HTML balloons
+- `engine/.../KmlExporter.kt` + `KmzExporter.kt` — KMZ with local icons (`IconStyle` scale 0.8), clampToGround, HTML balloons
 - `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (datetime, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
-- `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markers for KMZ and GPX
+- `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markers for KMZ and GPX; KMZ baro from `pressureHpa` at share-time QNH (`displayedMeters`, 1500 m GPS guard)
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
 - `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR / satellite list
 - `engine/.../Skyplot.kt` — polar projection / dual-frequency merge
 - `engine/.../GpsAltitude.kt` — MSL then GNSS then fused; drop outside −430…9000 m
-- `engine/.../BaroAltitude.kt` — ISA / QNH metres from `pressureHpa`
+- `engine/.../BaroAltitude.kt` — ISA / QNH metres from `pressureHpa`; `displayedMeters` / `pickDisplayed` (1500 m vs GPS)
 - `engine/.../OsmMapFile.kt` — Mapsforge magic + header file size
 - `engine/.../OsmMapCamera.kt` — OSM centre/zoom inside the `.map` bounds
 - `engine/.../OsmMapViewRedraw.kt` — when Compose must invalidate OSM tiles

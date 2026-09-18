@@ -10,7 +10,8 @@ data class TrackLogEvent(
     val tempCelsius: Float? = null,
     val leanAngle: Float? = null,
     val usageType: String? = null,
-    val baroAltitude: Double? = null
+    val baroAltitude: Double? = null,
+    val pressureHpa: Float? = null
 ) {
     fun point(): GeoPoint {
         return GeoPoint(latitude, longitude, altitude)
@@ -52,7 +53,8 @@ object TrackLogExport {
                 tempCelsius = stopSource.tempCelsius,
                 leanAngle = stopSource.leanAngle,
                 usageType = stopSource.usageType,
-                baroAltitude = stopSource.baroAltitude
+                baroAltitude = stopSource.baroAltitude,
+                pressureHpa = stopSource.pressureHpa
             )
         } else {
             null
@@ -126,7 +128,9 @@ object KmlTrackBuilder {
     fun build(
         name: String,
         events: List<TrackLogEvent>,
-        system: MeasurementSystem
+        system: MeasurementSystem,
+        qnhHpa: Float = BaroAltitude.StandardAtmosphereHpa,
+        offsetHpa: Float = 0f
     ): KmlTrack {
         val stats = TrackStatsCalculator.compute(TrackLogExport.samplesForStats(events))
         val path = TrackLogExport.path(events)
@@ -137,7 +141,7 @@ object KmlTrackBuilder {
                 timestampMillis = event.timestampMillis,
                 speedMps = event.speedMps,
                 odometerMeters = odometers[index],
-                baroAltitude = event.baroAltitude
+                baroAltitude = baroMeters(event, qnhHpa, offsetHpa)
             )
         }
         val placemarks = TrackLogExport.markers(events).map { marker ->
@@ -151,7 +155,7 @@ object KmlTrackBuilder {
                     latitude = marker.event.latitude,
                     longitude = marker.event.longitude,
                     altitude = marker.event.altitude,
-                    baroAltitude = marker.event.baroAltitude,
+                    baroAltitude = baroMeters(marker.event, qnhHpa, offsetHpa),
                     speedMps = marker.event.speedMps,
                     tempCelsius = marker.event.tempCelsius,
                     maxSpeedMps = if (marker.kind == EventKind.STOP) stats.maxSpeedMps else null,
@@ -164,6 +168,16 @@ object KmlTrackBuilder {
             )
         }
         return KmlTrack(name = name, points = points, placemarks = placemarks)
+    }
+
+    private fun baroMeters(event: TrackLogEvent, qnhHpa: Float, offsetHpa: Float): Double? {
+        return BaroAltitude.displayedMeters(
+            event.pressureHpa,
+            event.baroAltitude,
+            qnhHpa,
+            offsetHpa,
+            event.altitude
+        )
     }
 
     private fun elapsedFor(marker: TrackLogMarker, path: List<TrackLogEvent>): Long {

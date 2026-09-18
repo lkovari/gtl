@@ -656,7 +656,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             val file = when (format) {
-                TrackShareFormat.KMZ -> exporter.write(items)
+                TrackShareFormat.KMZ -> exporter.write(
+                    items,
+                    settings.value.qnhHpa,
+                    settings.value.baroPressureOffsetHpa
+                )
                 TrackShareFormat.GPX -> gpxExporter.write(items)
             }
             val mime = when (format) {
@@ -690,7 +694,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                             event.pressureHpa,
                             event.baroAltitude,
                             qnhHpa,
-                            offsetHpa
+                            offsetHpa,
+                            event.altitude
                         )
                     )
                 }

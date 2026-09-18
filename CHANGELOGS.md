@@ -3,11 +3,31 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.7** / `versionCode` **25** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.8** / `versionCode` **26** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.8] — 2026-09-14
+
+Play production track **26 (2.0.8)** (signed AAB). KMZ baro at share-time QNH; larger Earth icons.
+
+### 2026-09-14
+
+KMZ baro at share-time QNH; larger Google Earth Start / Pause / Stop icons.
+
+### Changed
+
+- KMZ Start / Pause / Stop balloons and `gx:Track` ExtendedData `baro` use `BaroAltitude.displayedMeters` from stored `pressureHpa` at **share time** (current Settings QNH and GPS-calibration offset), same source as the Saved-tracks / Route elevation dashed line. If that recompute is more than 1500 m from the point’s GPS altitude (impossible vs the track, e.g. ~2000 m next to 140 m GPS), the stored insert-time `baroAltitude` is used instead, or baro is omitted. Insert-time `baroAltitude` stays on the SQLite row. Missing pressure still falls back to stored baro or `-`. GPS `Altitude:` / ExtendedData `alt` unchanged. Re-share KMZ after this change.
+- README EN/HU: table of contents; **Barometric altitude (Baro)** (ISA / QNH formula, Calibrate from GPS, insert vs display, 1500 m guard); GNSS skyplot overlay labels (SKYPLOT / In view / Used / L5, N E S W).
+- Google Earth play / pause / stop `IconStyle` scale **0.6 → 0.8** so the icons are easier to tap without covering the track. App Map S/E markers are unchanged.
+
+### Magyar
+
+- A KMZ Start / Pause / Stop balloon és a `gx:Track` ExtendedData `baro` a letárolt `pressureHpa`-ból számol **megosztáskor** (`BaroAltitude.displayedMeters`, jelenlegi Beállítások QNH és GPS-kalibrációs offset), ugyanúgy, mint a mentett / Útvonal magasságprofil szaggatott vonala. Ha az újraszámolt érték több mint 1500 m-re van a pont GPS-magasságától (lehetetlen, pl. ~2000 m a 140 m-es GPS mellett), a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad. A SQLite `baroAltitude` az íráskori QNH. Nyomás nélkül a letárolt baro vagy `-`. A GPS `Altitude:` / `alt` változatlan. A javítás után oszd meg újra a KMZ-t.
+- README EN/HU: tartalomjegyzék; **Barometrikus magasság (Baro)** (ISA / QNH képlet, Kalibrálás GPS-ből, írás vs megjelenítés, 1500 m-es őr); GNSS skyplot sarkok (SKYPLOT / Látható / Használatban / L5, N E S W).
+- Google Earth play / pause / stop `IconStyle` scale **0.6 → 0.8**: könnyebb koppintás, a tracket nem takarja. Az app Térkép S/E jelölői változatlanok.
 
 ## [2.0.7] — 2026-09-13
 
