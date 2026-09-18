@@ -9,6 +9,14 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Changed
+
+- Settings groups map and recording switches into **Appearance**, **Recording**, and **Baro** cards (Help-style accordion; several sections can stay open). Usage type and units stay at the top. Baro only if the phone has a pressure sensor.
+
+### Magyar
+
+- A Beállítások térkép- és rögzítéskapcsolói **Megjelenés**, **Rögzítés** és **Baro** kártyákba kerültek (Súgó-szerű harmonika; több szakasz nyitva maradhat). A használat és a mértékegység fent marad. Baro csak nyomásszenzornál.
+
 ## [2.0.8] — 2026-09-14
 
 Play production track **26 (2.0.8)** (signed AAB). KMZ baro at share-time QNH; larger Earth icons.

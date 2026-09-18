@@ -1,5 +1,5 @@
 Release name (Play, not shown to users):
-2.0.8 (26)
+2.0.9 (27)
 
 What's new — max 500 characters per language.
 Date: 2026-09-14
@@ -18,4 +18,22 @@ A KMZ baro egyezik a grafikonnal; nagyobb Earth-ikonok.
 • A KMZ Baro a jelenlegi Beállítások QNH-ját és GPS-kalibrációját használja, mint a magasságprofil szaggatott vonala
 • A frissítés után oszd meg újra a KMZ-t; a régi fájlokban az íráskori baro marad
 • A Google Earth Start, Pause és Stop ikonjai kicsit nagyobbak, könnyebb koppintani
+</hu-HU>
+
+Date: 2026-09-18
+
+<en-US>
+Settings grouped into Appearance, Recording, and Baro.
+
+• Map and recording switches sit in collapsible cards; several can stay open
+• Usage type and units stay at the top
+• Baro (QNH, Calibrate, Reset) only if this phone has a pressure sensor
+</en-US>
+
+<hu-HU>
+A Beállítások Megjelenés, Rögzítés és Baro kártyákba kerültek.
+
+• Térkép- és rögzítéskapcsolók összecsukható kártyákon; több szakasz nyitva maradhat
+• A használat és a mértékegység fent marad
+• Baro (QNH, Kalibrálás, Vissza) csak akkor, ha van nyomásszenzor
 </hu-HU>
