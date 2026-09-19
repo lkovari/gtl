@@ -482,6 +482,14 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                 onToggle = { baroOpen = !baroOpen },
                                 titleStyle = titleStyle
                             ) {
+                                SettingSwitch(
+                                    stringResource(R.string.settings_baro_auto_calibrate),
+                                    state.settings.autoCalibrateBaroEnabled,
+                                    labelStyle,
+                                    switchScale
+                                ) {
+                                    viewModel.setAutoCalibrateBaroEnabled(it)
+                                }
                                 SettingSliderGroup {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),

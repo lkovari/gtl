@@ -613,6 +613,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setBaroPressureOffsetHpa(0f) }
     }
 
+    fun setAutoCalibrateBaroEnabled(value: Boolean) {
+        viewModelScope.launch { app.preferences.setAutoCalibrateBaroEnabled(value) }
+    }
+
     fun setGoogleMapLayer(value: GoogleMapLayer) {
         viewModelScope.launch { app.preferences.setGoogleMapLayer(value) }
     }

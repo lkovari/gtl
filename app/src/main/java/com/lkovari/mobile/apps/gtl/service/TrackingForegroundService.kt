@@ -22,6 +22,7 @@ import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
+import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
@@ -38,6 +39,8 @@ class TrackingForegroundService : LifecycleService() {
     private var lastFiltered: TrackFix? = null
     private var lastKind: EventKind = EventKind.START
     private var kalman = KalmanTrackFilter()
+    private var autoCalibratedThisSession = false
+    private var pendingCalibrationAltitude: Double? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -90,6 +93,8 @@ class TrackingForegroundService : LifecycleService() {
             }
             kalman = KalmanTrackFilter()
             lastFiltered = null
+            autoCalibratedThisSession = false
+            pendingCalibrationAltitude = null
             val accepted = lastAccepted
             if (accepted != null) {
                 kalman.seedFrom(accepted)
@@ -177,6 +182,7 @@ class TrackingForegroundService : LifecycleService() {
             if (fix.satellitesInFix < filter.minSatellites) {
                 return@collect
             }
+            maybeAutoCalibrateBaro(app, settings, fix.altitude)
             val forStore = if (settings.trackSmoothingEnabled) {
                 val filtered = kalman.observe(
                     fix,
@@ -231,6 +237,28 @@ class TrackingForegroundService : LifecycleService() {
                 lastKind = kind
             }
         }
+    }
+
+    private suspend fun maybeAutoCalibrateBaro(app: GtlApplication, settings: GtlSettings, gpsAltitudeMeters: Double) {
+        if (autoCalibratedThisSession || !settings.autoCalibrateBaroEnabled) {
+            return
+        }
+        val pressure = app.trackingState.state.value.pressureHpa
+        val previousAltitude = pendingCalibrationAltitude
+        pendingCalibrationAltitude = gpsAltitudeMeters
+        val eligible = BaroAltitude.autoCalibrateEligible(
+            pressure,
+            gpsAltitudeMeters,
+            autoCalibratedThisSession,
+            settings.autoCalibrateBaroEnabled,
+            previousAltitude
+        )
+        if (!eligible || pressure == null) {
+            return
+        }
+        val offset = BaroAltitude.offsetHpa(pressure, gpsAltitudeMeters, settings.qnhHpa)
+        app.preferences.setBaroPressureOffsetHpa(offset)
+        autoCalibratedThisSession = true
     }
 
     private fun stopRecording() {

@@ -67,6 +67,7 @@ data class GtlSettings(
     val compassTrueNorth: Boolean,
     val qnhHpa: Float,
     val baroPressureOffsetHpa: Float,
+    val autoCalibrateBaroEnabled: Boolean,
     val googleMapLayer: GoogleMapLayer
 ) {
     fun toFilter(): FixFilter {
@@ -108,6 +109,7 @@ data class GtlSettings(
                 compassTrueNorth = false,
                 qnhHpa = SensorManager.PRESSURE_STANDARD_ATMOSPHERE,
                 baroPressureOffsetHpa = 0f,
+                autoCalibrateBaroEnabled = true,
                 googleMapLayer = GoogleMapLayer.NORMAL
             )
         }
@@ -236,6 +238,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.baroPressureOffsetHpa] = BaroAltitude.clampOffset(value) }
     }
 
+    suspend fun setAutoCalibrateBaroEnabled(value: Boolean) {
+        dataStore.edit { it[Keys.autoCalibrateBaro] = value }
+    }
+
     suspend fun setGoogleMapLayer(value: GoogleMapLayer) {
         dataStore.edit { it[Keys.googleMapLayer] = value.name }
     }
@@ -318,6 +324,7 @@ class GtlPreferences(context: Context) {
             baroPressureOffsetHpa = BaroAltitude.clampOffset(
                 prefs[Keys.baroPressureOffsetHpa] ?: 0f
             ),
+            autoCalibrateBaroEnabled = prefs[Keys.autoCalibrateBaro] ?: true,
             googleMapLayer = GoogleMapLayer.fromStored(prefs[Keys.googleMapLayer])
         )
     }
@@ -385,6 +392,7 @@ class GtlPreferences(context: Context) {
         val compassTrueNorth = booleanPreferencesKey("compass_true_north")
         val qnhHpa = floatPreferencesKey("qnh_hpa")
         val baroPressureOffsetHpa = floatPreferencesKey("baro_pressure_offset_hpa")
+        val autoCalibrateBaro = booleanPreferencesKey("auto_calibrate_baro")
         val googleMapLayer = stringPreferencesKey("google_map_layer")
     }
 

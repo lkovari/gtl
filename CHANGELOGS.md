@@ -3,11 +3,23 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.9** / `versionCode` **27** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.10** / `versionCode` **28** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.10] — 2026-09-19
+
+Play production track **28 (2.0.10)** (signed AAB). Auto-calibrate baro at Start.
+
+### Added
+
+- Settings → Baro → **Auto-calibrate at start** (default **on**, shown only with a pressure sensor). After Start, once two **consecutive** GPS fixes that pass the normal accuracy/satellite filter agree on altitude within `MaxAltitudeJitterMeters` (**15 m**), the service triggers the same calculation as **Calibrate from GPS** (`BaroAltitude.offsetHpa` from that fix's altitude and the live pressure reading), storing the offset once per recording — no more standing still and tapping Calibrate before every ride. Root cause it addresses: without calibration, baro defaults to ISA 1013.25 hPa, which is commonly 40–90 m off from GPS whenever the real local QNH differs (confirmed from a field KMZ where GPS read ~143 m and uncalibrated baro read ~87 m — a ~56 m gap matching an estimated real QNH near 1020 hPa). The two-fix agreement check is required, not optional: an early build of this feature calibrated off the very first passing fix and, in a second field test, locked in a ~41 m error for an entire ~4.5 minute recording after that first fix's GPS altitude spiked from ~144 m to 185 m for a single sample (GPS vertical accuracy converges slower than horizontal, and Android's reported accuracy figure only covers horizontal error). Toggle off to keep the old manual-only behaviour; **Calibrate from GPS** and **Reset baro** are unchanged and still available — and remain the only recourse if a mid-ride pressure artifact (pocket, bag, car door) throws baro off after the one-time auto-calibration. New pure gate `BaroAltitude.autoCalibrateEligible` (engine, unit-tested, now also requires a corroborating previous fix within `MaxAltitudeJitterMeters`) and `TrackingForegroundService.maybeAutoCalibrateBaro` (app). Full write-up: [README-en.md — Barometric altitude (Baro)](README-en.md#barometric-altitude-baro).
+
+### Magyar
+
+- Beállítások → Baro → **Automatikus kalibrálás induláskor** (alapból **be**, csak nyomásszenzornál látszik). Indítás után, amint két **egymást követő**, a szokásos pontosság-/műholdszűrőn átment GPS-fix 15 méteren belül egyezik a magasságban (`MaxAltitudeJitterMeters`), a szolgáltatás lefuttatja ugyanazt a számítást, mint a **Kalibrálás GPS-ből** (`BaroAltitude.offsetHpa` a fix magasságából és az aktuális nyomásból), és eltárolja az offsetet — session-enként egyszer. Nem kell többé megállni és Kalibrálást nyomni minden túra előtt. Ezt a hibát orvosolja: kalibrálás nélkül a baro az ISA 1013,25 hPa alapértéket használja, ami a GPS-hez képest gyakran 40–90 m eltérést okoz, ha a valós helyi QNH ettől eltér (egy terepi KMZ alapján igazolva, ahol a GPS ~143 m-et, a kalibrálatlan baro ~87 m-et mutatott — ez a ~56 m-es rés egy ~1020 hPa körüli valós QNH-nak felel meg). A két fix egyezésének megkövetelése nem elhagyható lépés: a funkció egy korábbi verziója közvetlenül az első átmenő fixről kalibrált, és egy második terepi tesztben egy teljes, ~4,5 perces felvétel egészére ~41 m-es hibát zárt be, miután az első fix GPS-magassága egyetlen mintára ~144 m-ről 185 m-re ugrott (a GPS függőleges pontossága lassabban áll be, mint a vízszintes, az Android jelentett pontosság-értéke pedig csak a vízszintes hibát fedi le). A kapcsoló kikapcsolásával a régi, csak kézi működés marad; a **Kalibrálás GPS-ből** és a **Baro visszaállítás** változatlan — és ezek maradnak az egyetlen megoldás, ha egy menet közbeni nyomás-műtermék (zseb, táska, autóajtó) az egyszeri automatikus kalibrálás után billenti ki a baro-t. Új tiszta állapotfüggvény: `BaroAltitude.autoCalibrateEligible` (engine, unit teszttel, mostantól egy megerősítő előző fixet is megkövetel `MaxAltitudeJitterMeters`-en belül), és `TrackingForegroundService.maybeAutoCalibrateBaro` (app). Részletek: [README-hu.md — Barometrikus magasság (Baro)](README-hu.md#barometrikus-magasság-baro).
 
 ## [2.0.9] — 2026-09-18
 

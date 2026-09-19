@@ -1,39 +1,21 @@
 Release name (Play, not shown to users):
-2.0.9 (27)
+2.0.10 (28)
 
 What's new — max 500 characters per language.
-Date: 2026-09-14
+Date: 2026-09-19
 
 <en-US>
-KMZ baro matches the chart; larger Earth icons.
+Baro auto-calibrates itself when you hit Start.
 
-• KMZ Baro uses current Settings QNH and GPS calibration, same as the elevation dashed line
-• Re-share KMZ after this update; older files still have insert-time baro
-• Start, Pause and Stop icons in Google Earth are a bit larger to tap
+• Auto-calibrate at start (Settings → Baro, on by default) sets the baro offset from GPS automatically — no more standing still and tapping Calibrate before every ride
+• Calibrate from GPS and Reset baro are still there for manual use, and take over if you turn the toggle off
+• Waits for two matching GPS fixes first, so a single stray reading can't throw the whole ride off
 </en-US>
 
 <hu-HU>
-A KMZ baro egyezik a grafikonnal; nagyobb Earth-ikonok.
+A baro automatikusan kalibrálja magát Indításkor.
 
-• A KMZ Baro a jelenlegi Beállítások QNH-ját és GPS-kalibrációját használja, mint a magasságprofil szaggatott vonala
-• A frissítés után oszd meg újra a KMZ-t; a régi fájlokban az íráskori baro marad
-• A Google Earth Start, Pause és Stop ikonjai kicsit nagyobbak, könnyebb koppintani
-</hu-HU>
-
-Date: 2026-09-18
-
-<en-US>
-Settings grouped into Appearance, Recording, and Baro.
-
-• Map and recording switches sit in collapsible cards; several can stay open
-• Usage type and units stay at the top
-• Baro (QNH, Calibrate, Reset) only if this phone has a pressure sensor
-</en-US>
-
-<hu-HU>
-A Beállítások Megjelenés, Rögzítés és Baro kártyákba kerültek.
-
-• Térkép- és rögzítéskapcsolók összecsukható kártyákon; több szakasz nyitva maradhat
-• A használat és a mértékegység fent marad
-• Baro (QNH, Kalibrálás, Vissza) csak akkor, ha van nyomásszenzor
+• Az Automatikus kalibrálás induláskor (Beállítások → Baro, alapból bekapcsolva) GPS-ből állítja be a baro offsetet — nem kell többé megállni és Kalibrálást nyomni minden túra előtt
+• A Kalibrálás GPS-ből és a Baro visszaállítás továbbra is elérhető kézi használatra, és át is veszik a szerepet, ha kikapcsolod a kapcsolót
+• Két egyező GPS-fixre vár, mielőtt kalibrálna, hogy egyetlen téves mérés ne rontsa el az egész túrát
 </hu-HU>

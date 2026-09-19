@@ -7,6 +7,7 @@ object BaroAltitude {
     const val MinOffsetHpa = -10f
     const val MaxOffsetHpa = 10f
     const val MaxGpsDeltaMeters = 1500.0
+    const val MaxAltitudeJitterMeters = 15.0
     private const val IsaScale = 44330.0
     private const val IsaExponent = 5.255
 
@@ -33,6 +34,25 @@ object BaroAltitude {
     fun offsetHpa(pressureHpa: Float, gpsMeters: Double, qnhHpa: Float): Float {
         val expected = expectedStationHpa(gpsMeters, qnhHpa) ?: return 0f
         return clampOffset(pressureHpa - expected)
+    }
+
+    fun autoCalibrateEligible(
+        pressureHpa: Float?,
+        gpsAltitudeMeters: Double?,
+        alreadyCalibratedThisSession: Boolean,
+        enabled: Boolean,
+        previousGpsAltitudeMeters: Double?
+    ): Boolean {
+        if (!enabled || alreadyCalibratedThisSession) {
+            return false
+        }
+        if (pressureHpa == null || gpsAltitudeMeters == null || previousGpsAltitudeMeters == null) {
+            return false
+        }
+        if (!GpsAltitude.isPlausible(gpsAltitudeMeters)) {
+            return false
+        }
+        return kotlin.math.abs(gpsAltitudeMeters - previousGpsAltitudeMeters) <= MaxAltitudeJitterMeters
     }
 
     fun metersFromPressureHpa(

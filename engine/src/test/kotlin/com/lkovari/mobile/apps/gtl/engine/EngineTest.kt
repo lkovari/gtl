@@ -2563,6 +2563,134 @@ class BaroAltitudeTest {
         val shown = BaroAltitude.metersFromPressureHpa(chipHpa, qnh, offset) ?: 0.0
         assertEquals(gpsMeters, shown, 1.0)
     }
+
+    @Test
+    fun autoCalibrateEligibleWhenEnabledFreshWithGoodFixCorroboratedByPrevious() {
+        assertEquals(
+            true,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 123.0
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWithoutCorroboratingPreviousFix() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = null
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWhenAltitudeJumpsBetweenConsecutiveFixes() {
+        // Reproduces a real field case: a GPS glitch reported 185.2 m for one fix while
+        // every neighbouring fix (before and after) settled around 143-144 m.
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = 185.2,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 143.9
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateEligibleWhenAltitudeIsWithinJitterToleranceOfPrevious() {
+        assertEquals(
+            true,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0 + BaroAltitude.MaxAltitudeJitterMeters
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWhenDisabled() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = false,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWhenAlreadyCalibratedThisSession() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = true,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWithoutPressure() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = null,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWithoutAltitude() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = null,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+    }
+
+    @Test
+    fun autoCalibrateNotEligibleWithImplausibleAltitude() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 1010f,
+                gpsAltitudeMeters = -1787.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = -1787.0
+            )
+        )
+    }
 }
 
 class OsmMapViewRedrawTest {
