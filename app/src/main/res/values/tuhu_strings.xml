@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tuhu_label">Turistautak.hu</string>
+    <string name="tuhu_settings_group">Turistautak.hu</string>
+    <string name="tuhu_download">Download</string>
+    <string name="tuhu_downloaded">Downloaded</string>
+    <string name="tuhu_failed">Download failed</string>
+    <string name="tuhu_delete_title">Delete Turistautak map?</string>
+    <string name="tuhu_delete_body">Removes the Turistautak map from this phone. Map switches back to Google Maps.</string>
+    <string name="tuhu_blazes">Trail blazes</string>
+    <string name="tuhu_blazes_hint">Hungarian B/R/Y/G waymarks. On by default.</string>
+    <string name="tuhu_paths">Emphasize paths</string>
+    <string name="tuhu_paths_hint">Thicker footpaths and tracks. On by default.</string>
+    <string name="tuhu_contours">Contour lines</string>
+    <string name="tuhu_contours_hint">Major elevation contours. On by default.</string>
+    <string name="tuhu_contours_minor">Minor contours</string>
+    <string name="tuhu_contours_hint_minor">Dense intermediate contours. Off by default; noisy at high zoom.</string>
+    <string name="tuhu_hike_poi">Hiking POI</string>
+    <string name="tuhu_hike_poi_hint">Peaks, springs, huts, shelters, caves, viewpoints. On by default.</string>
+    <string name="tuhu_parks">Protected areas</string>
+    <string name="tuhu_parks_hint">National parks and nature reserves. Off by default.</string>
+    <string name="tuhu_urban_poi">Urban POI</string>
+    <string name="tuhu_urban_poi_hint">Shops, restaurants, parking, bus stops. Off by default.</string>
+    <string name="tuhu_hillshading">Terrain relief</string>
+    <string name="tuhu_hillshading_hint">Uses the same HGT files as the OSM map (next to the .map or in hills/).</string>
+    <string name="tuhu_hillshading_unavailable">No terrain relief files for this map. Add HGT next to the .map or in hills/.</string>
+    <string name="tuhu_about_title">TUHU. Turistautak.hu</string>
+    <string name="tuhu_about_body">After you download the Turistautak map, Map can show Hungarian hiking waymarks and contours. Map data from Turistautak.hu.</string>
+    <string name="tuhu_about_website">Turistautak.hu website</string>
+    <string name="tuhu_help_title">Turistautak options</string>
+    <string name="tuhu_help_hungary">Hungary only. This is a fully Hungarian-made map from Turistautak.hu — not an OSM country download, and it does not cover other countries.</string>
+    <string name="tuhu_help_intro">These switches apply when the Turistautak map is on Map. They do not change Google Maps or a downloaded OSM region.</string>
+    <string name="tuhu_help_blazes">Trail blazes — on. Coloured Hungarian waymarks (blue/red/yellow/green). Turn off if the map is too busy in town.</string>
+    <string name="tuhu_help_paths">Emphasize paths — on. Draws footpaths and tracks thicker than the base map.</string>
+    <string name="tuhu_help_contours">Contour lines — on. Major elevation lines for terrain shape.</string>
+    <string name="tuhu_help_contours_minor">Minor contours — off. Extra intermediate lines; useful on a ridge, noisy in a city.</string>
+    <string name="tuhu_help_hike_poi">Hiking POI — on. Peaks, springs, alpine huts, shelters, caves, viewpoints.</string>
+    <string name="tuhu_help_parks">Protected areas — off. National-park fills and labels.</string>
+    <string name="tuhu_help_urban_poi">Urban POI — off. Shops, food, parking, bus stops. Turn on in a village.</string>
+    <string name="tuhu_help_hillshading">Terrain relief — off until HGT elevation files sit next to the map or in hills/. Same DEM files as OSM hillshading.</string>
+</resources>

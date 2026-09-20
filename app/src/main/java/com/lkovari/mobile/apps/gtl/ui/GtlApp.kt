@@ -85,7 +85,10 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                     )
                 }
                 composable("help") {
-                    HelpScreen { nav.popBackStack() }
+                    HelpScreen(
+                        onBack = { nav.popBackStack() },
+                        tuhuMapDownloaded = state.tuhuMapDownloaded
+                    )
                 }
                 composable("location") {
                     LocationSettingsScreen { nav.popBackStack() }

@@ -111,3 +111,21 @@ Az OSM-opciók most azt írják, ami tényleg kirajzolódik.
 • Kerékpárutak kiemelése: a külön út kék marad; magenta 12-es zoomtól; úttesti sáv nincs a hivatalos Mapsforge fájlban
 • Parkoknál az erdő az alaptérképen marad; a Domborzathoz HGT kell a .map mellett
 </hu-HU>
+
+Date: 2026-09-20
+
+<en-US>
+Offline maps: one In Use at a time, Turistautak first.
+
+• Menu is now Download Offline map; Turistautak.hu sits at the top of the list
+• Downloaded maps show Can Use or In Use — only one OSM region or Turistautak can be In Use
+• Tapping In Use returns to Google Maps; Settings OSM / Turistautak cards follow whichever map is In Use
+</en-US>
+
+<hu-HU>
+Offline térkép: egyszerre egy Használatban, Turistautak felül.
+
+• A menü Offline térkép letöltése; a Turistautak.hu a lista tetején van
+• A letöltött térkép Használható vagy Használatban — egyszerre egy OSM-régió vagy a Turistautak lehet Használatban
+• A Használatban Google Térképre vált; a Beállítások OSM / Turistautak kártyája a Használatban lévő térképet követi
+</hu-HU>

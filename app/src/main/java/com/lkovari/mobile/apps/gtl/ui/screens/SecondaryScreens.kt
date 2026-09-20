@@ -103,6 +103,12 @@ import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.NightMuted
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import com.lkovari.mobile.apps.gtl.ui.components.ElevationProfile
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuDownloadRow
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuFeature
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuHelpSection
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerActions
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerControls
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuAboutSection
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import java.text.DateFormat
@@ -185,6 +191,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
     }
     var appearanceOpen by rememberSaveable { mutableStateOf(true) }
     var osmOpen by rememberSaveable { mutableStateOf(true) }
+    var tuhuOpen by rememberSaveable { mutableStateOf(true) }
     var recordingOpen by rememberSaveable { mutableStateOf(true) }
     var baroOpen by rememberSaveable { mutableStateOf(true) }
     SecondaryScaffold(stringResource(R.string.settings_title), onBack, compactTopBar = true) {
@@ -402,11 +409,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                             }
                         }
                     }
-                    if (OsmOfflineAvailability.effectiveUseOffline(
-                            state.settings.useOfflineMap,
-                            state.hasDownloadedOsmMap
-                        )
-                    ) {
+                    if (state.osmMapInUse) {
                         item {
                             AccordionSection(
                                 title = stringResource(R.string.settings_group_osm),
@@ -426,6 +429,33 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                         setCycleways = { viewModel.setOsmCycleways(it) },
                                         setParks = { viewModel.setOsmParks(it) },
                                         setHillshading = { viewModel.setOsmHillshading(it) }
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    if (TuhuFeature.showSettings(state.tuhuMapInUse)) {
+                        item {
+                            AccordionSection(
+                                title = stringResource(R.string.tuhu_settings_group),
+                                expanded = tuhuOpen,
+                                onToggle = { tuhuOpen = !tuhuOpen },
+                                titleStyle = titleStyle
+                            ) {
+                                TuhuLayerControls(
+                                    options = state.tuhuRenderOptions,
+                                    hillshadingAvailable = state.tuhuHillshadingAvailable,
+                                    labelStyle = labelStyle,
+                                    switchScale = switchScale,
+                                    actions = TuhuLayerActions(
+                                        setBlazes = { viewModel.setTuhuBlazes(it) },
+                                        setPaths = { viewModel.setTuhuPaths(it) },
+                                        setContours = { viewModel.setTuhuContours(it) },
+                                        setContoursMinor = { viewModel.setTuhuContoursMinor(it) },
+                                        setHikePoi = { viewModel.setTuhuHikePoi(it) },
+                                        setParks = { viewModel.setTuhuParks(it) },
+                                        setUrbanPoi = { viewModel.setTuhuUrbanPoi(it) },
+                                        setHillshading = { viewModel.setTuhuHillshading(it) }
                                     )
                                 )
                             }
@@ -737,6 +767,11 @@ private fun OsmActionButton(
 fun OsmDownloadScreen(viewModel: GtlViewModel, onBack: () -> Unit) {
     SecondaryScaffold(stringResource(R.string.osm_title), onBack) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            if (TuhuFeature.showDownloadRow()) {
+                item {
+                    TuhuDownloadRow(viewModel)
+                }
+            }
             items(viewModel.regions()) { region ->
                 OsmRow(region, viewModel)
             }
@@ -750,8 +785,12 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
         initial = com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState(region.id, false, 0, false)
     )
     val mapsRevision by viewModel.observeDownloadedRevision().collectAsState()
+    val prefs by viewModel.settings.collectAsState()
     val downloaded = remember(mapsRevision, download.running, download.failed, region.id) {
         viewModel.isDownloaded(region)
+    }
+    val inUse = remember(downloaded, prefs.useOfflineMap, prefs.selectedMapFile, mapsRevision, region.id) {
+        downloaded && viewModel.isRegionInUse(region)
     }
     var pendingDelete by rememberSaveable { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
@@ -773,8 +812,10 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (downloaded) {
-                        OsmActionButton(stringResource(R.string.osm_use)) {
-                            viewModel.selectDownloadedMap(region)
+                        OsmActionButton(
+                            stringResource(if (inUse) R.string.osm_in_use else R.string.osm_can_use)
+                        ) {
+                            viewModel.toggleDownloadedMap(region)
                         }
                         OsmActionButton(stringResource(R.string.action_delete)) {
                             pendingDelete = true
@@ -1041,7 +1082,7 @@ private fun SessionInspectScreen(text: String, onBack: () -> Unit) {
 }
 
 @Composable
-fun HelpScreen(onBack: () -> Unit) {
+fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
     val context = LocalContext.current
     val privacyUrl = stringResource(R.string.help_privacy_url)
     var expandedId by rememberSaveable { mutableStateOf(HelpSectionUsage) }
@@ -1115,6 +1156,17 @@ fun HelpScreen(onBack: () -> Unit) {
                     Text(stringResource(R.string.help_map_body), style = MaterialTheme.typography.bodyLarge)
                 }
             }
+            if (TuhuFeature.showHelp(tuhuMapDownloaded)) {
+                item {
+                    AccordionSection(
+                        title = stringResource(R.string.tuhu_help_title),
+                        expanded = expandedId == HelpSectionTuhu,
+                        onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionTuhu) }
+                    ) {
+                        TuhuHelpSection()
+                    }
+                }
+            }
             item {
                 AccordionSection(
                     title = stringResource(R.string.help_compass_title),
@@ -1175,6 +1227,7 @@ private const val HelpSectionLogging = "logging"
 private const val HelpSectionGps = "gps"
 private const val HelpSectionRoute = "route"
 private const val HelpSectionMap = "map"
+private const val HelpSectionTuhu = "tuhu"
 private const val HelpSectionCompass = "compass"
 private const val HelpSectionKmz = "kmz"
 private const val HelpSectionPrivacy = "privacy"
@@ -1280,7 +1333,6 @@ fun AboutScreen(onBack: () -> Unit) {
     val deviceName = remember { DeviceIdentity.displayName(context) }
     val copyrightUrl = stringResource(R.string.about_osm_copyright_url)
     val websiteUrl = stringResource(R.string.about_osm_website_url)
-    val mapsforgeUrl = stringResource(R.string.about_mapsforge_url)
     SecondaryScaffold(stringResource(R.string.about_title), onBack) {
         Column(
             modifier = Modifier
@@ -1293,10 +1345,14 @@ fun AboutScreen(onBack: () -> Unit) {
             Text("${stringResource(R.string.about_device)}: $deviceName")
             Text(stringResource(R.string.about_author))
             Text(stringResource(R.string.about_body))
+            Text(
+                text = stringResource(R.string.about_osm_title),
+                style = MaterialTheme.typography.titleLarge
+            )
             Text(stringResource(R.string.about_osm_body))
-            AboutLink(stringResource(R.string.about_osm_copyright), copyrightUrl)
             AboutLink(stringResource(R.string.about_osm_website), websiteUrl)
-            AboutLink(stringResource(R.string.about_mapsforge), mapsforgeUrl)
+            AboutLink(stringResource(R.string.about_osm_copyright), copyrightUrl)
+            TuhuAboutSection()
         }
     }
 }

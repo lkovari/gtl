@@ -36,6 +36,7 @@ import com.lkovari.mobile.apps.gtl.engine.OsmHillshading
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import com.lkovari.mobile.apps.gtl.engine.OsmMapLocale
 import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
+import com.lkovari.mobile.apps.gtl.engine.OfflineMapUse
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectDump
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectEvent
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
@@ -43,6 +44,9 @@ import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.service.LiveTrackingState
 import com.lkovari.mobile.apps.gtl.service.TrackingForegroundService
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuDeletePolicy
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuFeature
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderOptions
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,13 +62,22 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+private data class OsmTuhuBits(
+    val mapCleared: Boolean,
+    val hasDownloadedOsmMap: Boolean,
+    val tuhuRenderOptions: TuhuRenderOptions,
+    val tuhuMapDownloaded: Boolean
+)
+
 private data class MapUiBits(
     val requestedTab: Int?,
     val selectedSessionId: Long?,
     val fixCloud: FixCloudSnapshot,
     val mainTab: Int,
     val mapCleared: Boolean,
-    val hasDownloadedOsmMap: Boolean
+    val hasDownloadedOsmMap: Boolean,
+    val tuhuRenderOptions: TuhuRenderOptions,
+    val tuhuMapDownloaded: Boolean
 )
 
 data class GtlUiState(
@@ -81,11 +94,20 @@ data class GtlUiState(
     val selectedSessionId: Long?,
     val fixCloud: FixCloudSnapshot,
     val mapUsageType: UsageType,
-    val mainTab: Int
+    val mainTab: Int,
+    val tuhuRenderOptions: TuhuRenderOptions = TuhuRenderOptions.defaults(),
+    val tuhuMapDownloaded: Boolean = false,
+    val tuhuHillshadingAvailable: Boolean = false
 ) {
     val showingOsmMap: Boolean
         get() = OsmOfflineAvailability.effectiveUseOffline(settings.useOfflineMap, hasDownloadedOsmMap) &&
             osmFile != null
+
+    val osmMapInUse: Boolean
+        get() = showingOsmMap && !TuhuFeature.isTuhuMap(settings.selectedMapFile)
+
+    val tuhuMapInUse: Boolean
+        get() = showingOsmMap && TuhuFeature.isTuhuMap(settings.selectedMapFile)
 
     val osmHillshadingAvailable: Boolean
         get() = osmFile != null && OsmHillshading.available(osmFile)
@@ -326,17 +348,31 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             selectedSessionId,
             fixCloudView,
             mainTab,
-            combine(mapCleared, app.osmMapStore.observeHasDownloadedMap()) { cleared, hasMap ->
-                cleared to hasMap
+            combine(
+                mapCleared,
+                app.osmMapStore.observeHasDownloadedMap(),
+                app.tuhuPreferences.options,
+                app.osmMapStore.downloadedRevision.map {
+                    app.tuhuMapStore.downloadedFile() != null
+                }
+            ) { cleared, hasMap, tuhuOptions, tuhuDownloaded ->
+                OsmTuhuBits(
+                    mapCleared = cleared,
+                    hasDownloadedOsmMap = hasMap,
+                    tuhuRenderOptions = tuhuOptions,
+                    tuhuMapDownloaded = tuhuDownloaded
+                )
             }
-        ) { tab, selected, cloud, persistedTab, clearedAndHas ->
+        ) { tab, selected, cloud, persistedTab, osmTuhu ->
             MapUiBits(
                 requestedTab = tab,
                 selectedSessionId = selected,
                 fixCloud = cloud,
                 mainTab = persistedTab,
-                mapCleared = clearedAndHas.first,
-                hasDownloadedOsmMap = clearedAndHas.second
+                mapCleared = osmTuhu.mapCleared,
+                hasDownloadedOsmMap = osmTuhu.hasDownloadedOsmMap,
+                tuhuRenderOptions = osmTuhu.tuhuRenderOptions,
+                tuhuMapDownloaded = osmTuhu.tuhuMapDownloaded
             )
         }
     ) { prefs, liveState, events, sessionList, mapBits ->
@@ -381,6 +417,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             null
         }
+        val tuhuFile = app.tuhuMapStore.downloadedFile()
         GtlUiState(
             settings = prefs,
             live = liveState,
@@ -395,7 +432,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             selectedSessionId = selected,
             fixCloud = cloud,
             mapUsageType = mapUsage,
-            mainTab = persistedTab
+            mainTab = persistedTab,
+            tuhuRenderOptions = mapBits.tuhuRenderOptions,
+            tuhuMapDownloaded = mapBits.tuhuMapDownloaded,
+            tuhuHillshadingAvailable = tuhuFile != null && OsmHillshading.available(tuhuFile)
         )
     }.stateIn(
         viewModelScope,
@@ -702,6 +742,38 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setOsmHillshading(value) }
     }
 
+    fun setTuhuBlazes(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setBlazes(value) }
+    }
+
+    fun setTuhuPaths(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setPaths(value) }
+    }
+
+    fun setTuhuContours(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setContours(value) }
+    }
+
+    fun setTuhuContoursMinor(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setContoursMinor(value) }
+    }
+
+    fun setTuhuHikePoi(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setHikePoi(value) }
+    }
+
+    fun setTuhuParks(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setParks(value) }
+    }
+
+    fun setTuhuUrbanPoi(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setUrbanPoi(value) }
+    }
+
+    fun setTuhuHillshading(value: Boolean) {
+        viewModelScope.launch { app.tuhuPreferences.setHillshading(value) }
+    }
+
     fun downloadRegion(region: OsmRegion) {
         app.osmMapStore.enqueue(region)
     }
@@ -716,6 +788,24 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             app.preferences.setSelectedMapFile(file.absolutePath)
             app.preferences.setUseOfflineMap(true)
         }
+    }
+
+    fun toggleDownloadedMap(region: OsmRegion) {
+        val file = app.osmMapStore.downloadedFile(region.id) ?: return
+        val prefs = settings.value
+        if (OfflineMapUse.isInUse(prefs.useOfflineMap, prefs.selectedMapFile, file.absolutePath)) {
+            viewModelScope.launch {
+                app.preferences.setUseOfflineMap(false)
+            }
+        } else {
+            selectDownloadedMap(region)
+        }
+    }
+
+    fun isRegionInUse(region: OsmRegion): Boolean {
+        val file = app.osmMapStore.downloadedFile(region.id) ?: return false
+        val prefs = settings.value
+        return OfflineMapUse.isInUse(prefs.useOfflineMap, prefs.selectedMapFile, file.absolutePath)
     }
 
     fun observeDownloadedRevision(): StateFlow<Int> = app.osmMapStore.downloadedRevision
@@ -747,6 +837,55 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     fun regions(): List<OsmRegion> = OsmCatalog.regions
 
     fun isDownloaded(region: OsmRegion): Boolean = app.osmMapStore.downloadedFile(region.id) != null
+
+    fun downloadTuhu() {
+        app.tuhuMapStore.enqueue()
+    }
+
+    fun observeTuhuDownload(): kotlinx.coroutines.flow.Flow<OsmDownloadState> {
+        return app.tuhuMapStore.observe()
+    }
+
+    fun selectTuhuMap() {
+        val file = app.tuhuMapStore.downloadedFile() ?: return
+        viewModelScope.launch {
+            app.preferences.setSelectedMapFile(file.absolutePath)
+            app.preferences.setUseOfflineMap(true)
+        }
+    }
+
+    fun toggleTuhuMap() {
+        val file = app.tuhuMapStore.downloadedFile() ?: return
+        val prefs = settings.value
+        if (OfflineMapUse.isInUse(prefs.useOfflineMap, prefs.selectedMapFile, file.absolutePath)) {
+            viewModelScope.launch {
+                app.preferences.setUseOfflineMap(false)
+            }
+        } else {
+            selectTuhuMap()
+        }
+    }
+
+    fun isTuhuInUse(): Boolean {
+        val file = app.tuhuMapStore.downloadedFile() ?: return false
+        val prefs = settings.value
+        return OfflineMapUse.isInUse(prefs.useOfflineMap, prefs.selectedMapFile, file.absolutePath)
+    }
+
+    fun deleteTuhuMap() {
+        val file = app.tuhuMapStore.downloadedFile()
+        val selectedPath = settings.value.selectedMapFile
+        val deletingSelected = file != null && file.absolutePath == selectedPath
+        app.tuhuMapStore.delete()
+        viewModelScope.launch {
+            if (TuhuDeletePolicy.forceGoogle(deletingSelected)) {
+                app.preferences.setSelectedMapFile("")
+                app.preferences.setUseOfflineMap(false)
+            }
+        }
+    }
+
+    fun isTuhuDownloaded(): Boolean = app.tuhuMapStore.downloadedFile() != null
 
     fun shareSessions(sessionIds: Collection<Long>, format: TrackShareFormat, onReady: (Intent) -> Unit) {
         if (sessionIds.isEmpty()) {

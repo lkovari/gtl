@@ -3016,6 +3016,44 @@ class OsmOfflineAvailabilityTest {
     }
 }
 
+class OfflineMapUseTest {
+    @Test
+    fun onlyTheSelectedOfflineFileIsInUse() {
+        assertTrue(
+            OfflineMapUse.isInUse(
+                useOffline = true,
+                selectedPath = "/maps/tuhu.map",
+                candidatePath = "/maps/tuhu.map"
+            )
+        )
+        assertFalse(
+            OfflineMapUse.isInUse(
+                useOffline = true,
+                selectedPath = "/maps/tuhu.map",
+                candidatePath = "/maps/hungary.map"
+            )
+        )
+    }
+
+    @Test
+    fun googleModeMeansNothingIsInUse() {
+        assertFalse(
+            OfflineMapUse.isInUse(
+                useOffline = false,
+                selectedPath = "/maps/tuhu.map",
+                candidatePath = "/maps/tuhu.map"
+            )
+        )
+        assertFalse(
+            OfflineMapUse.isInUse(
+                useOffline = true,
+                selectedPath = "",
+                candidatePath = "/maps/hungary.map"
+            )
+        )
+    }
+}
+
 class OsmRenderOptionsTest {
     @Test
     fun cyclewaysFollowBicycleUsageOnly() {

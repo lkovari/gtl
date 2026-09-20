@@ -98,6 +98,11 @@ import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudCepStroke
 import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudDot
 import com.lkovari.mobile.apps.gtl.ui.theme.UsageMarkerRed
 import com.lkovari.mobile.apps.gtl.ui.usageIcon
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuFeature
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerActions
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerControls
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderOptions
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderTheme
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import org.mapsforge.core.graphics.Bitmap as ForgeBitmap
 import org.mapsforge.core.graphics.Canvas
@@ -135,7 +140,8 @@ fun MapPane(
     mapActive: Boolean = true,
     onOsmFailed: () -> Unit = {},
     onGoogleMapLayer: (GoogleMapLayer) -> Unit = {},
-    onOsmLayers: OsmLayerActions? = null
+    onOsmLayers: OsmLayerActions? = null,
+    onTuhuLayers: TuhuLayerActions? = null
 ) {
     Box(modifier = modifier) {
         val points = state.displayPoints
@@ -156,6 +162,7 @@ fun MapPane(
                     fixCloud = state.fixCloud,
                     usageType = state.mapUsageType,
                     osmRenderOptions = state.settings.osmRenderOptions().forMap(state.osmHillshadingAvailable),
+                    tuhuRenderOptions = state.tuhuRenderOptions.forMap(state.tuhuHillshadingAvailable),
                     mapActive = mapActive,
                     locateRequest = locateRequest,
                     onOsmFailed = onOsmFailed
@@ -176,7 +183,16 @@ fun MapPane(
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF333333)
                 )
-                if (onOsmLayers != null) {
+                if (TuhuFeature.showMapControls(osmFile.absolutePath) && onTuhuLayers != null) {
+                    TuhuLayerButton(
+                        options = state.tuhuRenderOptions,
+                        hillshadingAvailable = state.tuhuHillshadingAvailable,
+                        actions = onTuhuLayers,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 60.dp, bottom = 12.dp)
+                    )
+                } else if (onOsmLayers != null) {
                     OsmLayerButton(
                         options = state.settings.osmRenderOptions(),
                         hillshadingAvailable = state.osmHillshadingAvailable,
@@ -673,6 +689,51 @@ private fun OsmLayerButton(
     }
 }
 
+@Composable
+private fun TuhuLayerButton(
+    options: TuhuRenderOptions,
+    hillshadingAvailable: Boolean,
+    actions: TuhuLayerActions,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    CircleShape
+                )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Layers,
+                contentDescription = stringResource(R.string.map_layers),
+                tint = UsageMarkerRed,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            TuhuLayerControls(
+                options = options,
+                hillshadingAvailable = hillshadingAvailable,
+                labelStyle = MaterialTheme.typography.bodyMedium,
+                switchScale = 0.75f,
+                actions = actions,
+                modifier = Modifier
+                    .width(280.dp)
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+    }
+}
+
 private fun GoogleMapLayer.toComposeType(): MapType {
     return when (this) {
         GoogleMapLayer.NORMAL -> MapType.NORMAL
@@ -750,6 +811,7 @@ private class OsmMapOverlays {
     var renderer: TileRendererLayer? = null
     var tileCache: TileCache? = null
     var lastRenderOptions: OsmRenderOptions? = null
+    var lastTuhuRenderOptions: TuhuRenderOptions? = null
     var usageBitmapType: UsageType? = null
     var usageLiveFix: Boolean? = null
     var didInitialCenter = false
@@ -774,6 +836,7 @@ private fun OsmMapView(
     fixCloud: FixCloudSnapshot,
     usageType: UsageType,
     osmRenderOptions: OsmRenderOptions,
+    tuhuRenderOptions: TuhuRenderOptions,
     mapActive: Boolean,
     locateRequest: Int,
     onOsmFailed: () -> Unit
@@ -790,7 +853,7 @@ private fun OsmMapView(
                 mapView.setZoomLevelMin(MapFitZoom.Min.toByte())
                 mapView.setZoomLevelMax(MapFitZoom.Max.toByte())
                 try {
-                    attachOsmLayers(mapView, overlays, filePath, osmRenderOptions)
+                    attachOsmLayers(mapView, overlays, filePath, osmRenderOptions, tuhuRenderOptions)
                     applyOsmMapCamera(mapView, overlays, location, points)
                     overlays.didInitialCenter = true
                     mapView.post { mapView.requestVisibleTiles() }
@@ -805,7 +868,7 @@ private fun OsmMapView(
                 if (!overlays.layersReady) {
                     return@AndroidView
                 }
-                applyOsmRenderOptions(mapView, overlays, osmRenderOptions)
+                applyOsmRenderOptions(mapView, overlays, filePath, osmRenderOptions, tuhuRenderOptions)
                 if (!mapActive) {
                     return@AndroidView
                 }
@@ -857,6 +920,7 @@ private fun OsmMapView(
                 overlays.renderer = null
                 overlays.tileCache = null
                 overlays.lastRenderOptions = null
+                overlays.lastTuhuRenderOptions = null
                 overlays.layersReady = false
                 overlays.lastLocateRequest = 0
                 try {
@@ -872,7 +936,8 @@ private fun attachOsmLayers(
     mapView: GtlOsmMapView,
     overlays: OsmMapOverlays,
     filePath: String,
-    options: OsmRenderOptions
+    options: OsmRenderOptions,
+    tuhuOptions: TuhuRenderOptions
 ) {
     val tileCache = AndroidUtil.createTileCache(
         mapView.context,
@@ -888,11 +953,12 @@ private fun attachOsmLayers(
         mapView.model.mapViewPosition,
         AndroidGraphicFactory.INSTANCE
     )
-    applyOsmXmlTheme(mapView, renderer, options)
+    applyOsmXmlTheme(mapView, renderer, filePath, options, tuhuOptions)
     mapView.layerManager.layers.add(renderer)
     overlays.renderer = renderer
     overlays.tileCache = tileCache
     overlays.lastRenderOptions = options
+    overlays.lastTuhuRenderOptions = tuhuOptions
     val graphic = AndroidGraphicFactory.INSTANCE
     val stroke = graphic.createPaint()
     stroke.setColor(graphic.createColor(255, 0xC1, 0x3B, 0x2E))
@@ -921,10 +987,21 @@ private fun attachOsmLayers(
 private fun applyOsmXmlTheme(
     mapView: GtlOsmMapView,
     renderer: TileRendererLayer,
-    options: OsmRenderOptions
+    filePath: String,
+    options: OsmRenderOptions,
+    tuhuOptions: TuhuRenderOptions
 ) {
     try {
-        renderer.setXmlRenderTheme(OsmRenderTheme.create(mapView.context.assets, options))
+        val theme = if (TuhuFeature.isActive(filePath)) {
+            TuhuRenderTheme.create(
+                mapView.context.assets,
+                tuhuOptions,
+                File(mapView.context.filesDir, "tuhu/theme.xml")
+            )
+        } else {
+            OsmRenderTheme.create(mapView.context.assets, options)
+        }
+        renderer.setXmlRenderTheme(theme)
     } catch (_: Throwable) {
         renderer.setXmlRenderTheme(MapsforgeThemes.DEFAULT)
     }
@@ -933,15 +1010,24 @@ private fun applyOsmXmlTheme(
 private fun applyOsmRenderOptions(
     mapView: GtlOsmMapView,
     overlays: OsmMapOverlays,
-    options: OsmRenderOptions
+    filePath: String,
+    options: OsmRenderOptions,
+    tuhuOptions: TuhuRenderOptions
 ) {
     val renderer = overlays.renderer ?: return
-    if (overlays.lastRenderOptions == options) {
+    val tuhuActive = TuhuFeature.isActive(filePath)
+    val unchanged = if (tuhuActive) {
+        overlays.lastTuhuRenderOptions == tuhuOptions
+    } else {
+        overlays.lastRenderOptions == options
+    }
+    if (unchanged) {
         return
     }
-    applyOsmXmlTheme(mapView, renderer, options)
+    applyOsmXmlTheme(mapView, renderer, filePath, options, tuhuOptions)
     overlays.tileCache?.purge()
     overlays.lastRenderOptions = options
+    overlays.lastTuhuRenderOptions = tuhuOptions
     mapView.requestVisibleTiles()
 }
 

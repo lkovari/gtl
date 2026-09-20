@@ -69,6 +69,7 @@ import com.lkovari.mobile.apps.gtl.ui.theme.StartBlue
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import com.lkovari.mobile.apps.gtl.ui.theme.TrackingOrange
 import com.lkovari.mobile.apps.gtl.ui.theme.gtlWash
+import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerActions
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import java.util.Locale
@@ -269,7 +270,8 @@ fun MainTrackerScreen(
                         mapActive = tab == 2,
                         onOsmFailed = { viewModel.onOsmMapFailed() },
                         onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
-                        onOsmLayers = osmLayerActions(viewModel)
+                        onOsmLayers = osmLayerActions(viewModel),
+                        onTuhuLayers = tuhuLayerActions(viewModel)
                     )
                 }
                 when (tab) {
@@ -281,7 +283,8 @@ fun MainTrackerScreen(
                             onClearMap = { viewModel.clearShownTrack() },
                             onOsmFailed = { viewModel.onOsmMapFailed() },
                             onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
-                            onOsmLayers = osmLayerActions(viewModel)
+                            onOsmLayers = osmLayerActions(viewModel),
+                            onTuhuLayers = tuhuLayerActions(viewModel)
                         )
                     }
                     else -> CompassPane(
@@ -589,5 +592,18 @@ private fun osmLayerActions(viewModel: GtlViewModel): OsmLayerActions {
         setCycleways = { viewModel.setOsmCycleways(it) },
         setParks = { viewModel.setOsmParks(it) },
         setHillshading = { viewModel.setOsmHillshading(it) }
+    )
+}
+
+private fun tuhuLayerActions(viewModel: GtlViewModel): TuhuLayerActions {
+    return TuhuLayerActions(
+        setBlazes = { viewModel.setTuhuBlazes(it) },
+        setPaths = { viewModel.setTuhuPaths(it) },
+        setContours = { viewModel.setTuhuContours(it) },
+        setContoursMinor = { viewModel.setTuhuContoursMinor(it) },
+        setHikePoi = { viewModel.setTuhuHikePoi(it) },
+        setParks = { viewModel.setTuhuParks(it) },
+        setUrbanPoi = { viewModel.setTuhuUrbanPoi(it) },
+        setHillshading = { viewModel.setTuhuHillshading(it) }
     )
 }

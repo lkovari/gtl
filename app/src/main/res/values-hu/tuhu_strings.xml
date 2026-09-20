@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tuhu_label">Turistautak.hu</string>
+    <string name="tuhu_settings_group">Turistautak.hu</string>
+    <string name="tuhu_download">Letöltés</string>
+    <string name="tuhu_downloaded">Letöltve</string>
+    <string name="tuhu_failed">A letöltés sikertelen</string>
+    <string name="tuhu_delete_title">Törlöd a Turistautak térképet?</string>
+    <string name="tuhu_delete_body">Eltávolítja a Turistautak térképet a telefonról. A Térkép Google Térképre vált.</string>
+    <string name="tuhu_blazes">Turistajelzések</string>
+    <string name="tuhu_blazes_hint">Magyar K/P/S/Z (B/R/Y/G) jelzések. Alapból be.</string>
+    <string name="tuhu_paths">Ösvénykiemelés</string>
+    <string name="tuhu_paths_hint">Vastagabb gyalogút és földút. Alapból be.</string>
+    <string name="tuhu_contours">Szintvonal</string>
+    <string name="tuhu_contours_hint">Fő szintvonalak. Alapból be.</string>
+    <string name="tuhu_contours_minor">Mellék szintvonal</string>
+    <string name="tuhu_contours_hint_minor">Sűrű köztes vonalak. Alapból ki; nagy zoomon zajos.</string>
+    <string name="tuhu_hike_poi">Túra-POI</string>
+    <string name="tuhu_hike_poi_hint">Csúcs, forrás, kunyhó, esőház, barlang, kilátó. Alapból be.</string>
+    <string name="tuhu_parks">Védett terület</string>
+    <string name="tuhu_parks_hint">Nemzeti park és természetvédelmi terület. Alapból ki.</string>
+    <string name="tuhu_urban_poi">Városi POI</string>
+    <string name="tuhu_urban_poi_hint">Bolt, étterem, parkoló, buszmegálló. Alapból ki.</string>
+    <string name="tuhu_hillshading">Domborzat</string>
+    <string name="tuhu_hillshading_hint">Ugyanazok a HGT fájlok, mint az OSM-nél (.map mellett vagy hills/).</string>
+    <string name="tuhu_hillshading_unavailable">Nincs domborzatfájl. Tegyél HGT-t a .map mellé vagy a hills/ mappába.</string>
+    <string name="tuhu_about_title">TUHU. Turistautak.hu</string>
+    <string name="tuhu_about_body">A Turistautak térkép letöltése után a Térkép magyar turistajelzéseket és szintvonalat tud mutatni. Térképadat: Turistautak.hu.</string>
+    <string name="tuhu_about_website">Turistautak.hu weboldal</string>
+    <string name="tuhu_help_title">Turistautak opciók</string>
+    <string name="tuhu_help_hungary">Csak Magyarország. Teljesen magyar készítésű térkép a Turistautak.hu-tól — nem OSM-országletöltés, és más országot nem fed.</string>
+    <string name="tuhu_help_intro">Ezek a kapcsolók akkor érvényesek, ha a Turistautak térkép van a Térkép fülön. A Google Térképet és a letöltött OSM-régiót nem változtatják.</string>
+    <string name="tuhu_help_blazes">Turistajelzések — be. Színes magyar jelzések (kék/piros/sárga/zöld). Településen kapcsold ki, ha zsúfolt.</string>
+    <string name="tuhu_help_paths">Ösvénykiemelés — be. A gyalogutat és a földutat vastagabban rajzolja, mint az alaptérkép.</string>
+    <string name="tuhu_help_contours">Szintvonal — be. Fő magasságvonalak a terep formájához.</string>
+    <string name="tuhu_help_contours_minor">Mellék szintvonal — ki. Extra köztes vonalak; gerincen hasznos, városban zajos.</string>
+    <string name="tuhu_help_hike_poi">Túra-POI — be. Csúcs, forrás, kunyhó, esőház, barlang, kilátó.</string>
+    <string name="tuhu_help_parks">Védett terület — ki. Nemzeti parki kitöltés és felirat.</string>
+    <string name="tuhu_help_urban_poi">Városi POI — ki. Bolt, étel, parkoló, buszmegálló. Faluban kapcsold be.</string>
+    <string name="tuhu_help_hillshading">Domborzat — ki, amíg nincs HGT a térkép mellett vagy a hills/ mappában. Ugyanaz a DEM, mint az OSM domborzatnál.</string>
+</resources>

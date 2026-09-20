@@ -20,6 +20,7 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 - Settings: a small gap between the two usage-type rows.
 - **Use downloaded OSM map** is off and disabled until a region is downloaded. Turning it off stays off; Map shows Google Maps.
 - Download OSM map: **Use**, **Delete**, and **Download** are smaller compact buttons.
+- Menu **Download Offline map** (was Download OSM map). Turistautak.hu is first. A downloaded map is **Can Use** or **In Use**; only one OSM region or Turistautak can be In Use. Tapping **In Use** returns to Google Maps. Settings **OSM map** only while an OSM region is In Use; **Turistautak.hu** only while that map is In Use.
 
 ### Fixed
 
@@ -37,6 +38,7 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 - Beállítások: kis rés a két használati-mód sor között.
 - A **Letöltött OSM térkép használata** letöltésig ki van kapcsolva és nem állítható. Kikapcsolva kikapcsolva marad; a Térkép Google Térképet mutat.
 - OSM térkép letöltése: a **Használ**, **Törlés** és **Letöltés** gombok kisebbek.
+- Menü **Offline térkép letöltése** (korábban OSM térkép letöltése). A Turistautak.hu felül van. A letöltött térkép **Használható** vagy **Használatban**; egyszerre egy OSM-régió vagy a Turistautak lehet Használatban. A **Használatban** Google Térképre vált. Beállítások **OSM térkép** csak OSM-régió Használatban; **Turistautak.hu** csak akkor, ha az van Használatban.
 
 - Letöltött OSM térkép üres vászon volt (jelölő, lépték, zoom megvolt). A saját Mapsforge téma `/assets/mapsforge/gtl.xml` úton nyílt — ez a `MapsforgeThemes.DEFAULT` JAR-előtagja, nem Android `AssetManager` útvonal. A téma parse háttérszálon fut, ezért a DEFAULT tartalék nem futott, a csempék üresek maradtak. Most `mapsforge/gtl.xml` töltődik.
 - OSM idle kamera minden Compose update-nél visszaugrott a GPS-re, ezért nem lehetett elhúzni a helyedtől (a Google Térkép idle-ben már engedte). Követés csak naplózáskor (`MapCameraMode`).
