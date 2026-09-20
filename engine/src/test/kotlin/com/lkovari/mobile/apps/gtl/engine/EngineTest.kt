@@ -3105,6 +3105,25 @@ class OsmRenderOptionsTest {
         assertTrue(all.forMap(hillshadingAvailable = true).hillshading)
         assertTrue(all.forMap(true).categoryIds().contains(OsmRenderOptions.CAT_HILLSHADING))
     }
+
+    @Test
+    fun forMapWithoutElevationKeepsOtherLayerSwitches() {
+        val all = OsmRenderOptions(
+            buildings = true,
+            poi = true,
+            transit = true,
+            cycleways = true,
+            parks = true,
+            hillshading = true
+        )
+        val forMap = all.forMap(hillshadingAvailable = false)
+        assertTrue(forMap.buildings)
+        assertTrue(forMap.poi)
+        assertTrue(forMap.transit)
+        assertTrue(forMap.cycleways)
+        assertTrue(forMap.parks)
+        assertFalse(forMap.hillshading)
+    }
 }
 
 class OsmHillshadingTest {
@@ -3234,11 +3253,146 @@ class OsmRenderThemePathTest {
     @Test
     fun overlayLayersAreDefinedBeforeBaseReferencesThem() {
         val xml = gtlThemeXml().readText()
-        val overlayDef = xml.indexOf("<layer id=\"buildings\">")
-        val overlayRef = xml.indexOf("<overlay id=\"buildings\"/>")
-        assertTrue(overlayDef >= 0)
-        assertTrue(overlayRef >= 0)
-        assertTrue(overlayDef < overlayRef)
+        overlayIds().forEach { id ->
+            val overlayDef = xml.indexOf("<layer id=\"$id\">")
+            val overlayRef = xml.indexOf("<overlay id=\"$id\"/>")
+            assertTrue(overlayDef >= 0)
+            assertTrue(overlayRef >= 0)
+            assertTrue(overlayDef < overlayRef)
+        }
+    }
+
+    @Test
+    fun mapsforgeDropsOverlaysDefinedAfterTheBaseLayer() {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rendertheme xmlns="http://mapsforge.org/renderTheme" version="5">
+                <stylemenu id="gtl" defaultvalue="base" defaultlang="en">
+                    <layer id="base" visible="true">
+                        <overlay id="buildings"/>
+                        <overlay id="poi"/>
+                    </layer>
+                    <layer id="buildings">
+                        <cat id="buildings"/>
+                    </layer>
+                    <layer id="poi">
+                        <cat id="poi"/>
+                    </layer>
+                </stylemenu>
+            </rendertheme>
+        """.trimIndent()
+        assertTrue(mapsforgeResolvedOverlayIds(xml).isEmpty())
+    }
+
+    @Test
+    fun mapsforgeKeepsOverlaysDefinedBeforeTheBaseLayer() {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rendertheme xmlns="http://mapsforge.org/renderTheme" version="5">
+                <stylemenu id="gtl" defaultvalue="base" defaultlang="en">
+                    <layer id="buildings">
+                        <cat id="buildings"/>
+                    </layer>
+                    <layer id="poi">
+                        <cat id="poi"/>
+                    </layer>
+                    <layer id="base" visible="true">
+                        <overlay id="buildings"/>
+                        <overlay id="poi"/>
+                    </layer>
+                </stylemenu>
+            </rendertheme>
+        """.trimIndent()
+        assertEquals(listOf("buildings", "poi"), mapsforgeResolvedOverlayIds(xml))
+    }
+
+    @Test
+    fun gtlThemeResolvesEveryOverlayTheSwitchesUse() {
+        val resolved = mapsforgeResolvedOverlayIds(gtlThemeXml().readText())
+        assertEquals(overlayIds(), resolved)
+    }
+
+    @Test
+    fun buildingsUseCategorizedPeachFill() {
+        val xml = gtlThemeXml().readText()
+        assertTrue(
+            Regex(
+                """<rule cat="buildings" e="way" k="building" v="\*">\s*<area fill="#F3D6B6"""",
+                RegexOption.DOT_MATCHES_ALL
+            ).containsMatchIn(xml)
+        )
+    }
+
+    @Test
+    fun dedicatedCyclewaysStayBlueWithoutTheHighlightCategory() {
+        val xml = gtlThemeXml().readText()
+        assertTrue(
+            Regex(
+                """<rule e="way" k="highway" v="cycleway">\s*<line[^/]*/>\s*<line[^/]*/>\s*<line stroke="#3366FF""""
+            ).containsMatchIn(xml)
+        )
+    }
+
+    @Test
+    fun cyclewayHighlightIsMagentaAndCategorized() {
+        val xml = gtlThemeXml().readText()
+        assertTrue(
+            Regex(
+                """<rule cat="cycleways" e="way" k="highway" v="cycleway"[^>]*>\s*<line stroke="#C4007A"[^/]*/>\s*<line stroke="#FF4FBF""""
+            ).containsMatchIn(xml)
+        )
+    }
+
+    @Test
+    fun layerRulesKeepTheirCategoryIds() {
+        val xml = gtlThemeXml().readText()
+        assertTrue(xml.contains("""cat="poi""""))
+        assertTrue(xml.contains("""cat="transit""""))
+        assertTrue(xml.contains("""cat="parks""""))
+        assertTrue(xml.contains("""<hillshading cat="hillshading""""))
+    }
+
+    private fun overlayIds(): List<String> {
+        return listOf(
+            OsmRenderOptions.CAT_BUILDINGS,
+            OsmRenderOptions.CAT_POI,
+            OsmRenderOptions.CAT_TRANSIT,
+            OsmRenderOptions.CAT_CYCLEWAYS,
+            OsmRenderOptions.CAT_PARKS,
+            OsmRenderOptions.CAT_HILLSHADING
+        )
+    }
+
+    private fun mapsforgeResolvedOverlayIds(xml: String): List<String> {
+        val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+        factory.isNamespaceAware = true
+        val doc = factory.newDocumentBuilder().parse(
+            org.xml.sax.InputSource(xml.reader())
+        )
+        val styleMenus = doc.getElementsByTagNameNS("*", "stylemenu")
+        assertEquals(1, styleMenus.length)
+        val defined = LinkedHashSet<String>()
+        val resolved = ArrayList<String>()
+        val children = styleMenus.item(0).childNodes
+        for (index in 0 until children.length) {
+            val node = children.item(index)
+            if (node !is org.w3c.dom.Element || node.localName != "layer") {
+                continue
+            }
+            defined.add(node.getAttribute("id"))
+            val layerChildren = node.childNodes
+            for (childIndex in 0 until layerChildren.length) {
+                val child = layerChildren.item(childIndex)
+                if (child !is org.w3c.dom.Element || child.localName != "overlay") {
+                    continue
+                }
+                val overlayId = child.getAttribute("id")
+                if (defined.contains(overlayId)) {
+                    resolved.add(overlayId)
+                }
+            }
+        }
+        return resolved
     }
 
     private fun gtlThemeXml(): File {

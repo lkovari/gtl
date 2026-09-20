@@ -1,4 +1,4 @@
-# Agent prompt: Kalman track smoothing for GTL
+# Kalman track smoothing for GTL
 
 **As built (current).** This file was the implementation brief. Do not re-implement it as written. Current behaviour is [README-en.md — How logging works](../README-en.md#how-logging-works) and [GPSDATAFLOW-en.md](GPSDATAFLOW-en.md). Differences from the original goal table:
 
@@ -15,20 +15,6 @@
 | Settings cramped → keep read-only filter row | Read-only Fix filters row removed; gates still run |
 
 The sections below are the original brief (why DP 19.5 m looked wrong, algorithm, tests). Treat them as history.
-
----
-
-Use this file as the full implementation brief. Paste it, `@`-mention it, or start a session with:
-
-> Implement `docs/dp-kalman-smoothing-en.md`. Follow every constraint. Do not invent extra features.
-
-Works for Cursor Agent and Claude Code. Read the listed source files before editing. Prefer small, tested engine changes over a settings redesign.
-
----
-
-## Role
-
-You are implementing GPS track processing in the GTL Android app (Kotlin, Jetpack Compose, Room, DataStore). You write production code and JUnit tests. You do not add drive-by refactors, new comments, TypeScript/Kotlin type assertions (`as`, `!!` on converted types, `unchecked`), or map-matching.
 
 ---
 
