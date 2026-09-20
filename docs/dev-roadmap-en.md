@@ -12,7 +12,7 @@ Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [DB
 
 ## How to read this
 
-GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for runner/bicycle, KMZ, OSM, fix cloud. After 2.0.10 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), and OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region).
+GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.10 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), and OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region).
 
 The remaining gap is **night use, archive, and the second eye-catcher**: the map stays daylight, the notification is static, the saved list is a date, the line is one colour. The Play feature graphic promises a dark cockpit and a glowing track; HUD and skyplot already match, dark tiles and speed colour do not.
 
@@ -27,7 +27,7 @@ GTL is a **local, precise GPS track logger**. Nothing is uploaded to our server.
 Primary users (Settings usage order and default **motorbike**):
 
 - riders and drivers who later open the path in Google Earth or keep a private archive
-- runners and cyclists who want a sports-watch-style GNSS track with no snap-to-street
+- runners, hikers, and cyclists who want a sports-watch-style GNSS track with no snap-to-street
 - boat / aircraft users with ICAO units — smaller audience, already in the usage model
 
 The competition is **not** Strava, Komoot, or Google Maps Navigation. Those are social, training plans, turn-by-turn. GTL’s moat is:
@@ -46,7 +46,7 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 ### What is strong
 
 - Foreground service, visible notification, no `ACCESS_BACKGROUND_LOCATION`
-- Usage presets (aircraft, watercraft, car, motorbike, bicycle, runner) in one DataStore edit
+- Usage presets (aircraft, watercraft, car, motorbike, bicycle, Run/Hike) in one DataStore edit
 - Filter chain: accuracy / satellites → optional Kalman → density → Room → Map / Route / KMZ / GPX
 - Map HUD (large speed, accuracy, GNSS used/in view; while logging: trip, elapsed, pulsing REC); keep-screen-on setting
 - GPS tab: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; altitude from `GpsAltitude.pick`; baro when a pressure sensor exists
@@ -77,7 +77,7 @@ IMEI, live lat/lng upload, follow-me web, remote unlock, Google Directions, app-
 | Idea | Why not now |
 | ---- | ----------- |
 | Live sharing / own server / `RemoteTrackSync` upload | Against the privacy policy and the 2.0 promise |
-| Snap-to-street (OSM/Google map-matching) | Against the runner GNSS track; Kalman is deliberately not this |
+| Snap-to-street (OSM/Google map-matching) | Against the Run/Hike GNSS track; Kalman is deliberately not this |
 | Strava-like social, kudos, segments | A different product |
 | Wear OS | Weeks, extra store, test matrix; the phone HUD already ships |
 | GPX import | The app is a logger, not an archive manager |
@@ -139,7 +139,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** 1–2 days  
 **Wave:** 1
 
-**Why.** Logging is a foreground service. Riders and runners are not staring at the screen. The notification currently says “logging is on”. Same numbers as the map HUD, on the lock screen / shade.
+**Why.** Logging is a foreground service. Riders, runners, and hikers are not staring at the screen. The notification currently says “logging is on”. Same numbers as the map HUD, on the lock screen / shade.
 
 **Today.** `NOTIFICATION_ID = 17`, `IMPORTANCE_LOW`, Stop action, static strings.
 
@@ -161,7 +161,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 **Build.**
 
-- Engine: segments by `speedMps` (fixed bands per unit system so the legend is stable; usage-specific bands if runner vs car collide)
+- Engine: segments by `speedMps` (fixed bands per unit system so the legend is stable; usage-specific bands if Run/Hike vs car collide)
 - Google: several short polylines or spans; OSM: segment overlay. Colour **after** Douglas–Peucker, or the simplified chord lies about speed
 - Legend in a map corner
 - Route: large speed, sparkline underneath (speed or altitude), other metrics secondary
@@ -199,7 +199,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** 2–3 days  
 **Wave:** 3
 
-**Why.** `PAUSE` today is a speed threshold (0.25 m/s pedestrian, 0.4 vehicle). The user cannot hold the log at a red light without Stop (new session). Runner lap, rider fuel stop: pause + resume in the **same** session. Optional lap via `eventKind` or a split table.
+**Why.** `PAUSE` today is a speed threshold (0.25 m/s pedestrian, 0.4 vehicle). The user cannot hold the log at a red light without Stop (new session). Run/Hike lap, rider fuel stop: pause + resume in the **same** session. Optional lap via `eventKind` or a split table.
 
 **Today.** `EventKind`: START, MOVE, PAUSE, STOP. STOP closes the session (`stoppedAt`). UI is only Start / Stop.
 
@@ -332,6 +332,6 @@ Wave 1:
 
 Wave 2:
 
-- Speed bands global (0–30 / 30–70 / 70+ km/h) or per usage (runner needs another scale)?
+- Speed bands global (0–30 / 30–70 / 70+ km/h) or per usage (Run/Hike needs another scale)?
 
 Lock those in the wave brief; this roadmap deliberately does not freeze pixel layout.

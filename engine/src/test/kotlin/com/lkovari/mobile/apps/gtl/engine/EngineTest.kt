@@ -1221,7 +1221,7 @@ class KmlExporterTest {
         assertEquals("Car", UsageType.FOUR_WHEELERS.kmlLabel())
         assertEquals("Motorbike", UsageType.TWO_WHEELERS.kmlLabel())
         assertEquals("Bicycle", UsageType.BICYCLE.kmlLabel())
-        assertEquals("Runner", UsageType.RUNNER.kmlLabel())
+        assertEquals("Run/Hike", UsageType.RUNNER.kmlLabel())
         assertEquals("Motorbike", UsageType.kmlLabelOf("TWO_WHEELERS"))
         assertEquals(null, UsageType.kmlLabelOf(null))
     }

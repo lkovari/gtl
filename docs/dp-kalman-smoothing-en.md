@@ -4,14 +4,14 @@
 
 | Brief said | Shipped |
 |---|---|
-| Runner: Kalman on, LOW, EVERY_FIX, DP off | Runner: **Kalman off**, GNSS only on, EVERY_FIX, 0.5 m duplicate floor, DP off. Bicycle: same idea, DP 3 m if turned on |
+| Run/Hike: Kalman on, LOW, EVERY_FIX, DP off | Run/Hike: **Kalman off**, GNSS only on, EVERY_FIX, 0.5 m duplicate floor, DP off. Bicycle: same idea, DP 3 m if turned on |
 | Location source always fused HIGH_ACCURACY | **Use GNSS only** → `GPS_PROVIDER`; fused fallback if that provider is disabled |
 | Strength / density as named chips | Continuous sliders (`smoothingStrengthValue`, `recordingDensityValue` in `[0, 1]`) |
 | Measurement σ = max(accuracy, 2.0) | Same (2 m, not 3 m) |
 | Position-only Kalman | Same; speed/bearing from filter velocity when ≥ 0.3 m/s |
-| Pedestrian extra process noise | Yes, when Kalman is on for runner / bicycle / walk / hike |
+| Pedestrian extra process noise | Yes, when Kalman is on for Run/Hike / bicycle / walk / hike |
 | Heading from GPS bearing only | Curve detection can use heading from consecutive positions if bearing is 0 |
-| `WALKING_HIKE` / `PEDESTRIAN` in Settings | Engine enums exist and share runner defaults; Settings `selectable` is the six usages including bicycle |
+| `WALKING_HIKE` / `PEDESTRIAN` in Settings | Engine enums exist and share Run/Hike defaults; Settings `selectable` is the six usages including bicycle |
 | Settings cramped → keep read-only filter row | Read-only Fix filters row removed; gates still run |
 
 The sections below are the original brief (why DP 19.5 m looked wrong, algorithm, tests). Treat them as history.
@@ -78,7 +78,7 @@ Douglas–Peucker stays **map display only**. It is not the smoother. The smooth
 | `engine/.../FixAcceptance.kt` | Drop if accuracy or sat count fail; else require `SpeedAdaptiveSpacing` distance |
 | `engine/.../SpeedAdaptiveSpacing.kt` | Speed bands from the 2014 logger; half spacing if heading change > 15° |
 | `engine/.../DouglasPeucker.kt` | Polyline simplification in metres (local projection) |
-| `engine/.../UsageType.kt` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER`; runner/bicycle pause 0.25 m/s, others 0.4 m/s; runner/bicycle accuracy 45 m vs 30 m |
+| `engine/.../UsageType.kt` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER`; Run/Hike and bicycle pause 0.25 m/s, others 0.4 m/s; Run/Hike and bicycle accuracy 45 m vs 30 m |
 | `app/.../TrackingForegroundService.kt` | `LocationClient.locations(minTime, 0f)` then `FixAcceptance` then insert `GpsEventEntity` |
 | `app/.../GtlViewModel.kt` | If `optimizationActive && points.size > 4` → `DouglasPeucker.simplify(points, optimizationTolerance)` for **map only**. Stats and KMZ use raw Room rows |
 | `app/.../GtlPreferences.kt` | DataStore. DP default: `optimizationActive = true`, `optimizationTolerance = 19.5`. **No setter and no Settings control for tolerance** |
@@ -87,9 +87,9 @@ Douglas–Peucker stays **map display only**. It is not the smoother. The smooth
 
 **Why the map looks wrong today**
 
-1. DP with **19.5 m** (on by default) eats runner figure-8s and turns highway curves into polygons.
+1. DP with **19.5 m** (on by default) eats Run/Hike figure-8s and turns highway curves into polygons.
 2. DP does not filter GPS noise; it **drops points**. Remaining corners stay sharp.
-3. Runner spacing is 4 m (walk) / 10 m (jog). A small figure-8 can fail the distance gate before DP even runs.
+3. Run/Hike spacing is 4 m (walk) / 10 m (jog). A small figure-8 can fail the distance gate before DP even runs.
 4. There is no process model, so standing GPS wander becomes a scribble, then DP may keep the scribble’s farthest spikes.
 
 **Industry split (do not conflate)**
@@ -97,7 +97,7 @@ Douglas–Peucker stays **map display only**. It is not the smoother. The smooth
 | Layer | Job | GTL today | Target |
 |---|---|---|---|
 | Noise filter | Move points, keep count | None (fused location only) | Kalman + stationary lock |
-| Sampling | Drop redundant points | `SpeedAdaptiveSpacing` | Same, plus `EVERY_FIX` for runner |
+| Sampling | Drop redundant points | `SpeedAdaptiveSpacing` | Same, plus `EVERY_FIX` for Run/Hike |
 | Display simplify | Fewer vertices on the map | DP 19.5 m, always-on default | DP optional, usage-scaled metres |
 | Stats / KMZ | Truth for distance | Room rows | Room rows **after** Kalman, **never** after DP |
 
@@ -226,9 +226,9 @@ Add `enum class RecordingDensity { SMART, EVERY_FIX }` in `:engine`.
 
 Change `FixAcceptance.shouldAccept` to take density (or a boolean `ignoreSpeedSpacing`). Keep the old 4-arg tests working by defaulting to SMART in the test helper.
 
-**Runner spacing tweak (SMART only):** for `UsageType.RUNNER`, use half of the existing band (and still half again in curve, min 1 m). Jogging 10 m spacing is too coarse for a figure-8. Vehicles keep current bands.
+**Run/Hike spacing tweak (SMART only):** for `UsageType.RUNNER`, use half of the existing band (and still half again in curve, min 1 m). Jogging 10 m spacing is too coarse for a figure-8. Vehicles keep current bands.
 
-Pass `usage` into spacing only if needed; do not break existing `SpeedAdaptiveSpacingTest` numbers for non-runner speeds. Add runner-specific tests instead of rewriting the 2014 band table.
+Pass `usage` into spacing only if needed; do not break existing `SpeedAdaptiveSpacingTest` numbers for non-Run/Hike speeds. Add Run/Hike-specific tests instead of rewriting the 2014 band table.
 
 ---
 
@@ -299,7 +299,7 @@ Base `q` at MEDIUM strength:
 
 Effective `q = baseQ * strengthMultiplier`, then `× turnBoost` on curves.
 
-If Kalman is **off**, pipeline is today’s (plus density + runner SMART half-spacing). DP still applies on the map only.
+If Kalman is **off**, pipeline is today’s (plus density + Run/Hike SMART half-spacing). DP still applies on the map only.
 
 ### Settings UI copy
 
@@ -322,7 +322,7 @@ Show strength chips only when Kalman is on. Show DP tolerance chips only when �
 
 DP tolerance chips (metres, write `optimizationTolerance`): `2`, `6`, `8`, `15`, `20`. Highlight the closest chip to the stored value.
 
-Help map/GPS bodies: one sentence that Kalman smooths **stored** points; DP only thins the **drawn** line; runner default is every good fix and no DP.
+Help map/GPS bodies: one sentence that Kalman smooths **stored** points; DP only thins the **drawn** line; Run/Hike default is every good fix and no DP.
 
 Update `README-en.md`, `README-hu.md`, `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFLOW-hu.md` mermaid: Kalman box between `TrackFix` and `FixAcceptance`.
 
@@ -340,7 +340,7 @@ Update `README-en.md`, `README-hu.md`, `docs/GPSDATAFLOW-en.md`, `docs/GPSDATAFL
 **Modify**
 
 - `engine/.../FixAcceptance.kt` — density; accuracy/sats still first
-- `engine/.../SpeedAdaptiveSpacing.kt` — runner half-band **or** a `spacingMeters(speed, inCurve, usage)` overload; keep existing two-arg function for current tests
+- `engine/.../SpeedAdaptiveSpacing.kt` — Run/Hike half-band **or** a `spacingMeters(speed, inCurve, usage)` overload; keep existing two-arg function for current tests
 - `engine/.../UsageType.kt` — `defaultSmoothing()` helper returning a data class of the table above (Kalman, strength, lock, density, DP flag, DP metres). `setUsageType` in app calls this.
 - `engine/src/test/kotlin/.../EngineTest.kt` — new test classes
 - `app/.../GtlPreferences.kt` — keys, mapping, migration, setters
@@ -400,7 +400,7 @@ Add focused tests. Do not mock Android.
 
 2. **Roundabout:** points on a 25 m radius circle, 8 m/s, FOUR_WHEELERS. Smoothed path stays within 6 m of the true circle (not a hexagon). DP is not applied in this test.
 
-3. **Figure-8 runner:** two 12 m radius lobes, 3 m/s, RUNNER / LOW, `EVERY_FIX`. After smoothing, the path must still have a **self-crossing** (or two lobes whose centroids are ≥ 8 m apart on opposite sides of the midpoint). Assert it does **not** collapse to a single line (max perpendicular distance from start–end chord ≥ 8 m).
+3. **Figure-8 Run/Hike:** two 12 m radius lobes, 3 m/s, RUNNER / LOW, `EVERY_FIX`. After smoothing, the path must still have a **self-crossing** (or two lobes whose centroids are ≥ 8 m apart on opposite sides of the midpoint). Assert it does **not** collapse to a single line (max perpendicular distance from start–end chord ≥ 8 m).
 
 4. **Zigzag:** 8 legs, 6 m amplitude, 4 m wavelength, RUNNER / LOW. Peak-to-peak amplitude after smoothing ≥ 4 m.
 
@@ -410,9 +410,9 @@ Add focused tests. Do not mock Android.
 
 7. **Kalman off:** `observe` is not required; `FixAcceptance` SMART still matches today’s distance tests.
 
-8. **DP regression:** existing `DouglasPeuckerTest` still passes. Add: 19.5 m tolerance on a 10 m figure-8 **does** collapse (documents why runner DP default is off).
+8. **DP regression:** existing `DouglasPeuckerTest` still passes. Add: 19.5 m tolerance on a 10 m figure-8 **does** collapse (documents why Run/Hike DP default is off).
 
-9. **Usage defaults:** helper returns the table (runner EVERY_FIX, DP off, tolerance 2; motorbike SMART, DP on, 6 m).
+9. **Usage defaults:** helper returns the table (Run/Hike EVERY_FIX, DP off, tolerance 2; motorbike SMART, DP on, 6 m).
 
 Use the same haversine / projection as production. Build synthetic WGS84 around `47.0, 19.0`.
 
@@ -424,7 +424,7 @@ Run: `./gradlew :engine:test`
 
 1. Enums + `UsageType.defaultSmoothing()` + tests for the table.
 2. `KalmanTrackFilter` + tests 1–6.
-3. `FixAcceptance` density + runner SMART half-spacing + tests.
+3. `FixAcceptance` density + Run/Hike SMART half-spacing + tests.
 4. DataStore keys, migration from 19.5, `setUsageType` writes smoothing fields, ViewModel setters.
 5. Service wiring.
 6. Settings UI + EN/HU strings.
@@ -437,7 +437,7 @@ Commit only if the user asks. Do not bump version unless asked.
 
 ## Acceptance criteria
 
-- Runner defaults: Kalman on, LOW, EVERY_FIX, DP off. A logged figure-8 and a zigzag remain recognizable on the map without turning simplify on.
+- Run/Hike defaults: Kalman on, LOW, EVERY_FIX, DP off. A logged figure-8 and a zigzag remain recognizable on the map without turning simplify on.
 - Car/motorbike defaults: Kalman on, MEDIUM, SMART, DP on with 6–8 m (not 19.5). A roundabout looks curved, not a 3-segment polyline.
 - With simplify off, map polyline equals stored points.
 - KMZ / Route odometer never run through Douglas–Peucker.

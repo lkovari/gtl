@@ -84,7 +84,7 @@ OSM map robustness, GPS altitude pick, QNH, GNSS skyplot, map S/E, Map HUD, GPX 
 - Map **Start / End** markers on Google Maps and OSM: green **S** at the first drawn point, red **E** at the last when idle (`TrackEndpoints`). While logging the usage silhouette is “now”.
 - Google Maps **layers** button left of zoom: Map, Satellite, Hybrid, Terrain. Remembered. Hidden on OSM. Directions / Open in Maps toolbar stays off.
 - Engine tests for skyplot merge, `GpsAltitude`, `OsmMapFile`, `OsmMapCamera`, `OsmMapViewRedraw`, `MapFitZoom`, `TrackEndpoints`, and elevation plot scale.
-- Play listing phone shots recaptured 2026-09-12 as 1080×1920 RGB PNG (no alpha, 9:16; status bar and home indicator cropped, bottom tabs kept): `gps-idle.png` (skyplot), `route.png` (elevation), `map.png` (S/E track), `compass.png` (MAG rose), `settings.png` (QNH, Runner), `saved-tracks.png` (Elevation). HUD Map listing and the feature graphic still wait on dark tiles.
+- Play listing phone shots recaptured 2026-09-12 as 1080×1920 RGB PNG (no alpha, 9:16; status bar and home indicator cropped, bottom tabs kept): `gps-idle.png` (skyplot), `route.png` (elevation), `map.png` (S/E track), `compass.png` (MAG rose), `settings.png` (QNH, Run/Hike), `saved-tracks.png` (Elevation). HUD Map listing and the feature graphic still wait on dark tiles.
 
 ### Changed
 
@@ -125,7 +125,7 @@ OSM map robustness, GPS altitude pick, QNH, GNSS skyplot, map S/E, Map HUD, GPX 
 - **GPX 1.1** megosztás a Mentett útvonalakon (KMZ vagy GPX).
 - **Magasságprofil** a mentett trackeken és az Útvonal fülön. Route-stat mentett sessionre is.
 - Iránytű: MAG / TRUE a fülön (alap MAG), forgó rózsa, deklináció a last GPS-fixből, 8-as figyelmeztetés LOW pontosságnál.
-- Play listing telefonképek újra véve 2026-09-12, 1080×1920 RGB PNG (nincs alfa, 9:16; status bar és home indicator levágva, alsó fülek megmaradnak): `gps-idle.png` (skyplot), `route.png` (magasságprofil), `map.png` (S/E track), `compass.png` (MAG rózsa), `settings.png` (QNH, Futó), `saved-tracks.png` (Magasság). A HUD-os Térkép listing és a feature graphic a sötét csempére vár.
+- Play listing telefonképek újra véve 2026-09-12, 1080×1920 RGB PNG (nincs alfa, 9:16; status bar és home indicator levágva, alsó fülek megmaradnak): `gps-idle.png` (skyplot), `route.png` (magasságprofil), `map.png` (S/E track), `compass.png` (MAG rózsa), `settings.png` (QNH, Fut/túra), `saved-tracks.png` (Magasság). A HUD-os Térkép listing és a feature graphic a sötét csempére vár.
 - GPS fül **skyplot**: észak-fent polar plot az SNR alatt (zenit középen, horizon kívül, 30°/60° gyűrűk). Szín konstellációnként; kitöltött = used; üres = in view; belső gyűrű = L5. Ugyanannak a holdnak az L1+L5 egy pont. Idle-ben is él; nem kerül SQLite-ba, KMZ-be, GPX-be. A chippek ugyanazt a színt használják.
 - Barometrikus magasság oszlop (Room 4), ha van nyomásszenzor. Íráskor a Beállítások QNH-ja; a `pressureHpa` nyers marad.
 - Beállítás **QNH** (900–1100 hPa, alap 1013,25). METAR tengerszinti QNH (Qxxxx), nem állomásnyomás. Élő baro és magasságprofil a jelenlegi csúszkát használja. A GPS-magasság ettől független (`GpsAltitude.pick`). ISA 1013 vs LHBP Q1022 kb. 70 m a baro vonalon.
@@ -147,8 +147,8 @@ Play production track **23 (2.0.5)** (signed AAB). Fix cloud, bicycle usage, KMZ
 ### Added
 
 - Settings **Show fix cloud** / **Pontfelhő** (off by default): pastel magenta dots of raw HUD fixes while you stand still, plus a CEP95 circle around the cloud centroid. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Use GNSS only is independent. GPS tab shows n, RMS, CEP95, and median reported accuracy, plus a standing / moving / wait caption. Pauses while moving. Engine `FixCloudBuffer`: 120 point / 120 s window, 0.15 m duplicate floor. Not stored in SQLite or KMZ.
-- Map usage silhouette (aircraft, boat, car, motorbike, bicycle, runner) at the live position; red, upright in portrait. A north marker stays on the map. Replaces the OSM start/now dots.
-- Each `gps_events` row stores `usageType`. START / PAUSE / STOP KMZ balloons show `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle, or Runner).
+- Map usage silhouette (aircraft, boat, car, motorbike, bicycle, Run/Hike) at the live position; red, upright in portrait. A north marker stays on the map. Replaces the OSM start/now dots.
+- Each `gps_events` row stores `usageType`. START / PAUSE / STOP KMZ balloons show `usage=` (Aircraft, Watercraft, Car, Motorbike, Bicycle, or Run/Hike).
 - Settings **Bicycle** usage: GNSS only on, Smooth recorded track off, Every good, map simplify off (3 m if you turn it on), 0.5 m store floor, 45 m accuracy gate — so a slow curve or plaza loop stays on the map.
 - Saved tracks **Show on map** switches Settings to that session’s stored usage and draws Google Maps and OSM with those settings. After that, changing usage or sliders redraws the same log that way. Next Start uses the Settings that are then selected.
 - Map **Clear map** broom (top left, idle with a saved track shown): takes the polyline off the map without deleting the SQLite log. Start or Show on map draws again. Logging still draws even if the map was cleared.
@@ -165,7 +165,7 @@ Play production track **23 (2.0.5)** (signed AAB). Fix cloud, bicycle usage, KMZ
 ### Magyar
 
 - **Pontfelhő** (alapból ki): állóhelyen nyers GPS-pöttyök, magenta CEP95, világos lila jelentett pontosság. Bekapcsoláskor a pontossági jelzés is bekapcsol. A Csak GNSS független. GPS fül: n, RMS, CEP95, Reported, álló / mozgás / várakozás.
-- Térkép-sziluett (repülő, hajó, autó, motor, kerékpár, futó) és északjelző.
+- Térkép-sziluett (repülő, hajó, autó, motor, kerékpár, Fut/túra) és északjelző.
 - Minden GPS-pont `usageType`; KMZ balloon `usage=`.
 - **Kerékpár** használati mód: GNSS be, simítás ki, minden jó, térkép-egyszerűsítés ki.
 - Mentett track **Térképen**: a session usage-ét beírja a Beállításokba, és azzal rajzol (Google és OSM). A **Térképen** után a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot.
@@ -173,32 +173,32 @@ Play production track **23 (2.0.5)** (signed AAB). Fix cloud, bicycle usage, KMZ
 
 ## [2.0.4] — 2026-09-09
 
-Play production track **22 (2.0.4)** (signed AAB). GNSS-only option, runner sports-watch logging, 0.5 m pedestrian store floor.
+Play production track **22 (2.0.4)** (signed AAB). GNSS-only option, Run/Hike sports-watch logging, 0.5 m pedestrian store floor.
 
 ### Added
 
-- Settings **Use GNSS only** (`GPS_PROVIDER` satellite chip; fused HIGH_ACCURACY fallback if that provider is disabled). Runner preset turns it on; vehicles stay fused.
-- README section on how Runner logs like a sports watch (GNSS chip vs fused, no second Kalman flattening of 5–10 m on-road loops).
+- Settings **Use GNSS only** (`GPS_PROVIDER` satellite chip; fused HIGH_ACCURACY fallback if that provider is disabled). Run/Hike preset turns it on; vehicles stay fused.
+- README section on how Run/Hike logs like a sports watch (GNSS chip vs fused, no second Kalman flattening of 5–10 m on-road loops).
 - README **How logging works**: full Start→Room→Map pipeline, why the red polyline is the stored tracklog.
 
 ### Changed
 
-- Runner preset: GNSS only on, Smooth recorded track **off**, Every good, map simplify off. Vehicles keep fused + Kalman + Smart.
-- Every-good duplicate floor is **0.5 m** for runner / pedestrian and **1 m** for vehicles.
+- Run/Hike preset: GNSS only on, Smooth recorded track **off**, Every good, map simplify off. Vehicles keep fused + Kalman + Smart.
+- Every-good duplicate floor is **0.5 m** for Run/Hike / pedestrian and **1 m** for vehicles.
 - If GPS bearing is 0, curve detection can use heading from consecutive positions.
 - Pedestrian Kalman (if you turn smoothing back on) adds extra position process noise so a 5 m road loop is not pulled onto the street.
-- Settings page has no vertical scrollbar. Help Settings / Track logging document the new switch and Runner preset (EN/HU).
-- README, GPS data-flow (EN/HU), SQLite schema, and Kalman brief match GNSS-only, runner smoothing-off, 0.5 m pedestrian duplicate floor, and map-from-Room.
+- Settings page has no vertical scrollbar. Help Settings / Track logging document the new switch and Run/Hike preset (EN/HU).
+- README, GPS data-flow (EN/HU), SQLite schema, and Kalman brief match GNSS-only, Run/Hike smoothing-off, 0.5 m pedestrian duplicate floor, and map-from-Room.
 
 ### Fixed
 
-- Street-scale runner loops were flattened by fused location plus constant-velocity Kalman even at Low strength.
+- Street-scale Run/Hike loops were flattened by fused location plus constant-velocity Kalman even at Low strength.
 
 ### Magyar
 
-- Beállítások **Csak GNSS**: műholdchip; fused tartalék. Futó előbeállítás bekapcsolja.
-- Futó: GNSS be, simítás ki, minden jó, térkép-egyszerűsítés ki. Ismétlődésküszöb 0,5 m.
-- Az utcai léptékű futóhurkokat a fused hely + Kalman még Alacsony erősségnél is ellapította.
+- Beállítások **Csak GNSS**: műholdchip; fused tartalék. Fut/túra előbeállítás bekapcsolja.
+- Fut/túra: GNSS be, simítás ki, minden jó, térkép-egyszerűsítés ki. Ismétlődésküszöb 0,5 m.
+- Az utcai léptékű Fut/túra hurkokat a fused hely + Kalman még Alacsony erősségnél is ellapította.
 
 ## [2.0.3] — 2026-09-08
 
@@ -208,7 +208,7 @@ Play production track **21 (2.0.3)** (signed AAB). Kalman smoothing on stored po
 
 - Constant-velocity **Kalman** smoother in `:engine` (`KalmanTrackFilter`), applied before SQLite so Route, Map, and KMZ share the same path. HUD accuracy circle stays on the raw fused fix.
 - Settings: **Smooth recorded track**, **Smoothing strength** (Low–High slider), **Hold still when stopped**, **Recording density** (Smart–Every good slider). English and Hungarian.
-- Usage presets write smoothing, density, map-simplify, and units in one DataStore edit (runner: Low + every good + DP off; motorbike: Medium + Smart + 6 m DP; aircraft: High + 15 m DP + ICAO).
+- Usage presets write smoothing, density, map-simplify, and units in one DataStore edit (Run/Hike: Low + every good + DP off; motorbike: Medium + Smart + 6 m DP; aircraft: High + 15 m DP + ICAO).
 - Help **Settings** section: presets, sliders, and ICAO for aircraft.
 - Engine tests for highway RMSE, roundabout, figure-8, zigzag, stationary lock, jump re-init, usage defaults, and slider interpolation.
 
@@ -217,7 +217,7 @@ Play production track **21 (2.0.3)** (signed AAB). Kalman smoothing on stored po
 - **Simplify track on map** tolerance is a 1–20 m slider (1 m steps), not chips. Defaults follow usage (not a global 19.5 m). Old 19.5 m sentinel migrates once when Kalman keys are first written. Display-only: KMZ and odometer keep every stored point.
 - Smooth recorded track and recording density use continuous sliders (Low–High and Smart–Every good). Usage presets set the slider positions.
 - Aircraft usage defaults to ICAO units (knots, NM, feet); other usages default to metric.
-- Smart density: runner uses half of the 2014 speed bands (still half again in a curve, min 1 m). Vehicles keep the existing bands. Intermediate density mixes Smart spacing with Every good.
+- Smart density: Run/Hike uses half of the 2014 speed bands (still half again in a curve, min 1 m). Vehicles keep the existing bands. Intermediate density mixes Smart spacing with Every good.
 - Standing min-distance preset is 2 m (same as the Smart standing band). 1 m stays the Every-good duplicate drop.
 - Settings layout fits the safe drawing area without a vertical scrollbar. The read-only Fix filters row is removed; accuracy and satellite gates still run.
 - README and GPS data-flow docs: Kalman box before `FixAcceptance`. README documents Kalman behaviour and how each setting affects the stored tracklog.
@@ -262,7 +262,7 @@ Kotlin + Jetpack Compose rewrite of the 2014 Eclipse logger. Location stays on t
 - GNSS HUD: GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR quality.
 - Route totals: elapsed, odometer, time moving / waiting, speed, average speed, altitude, bearing, temperature range when the sensor exists.
 - Google Maps (Maps SDK key in `local.properties`) and OSM Mapsforge region download with progress.
-- Settings: usage (aircraft, watercraft, car, motorbike, runner), metric/imperial, fix filters, OSM offline map, track simplification, last track on map.
+- Settings: usage (aircraft, watercraft, car, motorbike, Run/Hike), metric/imperial, fix filters, OSM offline map, track simplification, last track on map.
 - Saved tracks: show on map, delete.
 - Share track as KML/KMZ via the system share sheet.
 - Help, About, disclaimer, location settings, privacy-policy link.

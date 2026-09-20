@@ -12,7 +12,7 @@ Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md)
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only futó/kerékpár, KMZ, OSM, pontfelhő. A 2.0.10 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.10 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva) és az OSM **fájlellenőrzés** is megvan (a Használ nem crash-loop; a kamera a letöltött régión marad).
 
 A következő hiány **éjszakai használat, archívum és a második eye-catcher**: a térkép nappali marad, az értesítés statikus, a mentett lista dátum, a vonal egy színű. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD és a skyplot már egyezik, a sötét csempe és a sebesség-szín még nem.
 
@@ -27,7 +27,7 @@ A GTL **helyben futó, precíziós GPS útvonalnapló**. Semmi nem kerül fel a 
 Célfelhasználó (a Beállítások usage sorrendje és az alap **motor** szerint):
 
 - motoros / autós, aki utána Google Earth-ben vagy saját archívumban nézi az utat
-- futó / kerékpáros, aki sportóra-szerű GNSS-tracket akar, utcára pattintás nélkül
+- futó, túrázó / kerékpáros, aki sportóra-szerű GNSS-tracket akar, utcára pattintás nélkül
 - hajós / repülős, ICAO egységekkel, ritkább, de a usage modell már kezeli
 
 A verseny **nem** a Strava, Komoot vagy Google Maps Navigation. Azok közösség, edzésterv, turn-by-turn. A GTL moatja:
@@ -46,7 +46,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 ### Ami erős
 
 - Előtér-szolgáltatás, látható értesítés, nincs `ACCESS_BACKGROUND_LOCATION`
-- Használati előbeállítások (repülő, hajó, autó, motor, kerékpár, futó) egy DataStore-szerkesztésben
+- Használati előbeállítások (repülő, hajó, autó, motor, kerékpár, Fut/túra) egy DataStore-szerkesztésben
 - Szűrőlánc: pontosság / műhold → opcionális Kalman → sűrűség → Room → Térkép / Útvonal / KMZ / GPX
 - Térkép HUD (nagy sebesség, pontosság, GNSS used/in view; naplózáskor út, idő, pulzáló REC); keep-screen-on beállítás
 - GPS fül: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; magasság a `GpsAltitude.pick`-ből; baro, ha van nyomásszenzor
@@ -77,7 +77,7 @@ IMEI, élő lat/lng feltöltés, follow-me web, távoli feloldás, Google Direct
 | Ötlet | Miért ne most |
 | ----- | ------------- |
 | Élő megosztás / saját szerver / `RemoteTrackSync` feltöltés | Szemben a privacy-politikával és a 2.0 ígérettel |
-| Utcára pattintás (OSM/Google map-matching) | Szemben a futó GNSS-trackkel; a Kalman szándékosan nem ezt csinálja |
+| Utcára pattintás (OSM/Google map-matching) | Szemben a Fut/túra GNSS-trackkel; a Kalman szándékosan nem ezt csinálja |
 | Strava-szerű közösség, kudos, szegmensek | Más termék |
 | Wear OS | Hetek, külön store, tesztmátrix; a telefonos HUD megvan |
 | GPX import | Az app logger, nem archívum-kezelő |
@@ -139,7 +139,7 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** 1–2 nap  
 **Hullám:** 1
 
-**Miért.** A naplózás foreground service. Motoros/futó nem nézi a képernyőt. Az értesítés ma „megy a naplózás” szöveg. Ugyanazok a számok, mint a térkép HUD-on, lock screenen / shade-en.
+**Miért.** A naplózás foreground service. Motoros, futó, túrázó nem nézi a képernyőt. Az értesítés ma „megy a naplózás” szöveg. Ugyanazok a számok, mint a térkép HUD-on, lock screenen / shade-en.
 
 **Ma.** `NOTIFICATION_ID = 17`, `IMPORTANCE_LOW`, Stop action, statikus stringek.
 
@@ -199,7 +199,7 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** 2–3 nap  
 **Hullám:** 3
 
-**Miért.** A `PAUSE` ma sebességküszöb (0,25 m/s gyalogos, 0,4 jármű). A felhasználó nem tudja megállítani a felvételt pirosnál anélkül, hogy Leállítana (új session). Futó kör, motoros benzinkút: kézi szünet + folytatás ugyanabban a sessionben. Opcionális lap (köridő) a `eventKind` vagy külön split táblával.
+**Miért.** A `PAUSE` ma sebességküszöb (0,25 m/s gyalogos, 0,4 jármű). A felhasználó nem tudja megállítani a felvételt pirosnál anélkül, hogy Leállítana (új session). Fut/túra kör, motoros benzinkút: kézi szünet + folytatás ugyanabban a sessionben. Opcionális lap (köridő) a `eventKind` vagy külön split táblával.
 
 **Ma.** `EventKind`: START, MOVE, PAUSE, STOP. STOP lezárja a sessiont (`stoppedAt`). Nincs user-pause a UI-on, csak Indít / Leállít.
 
@@ -332,6 +332,6 @@ Hullám 1:
 
 Hullám 2:
 
-- Sebességsávok globálisak (0–30 / 30–70 / 70+ km/h) vagy usage-enként (futó más skála)?
+- Sebességsávok globálisak (0–30 / 30–70 / 70+ km/h) vagy usage-enként (Fut/túra más skála)?
 
 Ezeket a hullám briefjében rögzítsd; a roadmap szándékosan nem fagyasztja a pixel-layoutot.

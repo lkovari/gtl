@@ -114,8 +114,8 @@ Egy maradék fix csak akkor tárolódik, ha:
 
 1. `accuracy` ≤ a beállítás szerinti minimális pontosság (m) és `satellitesInFix` ≥ a minimum (alapból 4) — ez a Kalman előtt már lefut.
 2. Ez a session első pontja, **vagy**
-   - **Okos sűrűség:** a haversine-távolság az utolsó **eltárolt** ponttól legalább a `SpeedAdaptiveSpacing` (sebesség-sávok; fél távolság, ha az irányszög változása &gt; 15°; futó SMART felezi a sávot).
-   - **Minden jó fix:** eltelt idő ≥ `minTimeMillis` **vagy** kanyar, és távolság ≥ 1 m (jármű) vagy 0,5 m (futó és kerékpár). Ha a GPS irány 0, az irányszög jöhet a szomszédos pontokból.
+   - **Okos sűrűség:** a haversine-távolság az utolsó **eltárolt** ponttól legalább a `SpeedAdaptiveSpacing` (sebesség-sávok; fél távolság, ha az irányszög változása &gt; 15°; Fut/túra SMART felezi a sávot).
+   - **Minden jó fix:** eltelt idő ≥ `minTimeMillis` **vagy** kanyar, és távolság ≥ 1 m (jármű) vagy 0,5 m (Fut/túra és kerékpár). Ha a GPS irány 0, az irányszög jöhet a szomszédos pontokból.
 
 Opcionális **KalmanTrackFilter** (konstans sebesség, csak pozíció) a pontosság/műhold kapu után és a távolságszűrés előtt fut. A kimeneti szélesség/hosszúság a szűrő állapota; az időbélyeg, magasság, pontosság és műholdszám a GPS-fixé marad. A sebesség és az irányszög a szűrő sebességéből jön, ha az legalább 0,3 m/s. Mérési σ = max(GPS pontosság, 2 m). Gyalogos usage extra helyzet-zajjal dolgozik, hogy egy 5 m-es kört ne húzzon az utcára. Álló zár: a pauza-küszöb alatt a letárolt pont nem vándorol. Ugrás (innováció &gt; `max(50 m, 8 × pontosság)`) újrainicializál; a hézagot nem interpolálja.
 
@@ -129,7 +129,7 @@ A **Pontfelhő** (alapból ki) ugyanezt a nyers `lastLocation`-t mintavételezi 
 |---|---|
 | `START` | Első elfogadott fix (vagy folytatás, ha még nincs pont). |
 | `MOVE` | Elfogadott, és a sebesség ≥ a usage pauza-küszöbe. |
-| `PAUSE` | Elfogadott, és a sebesség a küszöb alatt (alap 0,4 m/s; futónál és kerékpárnál 0,25 m/s). |
+| `PAUSE` | Elfogadott, és a sebesség a küszöb alatt (alap 0,4 m/s; Fut/túránál és kerékpárnál 0,25 m/s). |
 | `STOP` | A user Stop; az utolsó helyzet akkor is beíródik, ha a kapu eldobná. |
 
 `isPlacemark` igaz START / PAUSE / STOP-nál (KMZ play / pause / stop ikonok).
@@ -149,13 +149,13 @@ Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 
 | Réteg | Feladat |
 |---|---|
-| GNSS chip vs fused | Futó és kerékpár alapból `GPS_PROVIDER`, hogy egy utcai méretű kört ne lapítson el a fused Wi-Fi/cella. Járművek fused-en maradnak. |
+| GNSS chip vs fused | Fut/túra és kerékpár alapból `GPS_PROVIDER`, hogy egy utcai méretű kört ne lapítson el a fused Wi-Fi/cella. Járművek fused-en maradnak. |
 | Pontosság / műhold | Rossz fix nem megy Kalmanba és Roomba. |
-| Kalman (opcionális) | Mozgatja a letárolt szélességet/hosszúságot; járműveknél be, futónál és kerékpárnál ki. A HUD világos lila köre a nyers fixen marad. |
+| Kalman (opcionális) | Mozgatja a letárolt szélességet/hosszúságot; járműveknél be, Fut/túránál és kerékpárnál ki. A HUD világos lila köre a nyers fixen marad. |
 | Pontfelhő | Csak memória: nyers pöttyök + CEP95 állva. Nem Room. Bekapcsoláskor a pontossági jelzés is bekapcsol. |
-| Sűrűség | Okos (sebesség-sávok) vagy Minden jó (~500 ms, futónál és kerékpárnál 0,5 m padló). |
+| Sűrűség | Okos (sebesség-sávok) vagy Minden jó (~500 ms, Fut/túránál és kerékpárnál 0,5 m padló). |
 | Room | Egy forrás a Map, Route, KMZ és GPX számára. |
-| Douglas–Peucker | Csak megjelenítés. Futó és kerékpár alapból ki, ezért minden letárolt csúcs kirajzolódik. |
+| Douglas–Peucker | Csak megjelenítés. Fut/túra és kerékpár alapból ki, ezért minden letárolt csúcs kirajzolódik. |
 
 Részletes leírás: [README-hu.md — Hogyan működik a naplózás](../README-hu.md#hogyan-működik-a-naplózás).
 
@@ -163,7 +163,7 @@ Részletes leírás: [README-hu.md — Hogyan működik a naplózás](../README-
 
 **Cél.** Kevesebb csúcspont a Map fülön, hogy egy hosszú track olcsón rajzolható maradjon. Az SQLite, a Route összesítők, a KMZ és a GPX minden eltárolt pontot megtart.
 
-**Mikor.** Beállítás: **Simplify track on map** / **Útvonal egyszerűsítése a térképen** (járműveknél alapból be, futónál és kerékpárnál ki), és több mint 4 pont. A tűrés csúszka **1–20 m** (1 m-es lépés), usage szerint (motor 6 m, autó 8 m, repülő 15 m, kerékpár 3 m és futó 2 m ha bekapcsolják). A **Térképen** először a session usage-ét írja a Beállításokba, utána a kirajzolt vonal a jelenlegi csúszkákat követi. A kapcsoló ki a csúszkát elrejti, a tárolt értéket megtartja. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. A zajszűrő a Kalman, nem a Douglas–Peucker.
+**Mikor.** Beállítás: **Simplify track on map** / **Útvonal egyszerűsítése a térképen** (járműveknél alapból be, Fut/túránál és kerékpárnál ki), és több mint 4 pont. A tűrés csúszka **1–20 m** (1 m-es lépés), usage szerint (motor 6 m, autó 8 m, repülő 15 m, kerékpár 3 m és Fut/túra 2 m ha bekapcsolják). A **Térképen** először a session usage-ét írja a Beállításokba, utána a kirajzolt vonal a jelenlegi csúszkákat követi. A kapcsoló ki a csúszkát elrejti, a tárolt értéket megtartja. `GtlViewModel` → `DouglasPeucker.clampTolerance` → `simplify`. A zajszűrő a Kalman, nem a Douglas–Peucker.
 
 **Hogyan.** A szakasz első és utolsó pontja mindig megmarad. A köztes pontok közül azt választjuk, amelynek a merőleges távolsága (méterben, helyi `111_320` m/fok vetület) a két végpontot összekötő húrhoz a legnagyobb. Ha ez a távolság a tolerancia fölött van, a pontot megtartjuk, és mindkét oldalon rekurzívan folytatjuk; különben minden köztes pontot eldobunk.
 

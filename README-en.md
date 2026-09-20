@@ -32,7 +32,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
   - [How logging works](#how-logging-works)
   - [GNSS Skyplot](#gnss-skyplot)
   - [Barometric altitude (Baro)](#barometric-altitude-baro)
-  - [How Runner logs like a sports watch](#how-runner-logs-like-a-sports-watch)
+  - [How Run/Hike logs like a sports watch](#how-runhike-logs-like-a-sports-watch)
   - [Kalman filter (how stored points are smoothed)](#kalman-filter-how-stored-points-are-smoothed)
   - [Effect of settings on the tracklog](#effect-of-settings-on-the-tracklog)
   - [Recording density](#recording-density)
@@ -53,9 +53,9 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 ### Logging
 
 - **Start / Stop** records a session as a visible foreground service with a notification.
-- Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Runner default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
+- Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Run/Hike default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
-- Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, runner. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Runner and bicycle use a looser accuracy filter and a lower pause threshold.
+- Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, Run/Hike. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Run/Hike and bicycle use a looser accuracy filter and a lower pause threshold.
 - Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), barometric altitude (`TYPE_PRESSURE`; see [Barometric altitude (Baro)](#barometric-altitude-baro)), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
 
 
@@ -135,7 +135,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 
 | Usage               | Units  | GNSS only | Smooth recorded track | Strength | Hold still | Density    | Simplify on map | Tolerance |
 | ------------------- | ------ | --------- | --------------------- | -------- | ---------- | ---------- | --------------- | --------- |
-| Runner              | Metric | on        | off                   | Low      | on         | Every good | off             | 2 m       |
+| Run/Hike            | Metric | on        | off                   | Low      | on         | Every good | off             | 2 m       |
 | Bicycle             | Metric | on        | off                   | Low      | on         | Every good | off             | 3 m       |
 | Motorbike (default) | Metric | off       | on                    | Medium   | on         | Smart      | on              | 6 m       |
 | Car                 | Metric | off       | on                    | Medium   | on         | Smart      | on              | 8 m       |
@@ -145,7 +145,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 
 **What each control does**
 
-- **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (runner and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
+- **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (Run/Hike and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
 - **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro, the elevation dashed line, and KMZ `Baro:` / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ at **share** time). If that height is more than 1500 m from the point’s GPS altitude, the stored insert-time `baroAltitude` is used instead, or baro is omitted. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it. **Auto-calibrate at start** (default on) runs that same calibration automatically once two consecutive GPS fixes agree on altitude (within 15 m) after each recording starts, so you don't have to tap Calibrate yourself. Full write-up: [Barometric altitude (Baro)](#barometric-altitude-baro).
 - **Use downloaded OSM map** — Mapsforge file versus Google Maps. A missing or invalid `.map` turns the switch off.
@@ -155,7 +155,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 - **Keep screen on while logging** — off by default. Holds the display awake only while a session is recording (tank-mount).
 - **Show accuracy marker** — pale purple circle; radius is GPS accuracy. HUD stays on the raw location (chip or fused).
 - **Show fix cloud** — pastel magenta dots of raw GPS fixes while you stand still, plus a magenta CEP95 circle around the cloud centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while you move. Not written to the log or KMZ.
-- **Use GNSS only** — satellite-chip positions instead of fused location. On for runner and bicycle; off for vehicles.
+- **Use GNSS only** — satellite-chip positions instead of fused location. On for Run/Hike and bicycle; off for vehicles.
 - **Smooth recorded track**, **Smoothing strength**, **Hold still when stopped**, **Recording density** — these change what is **written into the tracklog**. Details below.
 
 Existing installs that still have the old **19.5 m** simplify default migrate to the usage table the first time the new Kalman keys are written. A custom tolerance that is not 19.5 is kept.
@@ -221,39 +221,39 @@ Stop
 
 **Two location streams.** While the app is open, `GtlViewModel` also listens about once a second so GPS and Map HUDs update before you tap Start. After Start, `TrackingForegroundService` is the only writer. It requests updates at least every 500 ms (`minTimeMillis`, min distance `0`). Spacing is applied later in `FixAcceptance`, not by Android.
 
-**Source.** **Use GNSS only** on → Android `GPS_PROVIDER` (the satellite chip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — the provider name is historical). Off → Play Services fused `PRIORITY_HIGH_ACCURACY` (satellites mixed with Wi-Fi, cell, and IMU). If the GPS provider is disabled, fused is used either way. Runner default is GNSS only so a 5–10 m on-road loop is not flattened by the phone’s “where is the user?” filter before GTL ever sees it.
+**Source.** **Use GNSS only** on → Android `GPS_PROVIDER` (the satellite chip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — the provider name is historical). Off → Play Services fused `PRIORITY_HIGH_ACCURACY` (satellites mixed with Wi-Fi, cell, and IMU). If the GPS provider is disabled, fused is used either way. Run/Hike default is GNSS only so a 5–10 m on-road loop is not flattened by the phone’s “where is the user?” filter before GTL ever sees it.
 
 **HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The pale purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. **Altitude** on that object is already `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid; drop outside −430…9000 m). **Show fix cloud** samples the same `lastLocation` into an in-memory window (centroid RMS / CEP95) and does not write SQLite. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
 
-**Gate 1 — accuracy and satellites.** A fix worse than the usage accuracy (30 m, runner and bicycle 45 m) or with fewer than 4 satellites in the fix is discarded. It never enters Kalman and never becomes a row. The HUD still updates.
+**Gate 1 — accuracy and satellites.** A fix worse than the usage accuracy (30 m, Run/Hike and bicycle 45 m) or with fewer than 4 satellites in the fix is discarded. It never enters Kalman and never becomes a row. The HUD still updates.
 
-**Gate 2 — optional Kalman.** If **Smooth recorded track** is on, `KalmanTrackFilter.observe` runs on every accuracy-passed fix (one filter instance per Start→Stop session; resume seeds from the last stored point). It outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s; otherwise they stay with the GPS fix (or last bearing). Kalman **moves** points and **keeps the same candidate count**. It is not map-matching and it does not drop vertices. Vehicles default this on so roundabouts look round and cruise is a clean line. Runner defaults it **off** so a small figure-8 is not treated as measurement noise.
+**Gate 2 — optional Kalman.** If **Smooth recorded track** is on, `KalmanTrackFilter.observe` runs on every accuracy-passed fix (one filter instance per Start→Stop session; resume seeds from the last stored point). It outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s; otherwise they stay with the GPS fix (or last bearing). Kalman **moves** points and **keeps the same candidate count**. It is not map-matching and it does not drop vertices. Vehicles default this on so roundabouts look round and cruise is a clean line. Run/Hike defaults it **off** so a small figure-8 is not treated as measurement noise.
 
 **Gate 3 — recording density.** `FixAcceptance.shouldAccept` decides whether that (possibly smoothed) point becomes a SQLite row. Kalman still updates when a point is skipped.
 
 - First fix of the session → always stored as `START`.
-- **Smart** (vehicles): write when haversine distance from the last **stored** point reaches the 2014 speed band; half that band in a curve (heading change > 15°). Runner Smart uses half of that band again (min 1 m).
-- **Every good** (runner default): write when `minTimeMillis` (500 ms) has elapsed **or** the heading is in a curve, and distance is at least **1 m** (vehicles) or **0.5 m** (runner and bicycle).
+- **Smart** (vehicles): write when haversine distance from the last **stored** point reaches the 2014 speed band; half that band in a curve (heading change > 15°). Run/Hike Smart uses half of that band again (min 1 m).
+- **Every good** (Run/Hike default): write when `minTimeMillis` (500 ms) has elapsed **or** the heading is in a curve, and distance is at least **1 m** (vehicles) or **0.5 m** (Run/Hike and bicycle).
 - Slider positions between the ends mix Smart spacing with the Every-good floor; the min-time / curve path can still accept a point.
 - If GPS `bearing` is 0 (common when jogging), curve detection can use heading from consecutive positions.
 
-**Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, lean angle (gravity, tank-mount), raw `pressureHpa`, and insert-time `baroAltitude` are copied onto the row. Compass azimuth is HUD-only and is not stored. See [Barometric altitude (Baro)](#barometric-altitude-baro).
+**Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s Run/Hike, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, lean angle (gravity, tank-mount), raw `pressureHpa`, and insert-time `baroAltitude` are copied onto the row. Compass azimuth is HUD-only and is not stored. See [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 **Stop.** Always writes a `STOP` row (`isPlacemark` true) even if density would have dropped the point. Coordinates are the last **accepted** stored fix (not the raw HUD fix, which can sit a few metres off the log). KMZ/GPX then place the Stop icon on that last path vertex.
 
-**Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected — unless the Map broom set `mapCleared` (idle only; logging still draws). If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (runner and bicycle default), every stored vertex is on the map — that is why a small on-road loop stays visible.
+**Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected — unless the Map broom set `mapCleared` (idle only; logging still draws). If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (Run/Hike and bicycle default), every stored vertex is on the map — that is why a small on-road loop stays visible.
 
 **Why the map looks like your log**
 
 
 | Layer                | What it does               | Map effect                                                                              |
 | -------------------- | -------------------------- | --------------------------------------------------------------------------------------- |
-| GNSS chip vs fused   | Who answers “where am I?”  | Runner and bicycle: chip track, street-scale shape kept. Vehicles: fused, less Wi-Fi/cell jump.     |
+| GNSS chip vs fused   | Who answers “where am I?”  | Run/Hike and bicycle: chip track, street-scale shape kept. Vehicles: fused, less Wi-Fi/cell jump.     |
 | Accuracy / sat gates | Drop junk before Kalman    | No 200 m teleport spikes in the line.                                                   |
 | Kalman (optional)    | Move points, keep count    | Vehicle roundabouts and cruise look smooth; standing lock stops a 10 m scribble.        |
 | Density              | How many points are stored | Smart: fewer points at highway speed. Every good: ~2 Hz, tight loops keep vertices.     |
 | Room                 | Single source of truth     | Map, Route, and KMZ are the same path.                                                  |
-| Douglas–Peucker      | Display-only thin          | Long vehicle tracks stay cheap to draw; runner default is off so the map equals SQLite. |
+| Douglas–Peucker      | Display-only thin          | Long vehicle tracks stay cheap to draw; Run/Hike default is off so the map equals SQLite. |
 
 
 Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
@@ -324,7 +324,7 @@ Engine: `BaroAltitude.kt`. App: `AndroidBaroAltitude.kt`.
 - ICAO Doc 7488, *Manual of the ICAO Standard Atmosphere* — defines the barometric formula's constants
 - U.S. Standard Atmosphere, 1976 (NOAA / NASA / USAF) — equivalent standard atmosphere model
 
-### How Runner logs like a sports watch
+### How Run/Hike logs like a sports watch
 
 A dedicated watch such as a Suunto Ambit 3 Peak records the **GNSS chip** about once per second. It does not snap the line to a street, and it does not run a phone “fused” filter. **GNSS** is the family of satellite systems (GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC). GPS is one constellation; the chip uses all of them.
 
@@ -332,9 +332,9 @@ A phone **fused** location API answers a different question: “where is the use
 
 **Use GNSS only** asks Android `GPS_PROVIDER` (the chip, all constellations — the name is historical). Stored points are those chip positions, the same idea as the watch’s 1 s GPS track. (Suunto FusedSpeed is pace, not the polyline. This app does not implement FusedTrack IMU gap-fill.)
 
-The rest of the Runner preset keeps that shape in SQLite, on Map, and in KMZ:
+The rest of the Run/Hike preset keeps that shape in SQLite, on Map, and in KMZ:
 
-- **Smooth recorded track off** — no second constant-velocity Kalman that treats a small round as measurement noise. You can turn Kalman back on; Runner then adds extra process noise so a 5 m loop is not pulled onto the street.
+- **Smooth recorded track off** — no second constant-velocity Kalman that treats a small round as measurement noise. You can turn Kalman back on; Run/Hike then adds extra process noise so a 5 m loop is not pulled onto the street.
 - **Every good** — store about every 500 ms (settings min time), or sooner in a curve. If GPS bearing is 0 (common when jogging), heading can come from consecutive positions.
 - **0.5 m** duplicate drop (vehicles stay at 1 m) so a tight loop keeps vertices.
 - **Simplify track on map off** — the drawn line is every stored point.
@@ -343,13 +343,13 @@ Accuracy and satellite gates still drop bad fixes. This does **not** store fewer
 
 ### Kalman filter (how stored points are smoothed)
 
-**Purpose.** Cut GPS jitter on a driving or flying track (roundabouts look round, cruise is a clean line) without flattening a runner figure-8, and without a 10 m scribble while you stand still. Kalman is a **noise filter**: it **moves** accepted points and **keeps the same count**. It is not map-matching (no snap to OSM/Google roads) and not Douglas–Peucker (DP **drops** vertices, and only on the Map tab).
+**Purpose.** Cut GPS jitter on a driving or flying track (roundabouts look round, cruise is a clean line) without flattening a Run/Hike figure-8, and without a 10 m scribble while you stand still. Kalman is a **noise filter**: it **moves** accepted points and **keeps the same count**. It is not map-matching (no snap to OSM/Google roads) and not Douglas–Peucker (DP **drops** vertices, and only on the Map tab).
 
 **Where it sits in the pipeline.** One `KalmanTrackFilter` per Start→Stop session, in `:engine`. `TrackingForegroundService` does this for every location update:
 
 1. Copy the fix to the HUD (`lastLocation`). The pale purple accuracy circle always follows this **raw** point.
-2. Drop the fix if accuracy is worse than the usage gate (30 m, runner and bicycle 45 m) or satellites-in-fix is below 4. Rejected fixes never reach Kalman or SQLite.
-3. If **Smooth recorded track** is on, run `KalmanTrackFilter.observe`. The filter outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s. Runner/pedestrian adds extra position process noise so a 5 m loop is not pulled onto the chord.
+2. Drop the fix if accuracy is worse than the usage gate (30 m, Run/Hike and bicycle 45 m) or satellites-in-fix is below 4. Rejected fixes never reach Kalman or SQLite.
+3. If **Smooth recorded track** is on, run `KalmanTrackFilter.observe`. The filter outputs a new lat/lon. Timestamp, altitude, accuracy, and satellite count stay those of the GPS fix. Speed and bearing come from the filter velocity when that speed is at least 0.3 m/s. Run/Hike and pedestrian modes add extra position process noise so a 5 m loop is not pulled onto the chord.
 4. **Recording density** (`FixAcceptance`) decides whether to **write** that (possibly smoothed) point. If the gap is too small, the Kalman state is still updated, but Room does not get a row.
 5. On Stop, the STOP row uses the last **accepted** stored point so Map, KMZ, and GPX end on the log.
 
@@ -361,9 +361,9 @@ So Kalman changes **where** stored points sit. Density changes **how many** of t
 2. **Process noise** `q` (m²/s⁴) = `baseQ(usage) × strengthMultiplier(slider)`. Then `× turnBoost(usage)` when the heading vs the previous **output** bearing (or heading from consecutive positions if GPS bearing is 0) changes more than 15°. **High** `q` **= trust GPS more = less smoothing.** Low `q` = trust the motion model more = smoother arcs, more lag when you actually turn.
 3. **Update** — Joseph-form Kalman update with measurement σ = max(GPS accuracy, 2 m).
 4. **Jump** — if the innovation is larger than `max(50 m, 8 × accuracy)` (tunnel exit, GPS teleport), re-initialize at the new fix. The gap is **not** interpolated.
-5. **Stationary lock** (if enabled) — when GPS speed or predicted speed is below the usage pause threshold (0.25 m/s runner, 0.4 m/s vehicles) and displacement is under 1.5 m, freeze the last output, zero velocity, shrink position covariance.
+5. **Stationary lock** (if enabled) — when GPS speed or predicted speed is below the usage pause threshold (0.25 m/s Run/Hike, 0.4 m/s vehicles) and displacement is under 1.5 m, freeze the last output, zero velocity, shrink position covariance.
 
-Base `q` at mid slider (old Medium): runner 8.0, bicycle 6.0, motorbike 2.5, car/watercraft 1.5, aircraft 0.8. Turn boost: runner 10, bicycle 8, motorbike 5, car/water 3, aircraft 2. Strength slider `t` in `[0, 1]` (Low→High) multiplies `q` by `4^(1 − 2t)`: Low ×4, mid ×1, High ×0.25.
+Base `q` at mid slider (old Medium): Run/Hike 8.0, bicycle 6.0, motorbike 2.5, car/watercraft 1.5, aircraft 0.8. Turn boost: Run/Hike 10, bicycle 8, motorbike 5, car/water 3, aircraft 2. Strength slider `t` in `[0, 1]` (Low→High) multiplies `q` by `4^(1 − 2t)`: Low ×4, mid ×1, High ×0.25.
 
 **Not implemented (on purpose).** OSM/Google snap-to-road, RTS forward–backward smoother, IMU dead reckoning / Suunto FusedTrack gap-fill, display splines.
 
@@ -375,27 +375,27 @@ These are the controls that change SQLite `gps_events`, Route odometer / speeds,
 | Setting                                                           | Written into the tracklog?    | Effect                                                                                                                                                                                                                                                                                                                                                                                               |
 | ----------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Use GNSS only**                                                 | Yes (source)                  | **On:** `GPS_PROVIDER` satellite-chip positions (all GNSS constellations). **Off:** Play Services fused HIGH_ACCURACY. If the GPS provider is disabled, fused is used either way.                                                                                                                                                                                                                    |
-| **Smooth recorded track**                                         | Yes                           | **On:** each candidate point is Kalman-smoothed before density. Route, Map (raw polyline), and KMZ all show the smoothed path. **Off:** the location source is stored as-is after the accuracy/sats gate (runner default).                                                                                                                                                                           |
+| **Smooth recorded track**                                         | Yes                           | **On:** each candidate point is Kalman-smoothed before density. Route, Map (raw polyline), and KMZ all show the smoothed path. **Off:** the location source is stored as-is after the accuracy/sats gate (Run/Hike default).                                                                                                                                                                           |
 | **Smoothing strength** (Low–High slider; only if smoothing is on) | Yes                           | **Low:** GPS jitter stays, figure-8 and zigzag remain. **High** (aircraft default): roundabouts and cruise are cleaner; hairpins lag a little. Mid is motorbike/car/water.                                                                                                                                                                                                                           |
 | **Hold still when stopped**                                       | Yes (only if smoothing is on) | Below pause speed the stored coordinate does not wander. A 6 m GPS cluster at a red light collapses toward one point. Does not drop rows by itself — density still decides writes.                                                                                                                                                                                                                   |
-| **Recording density** (Smart–Every good slider)                   | Yes                           | **Smart:** write when distance from the last **stored** point reaches the 2014 speed band (half in a curve; runner Smart half again, min 1 m). Highway stores fewer points; walking stores more. **Every good:** write about once per `minTime` (500 ms) or sooner in a curve. Vehicles drop stacks closer than **1 m**; runner closer than **0.5 m**. Positions between the ends mix the two rules. |
+| **Recording density** (Smart–Every good slider)                   | Yes                           | **Smart:** write when distance from the last **stored** point reaches the 2014 speed band (half in a curve; Run/Hike Smart half again, min 1 m). Highway stores fewer points; walking stores more. **Every good:** write about once per `minTime` (500 ms) or sooner in a curve. Vehicles drop stacks closer than **1 m**; Run/Hike closer than **0.5 m**. Positions between the ends mix the two rules. |
 | **Simplify track on map** (1–20 m slider)                         | **No**                        | Fewer vertices on the Map tab only. Stored points, odometer, and KMZ are unchanged.                                                                                                                                                                                                                                                                                                                  |
 | **Show accuracy marker**                                          | **No**                        | Pale purple circle on the **raw** GPS fix, even when Kalman is on.                                                                                                                                                                                                                                                                                                                                       |
 | **Show fix cloud**                                                | **No**                        | Pastel magenta dots of raw HUD fixes while standing, CEP95 around the centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while moving. Not stored.                                                                                                                                                                    |
 | **Units**                                                         | Labels only                   | Metric / Imperial / ICAO format Route and KMZ balloons (metric km/h, m, °C; imperial mph, ft, °F; ICAO kt, ft, °C). Coordinates stay WGS-84. Aircraft and watercraft presets select ICAO.                                                                                                                                                                                                                                                                        |
 | **QNH** (900–1100 hPa)                                            | Baro at insert; KMZ at share  | Live baro, the elevation dashed line, and KMZ balloons / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ when you share). If that height is more than 1500 m from GPS altitude, stored insert-time `baroAltitude` is used, or baro is omitted. `baroAltitude` stored on the row uses the QNH and offset in force then; raw `pressureHpa` is unchanged. **Calibrate from GPS** writes a DataStore offset (±10 hPa) without changing the slider. Default ISA 1013.25. |
-| Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (runner and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
+| Accuracy / satellite gates                                        | Yes (rejection)               | Fixes worse than 30 m (Run/Hike and bicycle 45 m) or with fewer than 4 satellites in the fix are discarded before Kalman. Not shown as Settings sliders.                                                                                                                                                                                                                                                           |
 
 
-**Practical result.** Motorbike default: fused + smoothed street track, Smart spacing, Map line thinned at 6 m. Runner and bicycle default: GNSS chip, no Kalman, almost every good fix stored (0.5 m floor), Map shows every stored vertex so a small on-road loop stays visible. Aircraft default: stronger smoothing, Smart spacing, 15 m Map thinning, speed/distance in knots and nautical miles.
+**Practical result.** Motorbike default: fused + smoothed street track, Smart spacing, Map line thinned at 6 m. Run/Hike and bicycle default: GNSS chip, no Kalman, almost every good fix stored (0.5 m floor), Map shows every stored vertex so a small on-road loop stays visible. Aircraft default: stronger smoothing, Smart spacing, 15 m Map thinning, speed/distance in knots and nautical miles.
 
 ### Recording density
 
 Separate from Kalman. Kalman always sees every accuracy-passed fix while smoothing is on; density only gates **storage**.
 
-- **Smart** (vehicles): write a point when haversine distance from the last **stored** fix reaches the 2014 speed band; half that in a curve. Runner Smart uses half of that band again (walk/jog was too coarse for a small figure-8).
-- **Every good** (runner and bicycle default): accept when `minTimeMillis` has elapsed or heading is in a curve. Vehicles drop stacks closer than 1 m; runner and bicycle drop closer than 0.5 m.
-- **Between the slider ends:** required distance is a mix of the Smart band and the Every-good floor (1 m vehicles, 0.5 m runner and bicycle); the min-time / curve path can also accept a point.
+- **Smart** (vehicles): write a point when haversine distance from the last **stored** fix reaches the 2014 speed band; half that in a curve. Run/Hike Smart uses half of that band again (walk/jog was too coarse for a small figure-8).
+- **Every good** (Run/Hike and bicycle default): accept when `minTimeMillis` has elapsed or heading is in a curve. Vehicles drop stacks closer than 1 m; Run/Hike and bicycle drop closer than 0.5 m.
+- **Between the slider ends:** required distance is a mix of the Smart band and the Every-good floor (1 m vehicles, 0.5 m Run/Hike and bicycle); the min-time / curve path can also accept a point.
 
 
 
@@ -405,7 +405,7 @@ Separate from Kalman. Kalman always sees every accuracy-passed fix while smoothi
 
 This is **display-only**. `gps_events`, Route odometer / speeds, and KMZ export always use the Room rows (already Kalman-smoothed when that setting is on). Douglas–Peucker does not smooth GPS noise: remaining corners stay sharp. It only discards points that are close enough to a chord.
 
-**When it runs.** Settings → **Simplify track on map** (`optimizationActive`; on for vehicles, off for runner and bicycle). While logging, `GtlViewModel` uses that switch. **Show on map** copies the session usage into Settings first, then the drawn line follows the current Settings sliders, so changing usage after load previews another simplify mode. Tolerance is a **1–20 m** slider (1 m steps; motorbike default 6 m, car 8 m). `DouglasPeucker.clampTolerance` still snaps and clamps on write.
+**When it runs.** Settings → **Simplify track on map** (`optimizationActive`; on for vehicles, off for Run/Hike and bicycle). While logging, `GtlViewModel` uses that switch. **Show on map** copies the session usage into Settings first, then the drawn line follows the current Settings sliders, so changing usage after load previews another simplify mode. Tolerance is a **1–20 m** slider (1 m steps; motorbike default 6 m, car 8 m). `DouglasPeucker.clampTolerance` still snaps and clamps on write.
 
 **How it works.** Classic Ramer–Douglas–Peucker, with distances in metres on a local tangent plane (`111_320` m per degree of latitude; longitude scaled by `cos(lat)`):
 

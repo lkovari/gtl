@@ -54,7 +54,7 @@ enum class UsageType {
             FOUR_WHEELERS -> "Car"
             TWO_WHEELERS -> "Motorbike"
             BICYCLE -> "Bicycle"
-            RUNNER, WALKING_HIKE, PEDESTRIAN -> "Runner"
+            RUNNER, WALKING_HIKE, PEDESTRIAN -> "Run/Hike"
         }
     }
 
