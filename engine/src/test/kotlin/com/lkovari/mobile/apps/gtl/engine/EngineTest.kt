@@ -1,5 +1,6 @@
 package com.lkovari.mobile.apps.gtl.engine
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -2804,6 +2805,53 @@ class OsmMapCameraTest {
         assertEquals(47.447202, center.latitude, 0.0)
         assertEquals(19.195482, center.longitude, 0.0)
     }
+
+    @Test
+    fun locateNeedsBothCoordinates() {
+        assertEquals(null, OsmMapCamera.locateCenter(null, 19.05))
+        assertEquals(null, OsmMapCamera.locateCenter(47.5, null))
+    }
+
+    @Test
+    fun locateCentersOnGps() {
+        val center = checkNotNull(OsmMapCamera.locateCenter(47.4979, 19.0402))
+        assertEquals(47.4979, center.latitude, 0.0)
+        assertEquals(19.0402, center.longitude, 0.0)
+    }
+}
+
+class MapCameraModeTest {
+    @Test
+    fun idleAllowsFreePan() {
+        assertEquals(
+            MapCameraMode.Free,
+            MapCameraMode.of(logging = false, keepWholeTrack = false, viewingSaved = false)
+        )
+    }
+
+    @Test
+    fun loggingFollowsLive() {
+        assertEquals(
+            MapCameraMode.FollowLive,
+            MapCameraMode.of(logging = true, keepWholeTrack = false, viewingSaved = false)
+        )
+    }
+
+    @Test
+    fun savedTrackFitsBounds() {
+        assertEquals(
+            MapCameraMode.FitTrack,
+            MapCameraMode.of(logging = false, keepWholeTrack = false, viewingSaved = true)
+        )
+    }
+
+    @Test
+    fun keepWholeTrackFitsEvenWhileLogging() {
+        assertEquals(
+            MapCameraMode.FitTrack,
+            MapCameraMode.of(logging = true, keepWholeTrack = true, viewingSaved = false)
+        )
+    }
 }
 
 class GpsAltitudeTest {
@@ -2942,6 +2990,315 @@ class OsmMapLocaleTest {
     @Test
     fun gbLocaleMatchesEnglandMap() {
         assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("GB", "gb", false))
+    }
+}
+
+class OsmOfflineAvailabilityTest {
+    @Test
+    fun cannotEnableWithoutADownloadedMap() {
+        assertFalse(OsmOfflineAvailability.canEnable(false))
+        assertTrue(OsmOfflineAvailability.canEnable(true))
+    }
+
+    @Test
+    fun offlineMapIsOffWhenNothingIsDownloaded() {
+        assertFalse(OsmOfflineAvailability.effectiveUseOffline(true, false))
+        assertFalse(OsmOfflineAvailability.effectiveUseOffline(false, true))
+        assertTrue(OsmOfflineAvailability.effectiveUseOffline(true, true))
+    }
+
+    @Test
+    fun lastDeletedMapForcesGoogle() {
+        assertTrue(OsmOfflineAvailability.forceGoogleAfterDelete(deletingSelected = false, localeMatch = false, mapsRemain = false))
+        assertFalse(OsmOfflineAvailability.forceGoogleAfterDelete(deletingSelected = false, localeMatch = false, mapsRemain = true))
+        assertTrue(OsmOfflineAvailability.forceGoogleAfterDelete(deletingSelected = true, localeMatch = false, mapsRemain = true))
+        assertTrue(OsmOfflineAvailability.forceGoogleAfterDelete(deletingSelected = false, localeMatch = true, mapsRemain = true))
+    }
+}
+
+class OsmRenderOptionsTest {
+    @Test
+    fun cyclewaysFollowBicycleUsageOnly() {
+        assertTrue(OsmRenderOptions.cyclewaysForUsage(UsageType.BICYCLE))
+        UsageType.selectable.filter { it != UsageType.BICYCLE }.forEach { usage ->
+            assertFalse(OsmRenderOptions.cyclewaysForUsage(usage))
+        }
+    }
+
+    @Test
+    fun defaultsMatchProductSwitches() {
+        val options = OsmRenderOptions.defaults(UsageType.TWO_WHEELERS)
+        assertTrue(options.buildings)
+        assertFalse(options.poi)
+        assertFalse(options.transit)
+        assertFalse(options.cycleways)
+        assertTrue(options.parks)
+        assertFalse(options.hillshading)
+    }
+
+    @Test
+    fun bicycleDefaultTurnsCyclewaysOn() {
+        val options = OsmRenderOptions.defaults(UsageType.BICYCLE)
+        assertTrue(options.cycleways)
+        assertTrue(options.buildings)
+        assertFalse(options.poi)
+    }
+
+    @Test
+    fun categoryIdsIncludeOnlyEnabledLayers() {
+        val none = OsmRenderOptions(
+            buildings = false,
+            poi = false,
+            transit = false,
+            cycleways = false,
+            parks = false,
+            hillshading = false
+        )
+        assertTrue(none.categoryIds().isEmpty())
+
+        val some = none.copy(buildings = true, parks = true, cycleways = true)
+        assertEquals(
+            setOf(
+                OsmRenderOptions.CAT_BUILDINGS,
+                OsmRenderOptions.CAT_PARKS,
+                OsmRenderOptions.CAT_CYCLEWAYS
+            ),
+            some.categoryIds()
+        )
+    }
+
+    @Test
+    fun allEnabledIncludesEveryCategory() {
+        val all = OsmRenderOptions(
+            buildings = true,
+            poi = true,
+            transit = true,
+            cycleways = true,
+            parks = true,
+            hillshading = true
+        )
+        assertEquals(
+            setOf(
+                OsmRenderOptions.CAT_BUILDINGS,
+                OsmRenderOptions.CAT_POI,
+                OsmRenderOptions.CAT_TRANSIT,
+                OsmRenderOptions.CAT_CYCLEWAYS,
+                OsmRenderOptions.CAT_PARKS,
+                OsmRenderOptions.CAT_HILLSHADING
+            ),
+            all.categoryIds()
+        )
+    }
+
+    @Test
+    fun hillshadingCategoryDropsWhenMapHasNoElevation() {
+        val all = OsmRenderOptions(
+            buildings = true,
+            poi = true,
+            transit = true,
+            cycleways = true,
+            parks = true,
+            hillshading = true
+        )
+        assertFalse(all.forMap(hillshadingAvailable = false).hillshading)
+        assertFalse(all.forMap(false).categoryIds().contains(OsmRenderOptions.CAT_HILLSHADING))
+        assertTrue(all.forMap(hillshadingAvailable = true).hillshading)
+        assertTrue(all.forMap(true).categoryIds().contains(OsmRenderOptions.CAT_HILLSHADING))
+    }
+}
+
+class OsmHillshadingTest {
+    @Test
+    fun missingFileHasNoHillshading() {
+        assertFalse(OsmHillshading.available(java.io.File("/tmp/gtl-missing-osm.map")))
+    }
+
+    @Test
+    fun officialMapsforgeMapAloneHasNoHillshading() {
+        val dir = kotlin.io.path.createTempDirectory("gtl-osm-hu").toFile()
+        val map = File(dir, "hungary.map")
+        map.writeBytes(readableMapsforgeBytes())
+        try {
+            assertFalse(OsmHillshading.available(map))
+        } finally {
+            map.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun bernHgtNextToSwitzerlandMapEnablesHillshading() {
+        val dir = kotlin.io.path.createTempDirectory("gtl-osm-ch").toFile()
+        val map = File(dir, "switzerland.map")
+        map.writeBytes(readableMapsforgeBytes())
+        val hgt = File(dir, "N46E007.hgt")
+        hgt.writeBytes(ByteArray(16))
+        try {
+            assertTrue(OsmHillshading.available(map))
+        } finally {
+            hgt.delete()
+            map.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun budapestHgtInHillsFolderEnablesHillshading() {
+        val dir = kotlin.io.path.createTempDirectory("gtl-osm-hills").toFile()
+        val hills = File(dir, "hills")
+        hills.mkdirs()
+        val map = File(dir, "hungary.map")
+        map.writeBytes(readableMapsforgeBytes())
+        val hgt = File(hills, "N47E019.hgt")
+        hgt.writeBytes(ByteArray(16))
+        try {
+            assertTrue(OsmHillshading.available(map))
+        } finally {
+            hgt.delete()
+            hills.delete()
+            map.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun hf2AndHgtZipCountAsElevation() {
+        assertTrue(OsmHillshading.isElevationFileName("N48E016.hf2"))
+        assertTrue(OsmHillshading.isElevationFileName("N52E013.hgt.zip"))
+        assertTrue(OsmHillshading.isElevationFileName("n41e012.HGT"))
+        assertFalse(OsmHillshading.isElevationFileName("readme.txt"))
+        assertFalse(OsmHillshading.isElevationFileName("hungary.map"))
+    }
+
+    @Test
+    fun unreadableMapDoesNotEnableEvenWithHgt() {
+        val dir = kotlin.io.path.createTempDirectory("gtl-osm-bad").toFile()
+        val map = File(dir, "broken.map")
+        map.writeText("<html>nope</html>")
+        val hgt = File(dir, "N48E002.hgt")
+        hgt.writeBytes(ByteArray(16))
+        try {
+            assertFalse(OsmHillshading.available(map))
+        } finally {
+            hgt.delete()
+            map.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun hgtBesideAnotherMapDoesNotEnableThisMap() {
+        val bern = kotlin.io.path.createTempDirectory("gtl-osm-bern").toFile()
+        val vienna = kotlin.io.path.createTempDirectory("gtl-osm-vienna").toFile()
+        val ch = File(bern, "switzerland.map")
+        ch.writeBytes(readableMapsforgeBytes())
+        val at = File(vienna, "austria.map")
+        at.writeBytes(readableMapsforgeBytes())
+        val hgt = File(bern, "N46E007.hgt")
+        hgt.writeBytes(ByteArray(16))
+        try {
+            assertTrue(OsmHillshading.available(ch))
+            assertFalse(OsmHillshading.available(at))
+        } finally {
+            hgt.delete()
+            ch.delete()
+            at.delete()
+            bern.delete()
+            vienna.delete()
+        }
+    }
+
+    private fun readableMapsforgeBytes(): ByteArray {
+        val bytes = ByteArray(4096)
+        val magic = "mapsforge binary OSM".toByteArray(Charsets.US_ASCII)
+        magic.copyInto(bytes)
+        java.nio.ByteBuffer.wrap(bytes, 28, 8).order(java.nio.ByteOrder.BIG_ENDIAN).putLong(4096L)
+        return bytes
+    }
+}
+
+class OsmRenderThemePathTest {
+    @Test
+    fun mapsforgeOpensThemeFromAndroidAssetsRoot() {
+        assertEquals("mapsforge/gtl.xml", OsmRenderThemePath.assetOpenPath())
+    }
+
+    @Test
+    fun pathMustNotUseJarAssetsPrefix() {
+        val path = OsmRenderThemePath.assetOpenPath()
+        assertFalse(path.startsWith("/"))
+        assertFalse(path.startsWith("assets/"))
+        assertFalse(path.contains("/assets/"))
+    }
+
+    @Test
+    fun overlayLayersAreDefinedBeforeBaseReferencesThem() {
+        val xml = gtlThemeXml().readText()
+        val overlayDef = xml.indexOf("<layer id=\"buildings\">")
+        val overlayRef = xml.indexOf("<overlay id=\"buildings\"/>")
+        assertTrue(overlayDef >= 0)
+        assertTrue(overlayRef >= 0)
+        assertTrue(overlayDef < overlayRef)
+    }
+
+    private fun gtlThemeXml(): File {
+        val candidates = listOf(
+            File("app/src/main/assets/mapsforge/gtl.xml"),
+            File("../app/src/main/assets/mapsforge/gtl.xml")
+        )
+        return candidates.first { it.isFile }
+    }
+}
+
+class OsmRenderCategoriesTest {
+    @Test
+    fun overlayTogglesAddOnlySelectedLayerCats() {
+        val cats = OsmRenderCategories.enabled(
+            baseCategories = emptySet(),
+            overlayCategories = mapOf(
+                OsmRenderOptions.CAT_BUILDINGS to setOf(OsmRenderOptions.CAT_BUILDINGS),
+                OsmRenderOptions.CAT_POI to setOf(OsmRenderOptions.CAT_POI),
+                OsmRenderOptions.CAT_PARKS to setOf(OsmRenderOptions.CAT_PARKS)
+            ),
+            enabledOverlayIds = setOf(OsmRenderOptions.CAT_BUILDINGS, OsmRenderOptions.CAT_PARKS)
+        )
+        assertEquals(
+            setOf(OsmRenderOptions.CAT_BUILDINGS, OsmRenderOptions.CAT_PARKS),
+            cats
+        )
+    }
+
+    @Test
+    fun baseLayerCategoriesStayWhenOverlaysAreOff() {
+        val cats = OsmRenderCategories.enabled(
+            baseCategories = setOf("roads"),
+            overlayCategories = mapOf(
+                OsmRenderOptions.CAT_BUILDINGS to setOf(OsmRenderOptions.CAT_BUILDINGS)
+            ),
+            enabledOverlayIds = emptySet()
+        )
+        assertEquals(setOf("roads"), cats)
+    }
+
+    @Test
+    fun unresolvedOverlaysStillEnableRequestedCategoryIds() {
+        val cats = OsmRenderCategories.enabled(
+            baseCategories = emptySet(),
+            overlayCategories = emptyMap(),
+            enabledOverlayIds = setOf(
+                OsmRenderOptions.CAT_BUILDINGS,
+                OsmRenderOptions.CAT_CYCLEWAYS,
+                OsmRenderOptions.CAT_TRANSIT
+            )
+        )
+        assertEquals(
+            setOf(
+                OsmRenderOptions.CAT_BUILDINGS,
+                OsmRenderOptions.CAT_CYCLEWAYS,
+                OsmRenderOptions.CAT_TRANSIT
+            ),
+            cats
+        )
     }
 }
 

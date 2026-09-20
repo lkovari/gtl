@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.lkovari.mobile.apps.gtl.GtlApplication
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import java.io.File
 import java.net.HttpURLConnection
@@ -30,6 +31,7 @@ class OsmDownloadWorker(
                 target.delete()
             }
             temp.renameTo(target)
+            (applicationContext as? GtlApplication)?.osmMapStore?.notifyMapsChanged()
             Result.success(workDataOf(KEY_FILE to target.absolutePath))
         } catch (_: Exception) {
             temp.delete()

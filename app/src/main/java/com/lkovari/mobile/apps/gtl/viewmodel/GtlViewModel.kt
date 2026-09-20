@@ -32,8 +32,10 @@ import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.OsmHillshading
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import com.lkovari.mobile.apps.gtl.engine.OsmMapLocale
+import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectDump
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectEvent
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
@@ -61,7 +63,8 @@ private data class MapUiBits(
     val selectedSessionId: Long?,
     val fixCloud: FixCloudSnapshot,
     val mainTab: Int,
-    val mapCleared: Boolean
+    val mapCleared: Boolean,
+    val hasDownloadedOsmMap: Boolean
 )
 
 data class GtlUiState(
@@ -73,12 +76,20 @@ data class GtlUiState(
     val sessions: List<TrackSessionEntity>,
     val mapsKeyPresent: Boolean,
     val osmFile: File?,
+    val hasDownloadedOsmMap: Boolean,
     val requestedTab: Int?,
     val selectedSessionId: Long?,
     val fixCloud: FixCloudSnapshot,
     val mapUsageType: UsageType,
     val mainTab: Int
-)
+) {
+    val showingOsmMap: Boolean
+        get() = OsmOfflineAvailability.effectiveUseOffline(settings.useOfflineMap, hasDownloadedOsmMap) &&
+            osmFile != null
+
+    val osmHillshadingAvailable: Boolean
+        get() = osmFile != null && OsmHillshading.available(osmFile)
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GtlViewModel(application: Application) : AndroidViewModel(application) {
@@ -122,6 +133,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         startPreview()
         observeFixCloud()
         observeSavedElevationQnh()
+        observeOsmDownloadAvailability()
     }
 
     fun startPreview() {
@@ -280,6 +292,18 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun observeOsmDownloadAvailability() {
+        viewModelScope.launch {
+            app.osmMapStore.observeHasDownloadedMap().collect { hasMap ->
+                if (settings.value.useOfflineMap &&
+                    !OsmOfflineAvailability.effectiveUseOffline(true, hasMap)
+                ) {
+                    app.preferences.setUseOfflineMap(false)
+                }
+            }
+        }
+    }
+
     private val activeEvents = combine(live, selectedSessionId, settings, sessions, mapCleared) { liveState, selected, prefs, sessionList, cleared ->
         liveState.sessionId
             ?: selected
@@ -297,8 +321,23 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         live,
         activeEvents,
         sessions,
-        combine(requestedTab, selectedSessionId, fixCloudView, mainTab, mapCleared) { tab, selected, cloud, persistedTab, cleared ->
-            MapUiBits(tab, selected, cloud, persistedTab, cleared)
+        combine(
+            requestedTab,
+            selectedSessionId,
+            fixCloudView,
+            mainTab,
+            combine(mapCleared, app.osmMapStore.observeHasDownloadedMap()) { cleared, hasMap ->
+                cleared to hasMap
+            }
+        ) { tab, selected, cloud, persistedTab, clearedAndHas ->
+            MapUiBits(
+                requestedTab = tab,
+                selectedSessionId = selected,
+                fixCloud = cloud,
+                mainTab = persistedTab,
+                mapCleared = clearedAndHas.first,
+                hasDownloadedOsmMap = clearedAndHas.second
+            )
         }
     ) { prefs, liveState, events, sessionList, mapBits ->
         val tab = mapBits.requestedTab
@@ -351,6 +390,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             sessions = sessionList,
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
             osmFile = osm,
+            hasDownloadedOsmMap = mapBits.hasDownloadedOsmMap,
             requestedTab = tab,
             selectedSessionId = selected,
             fixCloud = cloud,
@@ -369,6 +409,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             sessions = emptyList(),
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
             osmFile = null,
+            hasDownloadedOsmMap = false,
             requestedTab = null,
             selectedSessionId = null,
             fixCloud = FixCloudSnapshot.Empty,
@@ -531,7 +572,22 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setUseOfflineMap(value: Boolean) {
-        viewModelScope.launch { app.preferences.setUseOfflineMap(value) }
+        viewModelScope.launch {
+            if (!value) {
+                app.preferences.setUseOfflineMap(false)
+                return@launch
+            }
+            val maps = app.osmMapStore.listDownloaded()
+            if (!OsmOfflineAvailability.canEnable(maps.isNotEmpty())) {
+                return@launch
+            }
+            val selected = settings.value.selectedMapFile
+            val readable = selected.isNotBlank() && OsmMapFile.isReadable(File(selected))
+            if (!readable) {
+                app.preferences.setSelectedMapFile(maps.first().absolutePath)
+            }
+            app.preferences.setUseOfflineMap(true)
+        }
     }
 
     fun setOptimization(value: Boolean) {
@@ -622,6 +678,30 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setGoogleMapLayer(value) }
     }
 
+    fun setOsmBuildings(value: Boolean) {
+        viewModelScope.launch { app.preferences.setOsmBuildings(value) }
+    }
+
+    fun setOsmPoi(value: Boolean) {
+        viewModelScope.launch { app.preferences.setOsmPoi(value) }
+    }
+
+    fun setOsmTransit(value: Boolean) {
+        viewModelScope.launch { app.preferences.setOsmTransit(value) }
+    }
+
+    fun setOsmCycleways(value: Boolean) {
+        viewModelScope.launch { app.preferences.setOsmCycleways(value) }
+    }
+
+    fun setOsmParks(value: Boolean) {
+        viewModelScope.launch { app.preferences.setOsmParks(value) }
+    }
+
+    fun setOsmHillshading(value: Boolean) {
+        viewModelScope.launch { app.preferences.setOsmHillshading(value) }
+    }
+
     fun downloadRegion(region: OsmRegion) {
         app.osmMapStore.enqueue(region)
     }
@@ -645,17 +725,14 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         val selectedPath = settings.value.selectedMapFile
         val deletingSelected = file != null && file.absolutePath == selectedPath
         val localeCountry = app.resources.configuration.locales[0].country
-        val switchToGoogle = OsmMapLocale.switchToGoogleMapsOnDelete(
-            region.countryCode,
-            localeCountry,
-            deletingSelected
-        )
         app.osmMapStore.delete(region.id)
+        val mapsRemain = app.osmMapStore.hasDownloadedMap()
+        val localeMatch = OsmMapLocale.countryMatches(region.countryCode, localeCountry)
         viewModelScope.launch {
             if (deletingSelected) {
                 app.preferences.setSelectedMapFile("")
             }
-            if (switchToGoogle) {
+            if (OsmOfflineAvailability.forceGoogleAfterDelete(deletingSelected, localeMatch, mapsRemain)) {
                 app.preferences.setUseOfflineMap(false)
             }
         }

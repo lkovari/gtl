@@ -77,15 +77,15 @@ Session totals after Start (and for a saved / last session on Map): elapsed time
 
 ### Map tab
 
-- Centers on current location; follows while logging. **Keep whole track on the screen** fits the whole route after each GPS refresh (pan and zoom stay allowed until the next fix).
+- Centers on current location when you open the tab. Idle, you can pan away (Google and OSM). After Start the camera follows. **Keep whole track on the screen** fits the whole route after each GPS refresh (pan and zoom stay allowed until the next fix). A **My location** button (top left: cyan GPS crosshair, same circle as the broom) recenters on the GPS fix without changing zoom.
 - Red polyline from Room (live session, last saved track, or a track chosen in Saved tracks). The Map line **is** the stored log; there is no separate sketch. See [How logging works](#how-logging-works).
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region and enable **Use downloaded OSM map**. The same polyline and accuracy ring draw on OSM. A missing or non-Mapsforge file shows an on-device message and turns that switch off so the next launch is not a crash loop. Download keeps only files with magic `mapsforge binary OSM` and a matching header size. Camera starts on the `.map` start/bounds when the GPS fix is outside that file; live follow only inside the file. The OSM `MapView` stays laid out when you leave the Map tab.
 - Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
 - **HUD** over both map engines: large speed (units from Settings), accuracy, GNSS used/in view. While logging: odometer, elapsed time, pulsing REC. Idle with a fix: dim compact panel at the bottom left. Hidden when a saved track is shown and you are not logging.
-- Small red usage silhouette at your position (same icons as Settings). Stays upright in portrait. A north marker stays on the map.
+- Small red usage silhouette at your position (same icons as Settings). With a live GPS fix it sits on a cyan GNSS reticle. Stays upright in portrait. A north marker stays on the map.
 - Green **S** at the start of the drawn track; red **E** at the end when you are not logging (while logging the silhouette is now).
-- When a saved track is shown and logging is off, a broom at the top left takes the line off the map without deleting the log. Start or Saved tracks → Show on map draws it again.
+- When a saved track is shown and logging is off, a broom at the top left takes the line off the map without deleting the log. Start or Saved tracks → Show on map draws it again. **My location** sits under the broom (or alone at top left when no saved track is shown).
 - Douglas–Peucker simplification on the drawn line when **Simplify track on map** is on (see below). SQLite, Route totals, and KMZ are never simplified.
 
 
@@ -148,7 +148,7 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (Run/Hike and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
 - **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro, the elevation dashed line, and KMZ `Baro:` / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ at **share** time). If that height is more than 1500 m from the point’s GPS altitude, the stored insert-time `baroAltitude` is used instead, or baro is omitted. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it. **Auto-calibrate at start** (default on) runs that same calibration automatically once two consecutive GPS fixes agree on altitude (within 15 m) after each recording starts, so you don't have to tap Calibrate yourself. Full write-up: [Barometric altitude (Baro)](#barometric-altitude-baro).
-- **Use downloaded OSM map** — Mapsforge file versus Google Maps. A missing or invalid `.map` turns the switch off.
+- **Use downloaded OSM map** — off and disabled until a region is downloaded. On uses the Mapsforge file; turning it off shows Google Maps on Map. A missing or invalid `.map` turns the switch off. When the switch is on, Settings shows an **OSM map** card, and the Map tab layers button (same spot as Google layers) opens the same switches: Buildings (default on), **POI** (off; shops, restaurants, parking, fuel from zoom 14 — not bus stops), Public transport (off; rail/tram/stations and bus stops), Highlight cycleways (on for Bicycle; magenta overlay from zoom 12; dedicated `highway=cycleway` stays blue; changing usage resets this), Parks and protected areas (on), Terrain relief (off). Toggling a switch redraws OSM tiles without moving the camera. Official Mapsforge files for any country store dedicated `highway=cycleway` only (not on-road lanes). Terrain relief stays disabled unless HGT files sit next to the `.map` or in a `hills/` folder (official Mapsforge downloads usually have none).
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
 - **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
@@ -163,10 +163,11 @@ Existing installs that still have the old **19.5 m** simplify default migrate to
 ### Other screens
 
 - First-run safe-driving disclaimer.
-- Download OSM map (Mapsforge v5 regions: Europe, selected Asia / Americas / Australia).
+- Download OSM map (Mapsforge v5 regions: Europe, selected Asia / Americas / Australia). Delete a downloaded region from that screen.
 - Location settings (opens the system GPS panel).
-- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route, Map (OSM file, S/E), Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
+- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, OSM map layers, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route, Map (OSM file, S/E), Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
 - Privacy-policy link.
+- About: optional OpenStreetMap use, ODbL, and Mapsforge download links. The OSM Map tab shows **© OpenStreetMap**.
 
 ---
 
@@ -179,7 +180,7 @@ Two Gradle modules:
 
 | Module    | Role                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
+| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, OSM render-option categories, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
 | `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
 
 
@@ -194,7 +195,7 @@ docs/    Privacy policy, Play assets
 ### Data
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
-- **DataStore:** disclaimer, usage, units, QNH, baro pressure offset, filters, OSM file path, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
+- **DataStore:** disclaimer, usage, units, QNH, baro pressure offset, filters, OSM file path, OSM layer switches, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
 - **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
 
@@ -491,8 +492,10 @@ Engine entry points worth reading:
 - `engine/.../GpsAltitude.kt` — MSL then GNSS then fused; drop outside −430…9000 m
 - `engine/.../BaroAltitude.kt` — ISA / QNH metres from `pressureHpa`; `displayedMeters` / `pickDisplayed` (1500 m vs GPS)
 - `engine/.../OsmMapFile.kt` — Mapsforge magic + header file size
-- `engine/.../OsmMapCamera.kt` — OSM centre/zoom inside the `.map` bounds
+- `engine/.../OsmMapCamera.kt` — OSM centre/zoom inside the `.map` bounds; locate target
+- `engine/.../MapCameraMode.kt` — idle free pan, follow while logging, fit saved/whole track
 - `engine/.../OsmMapViewRedraw.kt` — when Compose must invalidate OSM tiles
+- `engine/.../OsmRenderOptions.kt` — OSM layer categories for the Mapsforge theme
 - `engine/.../MapFitZoom.kt` — zoom clamp / fit size check
 - `engine/.../TrackEndpoints.kt` — green S / red E (end hidden while logging)
 - `engine/.../FixCloud.kt` — in-memory standing-fix cloud / CEP95

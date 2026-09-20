@@ -82,7 +82,7 @@ Douglas–Peucker stays **map display only**. It is not the smoother. The smooth
 | `app/.../TrackingForegroundService.kt` | `LocationClient.locations(minTime, 0f)` then `FixAcceptance` then insert `GpsEventEntity` |
 | `app/.../GtlViewModel.kt` | If `optimizationActive && points.size > 4` → `DouglasPeucker.simplify(points, optimizationTolerance)` for **map only**. Stats and KMZ use raw Room rows |
 | `app/.../GtlPreferences.kt` | DataStore. DP default: `optimizationActive = true`, `optimizationTolerance = 19.5`. **No setter and no Settings control for tolerance** |
-| `app/.../ui/screens/SecondaryScreens.kt` | Settings: usage, units, OSM, simplify-on-map switch, last-track, accuracy marker, fix cloud, read-only filter numbers |
+| `app/.../ui/screens/SecondaryScreens.kt` | Settings: usage, units, OSM, OSM layer switches, simplify-on-map switch, last-track, accuracy marker, fix cloud, read-only filter numbers |
 | `app/.../data/sensor/SensorSources.kt` | Accelerometer stored on rows; compass is HUD-only |
 
 **Why the map looks wrong today**

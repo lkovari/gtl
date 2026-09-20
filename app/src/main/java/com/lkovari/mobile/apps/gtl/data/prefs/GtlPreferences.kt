@@ -16,6 +16,7 @@ import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.FixFilter
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
 import com.lkovari.mobile.apps.gtl.engine.RecordingDensity
 import com.lkovari.mobile.apps.gtl.engine.SmoothingStrength
 import com.lkovari.mobile.apps.gtl.engine.UsageSmoothingDefaults
@@ -68,8 +69,25 @@ data class GtlSettings(
     val qnhHpa: Float,
     val baroPressureOffsetHpa: Float,
     val autoCalibrateBaroEnabled: Boolean,
-    val googleMapLayer: GoogleMapLayer
+    val googleMapLayer: GoogleMapLayer,
+    val osmBuildings: Boolean,
+    val osmPoi: Boolean,
+    val osmTransit: Boolean,
+    val osmCycleways: Boolean,
+    val osmParks: Boolean,
+    val osmHillshading: Boolean
 ) {
+    fun osmRenderOptions(): OsmRenderOptions {
+        return OsmRenderOptions(
+            buildings = osmBuildings,
+            poi = osmPoi,
+            transit = osmTransit,
+            cycleways = osmCycleways,
+            parks = osmParks,
+            hillshading = osmHillshading
+        )
+    }
+
     fun toFilter(): FixFilter {
         return FixFilter(
             minDistanceMeters = minDistanceMeters,
@@ -110,7 +128,13 @@ data class GtlSettings(
                 qnhHpa = SensorManager.PRESSURE_STANDARD_ATMOSPHERE,
                 baroPressureOffsetHpa = 0f,
                 autoCalibrateBaroEnabled = true,
-                googleMapLayer = GoogleMapLayer.NORMAL
+                googleMapLayer = GoogleMapLayer.NORMAL,
+                osmBuildings = true,
+                osmPoi = false,
+                osmTransit = false,
+                osmCycleways = OsmRenderOptions.cyclewaysForUsage(UsageType.TWO_WHEELERS),
+                osmParks = true,
+                osmHillshading = false
             )
         }
     }
@@ -141,6 +165,7 @@ class GtlPreferences(context: Context) {
             it[Keys.minSats] = filter.minSatellites
             it[Keys.units] = value.defaultMeasurementSystem().name
             writeSmoothing(it, smoothing, includeMapSimplify = true)
+            it[Keys.osmCycleways] = OsmRenderOptions.cyclewaysForUsage(value)
         }
     }
 
@@ -246,6 +271,30 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.googleMapLayer] = value.name }
     }
 
+    suspend fun setOsmBuildings(value: Boolean) {
+        dataStore.edit { it[Keys.osmBuildings] = value }
+    }
+
+    suspend fun setOsmPoi(value: Boolean) {
+        dataStore.edit { it[Keys.osmPoi] = value }
+    }
+
+    suspend fun setOsmTransit(value: Boolean) {
+        dataStore.edit { it[Keys.osmTransit] = value }
+    }
+
+    suspend fun setOsmCycleways(value: Boolean) {
+        dataStore.edit { it[Keys.osmCycleways] = value }
+    }
+
+    suspend fun setOsmParks(value: Boolean) {
+        dataStore.edit { it[Keys.osmParks] = value }
+    }
+
+    suspend fun setOsmHillshading(value: Boolean) {
+        dataStore.edit { it[Keys.osmHillshading] = value }
+    }
+
     private suspend fun migrateSmoothingIfNeeded() {
         dataStore.edit { prefs ->
             if (prefs.contains(Keys.trackSmoothing)) {
@@ -325,7 +374,13 @@ class GtlPreferences(context: Context) {
                 prefs[Keys.baroPressureOffsetHpa] ?: 0f
             ),
             autoCalibrateBaroEnabled = prefs[Keys.autoCalibrateBaro] ?: true,
-            googleMapLayer = GoogleMapLayer.fromStored(prefs[Keys.googleMapLayer])
+            googleMapLayer = GoogleMapLayer.fromStored(prefs[Keys.googleMapLayer]),
+            osmBuildings = prefs[Keys.osmBuildings] ?: true,
+            osmPoi = prefs[Keys.osmPoi] ?: false,
+            osmTransit = prefs[Keys.osmTransit] ?: false,
+            osmCycleways = prefs[Keys.osmCycleways] ?: OsmRenderOptions.cyclewaysForUsage(usage),
+            osmParks = prefs[Keys.osmParks] ?: true,
+            osmHillshading = prefs[Keys.osmHillshading] ?: false
         )
     }
 
@@ -394,6 +449,12 @@ class GtlPreferences(context: Context) {
         val baroPressureOffsetHpa = floatPreferencesKey("baro_pressure_offset_hpa")
         val autoCalibrateBaro = booleanPreferencesKey("auto_calibrate_baro")
         val googleMapLayer = stringPreferencesKey("google_map_layer")
+        val osmBuildings = booleanPreferencesKey("osm_buildings")
+        val osmPoi = booleanPreferencesKey("osm_poi")
+        val osmTransit = booleanPreferencesKey("osm_transit")
+        val osmCycleways = booleanPreferencesKey("osm_cycleways")
+        val osmParks = booleanPreferencesKey("osm_parks")
+        val osmHillshading = booleanPreferencesKey("osm_hillshading")
     }
 
     companion object {

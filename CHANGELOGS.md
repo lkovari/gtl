@@ -12,16 +12,36 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 ### Added
 
 - Download OSM map: **Delete** on each downloaded region (confirm first). Deleting the map for the phone locale country, or the map currently in use, turns **Use downloaded OSM map** off so Map uses Google Maps.
+- Settings → **OSM map** (only when **Use downloaded OSM map** is on): Buildings (default on), **POI** (off; shops, restaurants, parking, fuel from zoom 14 — not bus stops), Public transport (off; rail/tram/stations **and bus stops**), Highlight cycleways (on for Bicycle usage; magenta overlay from zoom 12; dedicated paths stay blue; changing usage resets this), Parks and protected areas (on), Terrain relief (off unless HGT files sit next to the `.map`). The same switches are on the Map tab layers button (same spot as Google layers). Toggling a switch redraws Mapsforge tiles without moving the camera. Official Mapsforge files for any country only store dedicated `highway=cycleway` (not `cycleway:lane` on the carriageway); base cycleways now draw in blue so they are visible without the highlight. Terrain relief stays disabled on official Mapsforge downloads (Hungary, Switzerland, and the rest); enable it by placing `.hgt` / `.hf2` files next to the map or in `hills/`. About names optional OpenStreetMap use (ODbL); the OSM Map tab shows **© OpenStreetMap**.
+- Map **My location** (top left: cyan GPS crosshair, same circle as the broom): recenters Google Maps and OSM on the GPS fix without changing zoom. Always shown; dimmed without a fix. Under the broom when a saved track is on the map. A live GPS fix sits on a cyan GNSS reticle around the usage silhouette.
 
 ### Changed
 
 - Settings: a small gap between the two usage-type rows.
+- **Use downloaded OSM map** is off and disabled until a region is downloaded. Turning it off stays off; Map shows Google Maps.
+- Download OSM map: **Use**, **Delete**, and **Download** are smaller compact buttons.
+
+### Fixed
+
+- Downloaded OSM map showed a blank canvas (marker, scale bar, and zoom still worked). The custom Mapsforge theme was opened as `/assets/mapsforge/gtl.xml`, which is the JAR resource prefix for `MapsforgeThemes.DEFAULT`, not an Android `AssetManager` path. Theme parse runs off the UI thread, so the fallback to DEFAULT never ran and tiles stayed empty. Theme now loads `mapsforge/gtl.xml`.
+- OSM idle camera snapped back to GPS on every Compose update, so you could not pan away from your location (Google Maps already allowed free pan until Start). Follow is only while logging (`MapCameraMode`).
+- Dedicated cycleways at Ceglédi út × Üllői út are in the Hungary `.map` (`highway=cycleway`), but the base theme drew them `#F0F0FF` / 0.8 px on a `#F8F8F8` canvas, so they vanished beside the yellow primary. On-road `cycleway:right=lane` is not stored in official Mapsforge tag-mapping. Base cycleways now draw blue; highlight stays magenta. Bus stops moved from POI to Public transport. English Settings label is **POI**, not only “Points of interest”.
+- OSM layer switches did nothing: `gtl.xml` listed the base stylemenu layer before the overlay layers it references, so Mapsforge resolved every `<overlay>` to null and parsed the theme with an empty category set. Categorized rules (buildings, POI, transit, magenta cycleways, parks) never drew; only the uncategorized base (roads, blue `highway=cycleway`, water, forest) showed. Overlay layers are now defined first, and `OsmRenderCategories` still enables requested ids if an overlay lookup is missing.
 
 ### Magyar
 
 - OSM térkép letöltése: **Törlés** minden letöltött régión (előtte megerősítés). Ha a törölt térkép országa a telefon locale-je, vagy épp ezt a térképet használod, a **Letöltött OSM térkép használata** kikapcsol, a Térkép Google Térképre vált.
+- Beállítások → **OSM térkép** (csak **Letöltött OSM térkép használata** mellett): Épületek (alapból be), **POI** (ki; boltok, éttermek, parkolók, kutak 14-es zoomtól — nem buszmegálló), Tömegközlekedés (ki; vasút/villamos/állomás **és buszmegálló**), Kerékpárutak kiemelése (Kerékpár usage-nél be; magenta overlay 12-es zoomtól; a külön kerékpárút kék marad; usage-váltás visszaállítja), Védett terület / park (be), Domborzat (ki, kivéve ha HGT fájlok vannak a `.map` mellett). Ugyanezek a kapcsolók a Térkép fül réteg gombján is (ugyanott, ahol a Google rétegek). A kapcsoló a Mapsforge csempét újrarajzolja, a kamera nem mozog. A hivatalos Mapsforge fájlban bármely országnál csak a külön `highway=cycleway` van (az úttesti `cycleway:lane` nincs); az alap kerékpárút most kék, kiemelés nélkül is látszik. A Domborzat a hivatalos Mapsforge-letöltéseken (Magyarország, Svájc és a többi) ki marad; `.hgt` / `.hf2` a térkép mellett vagy `hills/` mappában kapcsolja be. A Névjegy leírja az opcionális OpenStreetMap-használatot (ODbL); az OSM Térkép fülön **© OpenStreetMap**.
+- Térkép **Saját hely** (bal felső: cián GPS-kereszt, ugyanolyan kör, mint a seprő): Google és OSM a GPS-fixre centrál, a zoomot nem változtatja. Mindig látszik; GPS nélkül halvány. Mentett tracknél a seprő alatt. Élő GPS-fix cián GNSS-retikuluson ül, a usage sziluett körül.
 
 - Beállítások: kis rés a két használati-mód sor között.
+- A **Letöltött OSM térkép használata** letöltésig ki van kapcsolva és nem állítható. Kikapcsolva kikapcsolva marad; a Térkép Google Térképet mutat.
+- OSM térkép letöltése: a **Használ**, **Törlés** és **Letöltés** gombok kisebbek.
+
+- Letöltött OSM térkép üres vászon volt (jelölő, lépték, zoom megvolt). A saját Mapsforge téma `/assets/mapsforge/gtl.xml` úton nyílt — ez a `MapsforgeThemes.DEFAULT` JAR-előtagja, nem Android `AssetManager` útvonal. A téma parse háttérszálon fut, ezért a DEFAULT tartalék nem futott, a csempék üresek maradtak. Most `mapsforge/gtl.xml` töltődik.
+- OSM idle kamera minden Compose update-nél visszaugrott a GPS-re, ezért nem lehetett elhúzni a helyedtől (a Google Térkép idle-ben már engedte). Követés csak naplózáskor (`MapCameraMode`).
+- A Ceglédi út × Üllői út külön kerékpárútjai benne vannak a Hungary `.map`-ben (`highway=cycleway`), de az alap téma `#F0F0FF` / 0,8 px volt `#F8F8F8` alapon, ezért a sárga főút mellett eltűntek. Az úttesti `cycleway:right=lane` nincs a hivatalos Mapsforge tag-mappingben. Az alap kerékpárút most kék; a kiemelés magenta marad. A buszmegálló a Tömegközlekedéshez került. Az angol Beállítások felirata **POI**, nem csak “Points of interest”.
+- OSM-rétegkapcsolók nem változtattak semmit: a `gtl.xml` a base stylemenu réteget az overlay-ek előtt listázta, a Mapsforge minden `<overlay>`-t null-ra oldott, üres kategóriahalmazzal parse-olt. A kategóriás szabályok (épületek, POI, tömegközlekedés, magenta kerékpárút, parkok) nem rajzolódtak; csak az alaptérkép (utak, kék `highway=cycleway`, víz, erdő). Az overlay rétegek most előbb vannak definiálva; hiányzó overlay-nél az `OsmRenderCategories` a kért id-t akkor is engedélyezi.
 
 ## [2.0.10] — 2026-09-19
 

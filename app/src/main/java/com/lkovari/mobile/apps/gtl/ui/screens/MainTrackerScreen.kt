@@ -257,7 +257,7 @@ fun MainTrackerScreen(
                 .background(gtlWash(dark))
                 .padding(padding)
         ) {
-            val keepOsmMap = state.settings.useOfflineMap && state.osmFile != null
+            val keepOsmMap = state.showingOsmMap
             Box(modifier = Modifier.fillMaxSize()) {
                 if (keepOsmMap) {
                     MapPane(
@@ -268,7 +268,8 @@ fun MainTrackerScreen(
                             .alpha(if (tab == 2) 1f else 0f),
                         mapActive = tab == 2,
                         onOsmFailed = { viewModel.onOsmMapFailed() },
-                        onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) }
+                        onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
+                        onOsmLayers = osmLayerActions(viewModel)
                     )
                 }
                 when (tab) {
@@ -279,7 +280,8 @@ fun MainTrackerScreen(
                             state,
                             onClearMap = { viewModel.clearShownTrack() },
                             onOsmFailed = { viewModel.onOsmMapFailed() },
-                            onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) }
+                            onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
+                            onOsmLayers = osmLayerActions(viewModel)
                         )
                     }
                     else -> CompassPane(
@@ -577,4 +579,15 @@ private fun CompassPane(state: GtlUiState, onTrueNorth: (Boolean) -> Unit) {
             )
         }
     }
+}
+
+private fun osmLayerActions(viewModel: GtlViewModel): OsmLayerActions {
+    return OsmLayerActions(
+        setBuildings = { viewModel.setOsmBuildings(it) },
+        setPoi = { viewModel.setOsmPoi(it) },
+        setTransit = { viewModel.setOsmTransit(it) },
+        setCycleways = { viewModel.setOsmCycleways(it) },
+        setParks = { viewModel.setOsmParks(it) },
+        setHillshading = { viewModel.setOsmHillshading(it) }
+    )
 }

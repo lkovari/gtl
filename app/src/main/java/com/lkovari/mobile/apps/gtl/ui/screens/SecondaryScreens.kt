@@ -94,6 +94,7 @@ import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.ui.usageIcon
 import com.lkovari.mobile.apps.gtl.ui.theme.CockpitPanel
@@ -183,6 +184,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
         qnhValue = state.settings.qnhHpa
     }
     var appearanceOpen by rememberSaveable { mutableStateOf(true) }
+    var osmOpen by rememberSaveable { mutableStateOf(true) }
     var recordingOpen by rememberSaveable { mutableStateOf(true) }
     var baroOpen by rememberSaveable { mutableStateOf(true) }
     SecondaryScaffold(stringResource(R.string.settings_title), onBack, compactTopBar = true) {
@@ -316,9 +318,13 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                             ) {
                                 SettingSwitch(
                                     stringResource(R.string.settings_offline),
-                                    state.settings.useOfflineMap,
+                                    OsmOfflineAvailability.effectiveUseOffline(
+                                        state.settings.useOfflineMap,
+                                        state.hasDownloadedOsmMap
+                                    ),
                                     labelStyle,
-                                    switchScale
+                                    switchScale,
+                                    enabled = OsmOfflineAvailability.canEnable(state.hasDownloadedOsmMap)
                                 ) {
                                     viewModel.setUseOfflineMap(it)
                                 }
@@ -393,6 +399,35 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                 ) {
                                     viewModel.setKeepScreenOnWhileLogging(it)
                                 }
+                            }
+                        }
+                    }
+                    if (OsmOfflineAvailability.effectiveUseOffline(
+                            state.settings.useOfflineMap,
+                            state.hasDownloadedOsmMap
+                        )
+                    ) {
+                        item {
+                            AccordionSection(
+                                title = stringResource(R.string.settings_group_osm),
+                                expanded = osmOpen,
+                                onToggle = { osmOpen = !osmOpen },
+                                titleStyle = titleStyle
+                            ) {
+                                OsmLayerControls(
+                                    options = state.settings.osmRenderOptions(),
+                                    hillshadingAvailable = state.osmHillshadingAvailable,
+                                    labelStyle = labelStyle,
+                                    switchScale = switchScale,
+                                    actions = OsmLayerActions(
+                                        setBuildings = { viewModel.setOsmBuildings(it) },
+                                        setPoi = { viewModel.setOsmPoi(it) },
+                                        setTransit = { viewModel.setOsmTransit(it) },
+                                        setCycleways = { viewModel.setOsmCycleways(it) },
+                                        setParks = { viewModel.setOsmParks(it) },
+                                        setHillshading = { viewModel.setOsmHillshading(it) }
+                                    )
+                                )
                             }
                         }
                     }
@@ -644,12 +679,13 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingSwitch(
+internal fun SettingSwitch(
     label: String,
     checked: Boolean,
     labelStyle: TextStyle,
     switchScale: Float,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onChange: (Boolean) -> Unit
 ) {
     Row(
@@ -663,6 +699,7 @@ private fun SettingSwitch(
             text = label,
             modifier = Modifier.weight(1f).padding(end = 8.dp),
             style = labelStyle,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -673,9 +710,26 @@ private fun SettingSwitch(
             Switch(
                 checked = checked,
                 onCheckedChange = onChange,
+                enabled = enabled,
                 modifier = Modifier.scale(switchScale)
             )
         }
+    }
+}
+
+@Composable
+private fun OsmActionButton(
+    label: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+        modifier = Modifier.height(28.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 
@@ -713,20 +767,25 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (downloaded) {
-                    Button(onClick = { viewModel.selectDownloadedMap(region) }) {
-                        Text(stringResource(R.string.osm_use))
-                    }
-                    Button(onClick = { pendingDelete = true }) {
-                        Text(stringResource(R.string.action_delete))
-                    }
-                } else {
-                    Button(onClick = { viewModel.downloadRegion(region) }, enabled = !download.running) {
-                        Text(stringResource(R.string.osm_download))
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 28.dp) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (downloaded) {
+                        OsmActionButton(stringResource(R.string.osm_use)) {
+                            viewModel.selectDownloadedMap(region)
+                        }
+                        OsmActionButton(stringResource(R.string.action_delete)) {
+                            pendingDelete = true
+                        }
+                    } else {
+                        OsmActionButton(
+                            stringResource(R.string.osm_download),
+                            enabled = !download.running
+                        ) {
+                            viewModel.downloadRegion(region)
+                        }
                     }
                 }
             }
@@ -1219,12 +1278,38 @@ private fun StoredTrackpointTable() {
 fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val deviceName = remember { DeviceIdentity.displayName(context) }
+    val copyrightUrl = stringResource(R.string.about_osm_copyright_url)
+    val websiteUrl = stringResource(R.string.about_osm_website_url)
+    val mapsforgeUrl = stringResource(R.string.about_mapsforge_url)
     SecondaryScaffold(stringResource(R.string.about_title), onBack) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text("${com.lkovari.mobile.apps.gtl.BuildConfig.VERSION_NAME}  ·  com.lkovari.mobile.apps.gtl")
             Text("${stringResource(R.string.about_device)}: $deviceName")
             Text(stringResource(R.string.about_author))
             Text(stringResource(R.string.about_body))
+            Text(stringResource(R.string.about_osm_body))
+            AboutLink(stringResource(R.string.about_osm_copyright), copyrightUrl)
+            AboutLink(stringResource(R.string.about_osm_website), websiteUrl)
+            AboutLink(stringResource(R.string.about_mapsforge), mapsforgeUrl)
         }
     }
+}
+
+@Composable
+private fun AboutLink(label: String, url: String) {
+    val context = LocalContext.current
+    Text(
+        text = label,
+        color = TitleMagenta,
+        style = MaterialTheme.typography.bodyLarge,
+        modifier = Modifier.clickable {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    )
 }

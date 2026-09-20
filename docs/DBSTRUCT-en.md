@@ -82,7 +82,7 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 ## Not stored
 
 - Raw GNSS constellation mix and skyplot samples (HUD / GPS tab only, in memory).
-- Map / OSM settings, Kalman / density / GNSS-only / QNH switches (DataStore, not SQLite).
+- Map / OSM settings (including OSM layer switches: buildings, POI, transit, cycleways, parks, hillshading). Hillshading only draws when HGT/HF2 files sit next to the `.map` or in `hills/`. Kalman / density / GNSS-only / QNH switches (DataStore, not SQLite).
 - The raw HUD fix when Kalman is on (only the filter output is stored).
 - Fix cloud / Pontfelhő samples (in-memory sliding window only). Turning **Show fix cloud** on also writes Show accuracy marker in DataStore; turning it off only clears the in-memory cloud.
 - Map-cleared flag (ViewModel memory). The Map broom hides the drawn line; it does not delete `gps_events`.

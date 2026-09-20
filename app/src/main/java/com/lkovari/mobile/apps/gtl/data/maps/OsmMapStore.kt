@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.io.File
 
@@ -43,6 +44,19 @@ class OsmMapStore(private val context: Context) {
             .orEmpty()
     }
 
+    fun hasDownloadedMap(): Boolean {
+        return listDownloaded().isNotEmpty()
+    }
+
+    fun observeHasDownloadedMap(): Flow<Boolean> {
+        return combine(
+            downloadedRevision,
+            workManager.getWorkInfosByTagFlow(WORK_TAG)
+        ) { _, _ ->
+            hasDownloadedMap()
+        }
+    }
+
     fun enqueue(region: OsmRegion) {
         val request = OneTimeWorkRequestBuilder<OsmDownloadWorker>()
             .setConstraints(
@@ -65,6 +79,10 @@ class OsmMapStore(private val context: Context) {
         workManager.cancelUniqueWork(workName(regionId))
         File(mapsDir, "$regionId.map.part").delete()
         File(mapsDir, "$regionId.map").delete()
+        notifyMapsChanged()
+    }
+
+    fun notifyMapsChanged() {
         _downloadedRevision.value = _downloadedRevision.value + 1
     }
 

@@ -62,4 +62,11 @@ object OsmMapCamera {
         }
         return OsmMapCenter(latitude, longitude)
     }
+
+    fun locateCenter(latitude: Double?, longitude: Double?): OsmMapCenter? {
+        if (latitude == null || longitude == null) {
+            return null
+        }
+        return OsmMapCenter(latitude, longitude)
+    }
 }

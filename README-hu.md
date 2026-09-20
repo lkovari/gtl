@@ -77,15 +77,15 @@ Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképe
 
 ### Térkép fül
 
-- A jelenlegi helyre centrál; naplózáskor követ. A **Teljes útvonal a képernyőn** minden GPS-frissítés után a teljes nyomvonalat a képernyőre illeszti (a nagyítás és mozgatás a következő fixig megengedett).
+- A jelenlegi helyre centrál, amikor a fület nyitod. Idle-ben elhúzhatod (Google és OSM). Indítás után a kamera követ. A **Teljes útvonal a képernyőn** minden GPS-frissítés után a teljes nyomvonalat a képernyőre illeszti (a nagyítás és mozgatás a következő fixig megengedett). A **Saját hely** gomb (bal felső: cián GPS-kereszt, ugyanolyan kör, mint a seprő) a GPS-fixre centrál, a zoomot nem változtatja.
 - Piros polyline a Room-ból (élő munkamenet, utoljára mentett track, vagy a Mentett útvonalakban választott track). A térképvonal **maga** a letárolt log; nincs külön vázlat. Lásd [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
 - **OSM Mapsforge**, ha letöltöttél egy régiót, és bekapcsoltad a **Letöltött OSM térkép használata** kapcsolót. Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re. Hiányzó vagy nem Mapsforge fájl üzenetet mutat, és kikapcsolja a kapcsolót, hogy a következő indítás ne crash-loop legyen. A letöltés csak `mapsforge binary OSM` mágiájú, egyező header-méretű fájlt tart meg. A kamera a `.map` start/bounds pontját használja, ha a GPS a fájlon kívül van; élő követés csak a fájlon belül. Az OSM `MapView` mérete megmarad, ha elhagyod a Térkép fület.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
 - **HUD** mindkét térképmotor fölött: nagy sebesség (a Beállítások mértékegysége), pontosság, GNSS used/in view. Naplózáskor: út, eltelt idő, pulzáló REC. Idle GPS-fixszel: halkított panel bal lent. Mentett tracknél, ha nincs naplózás, rejtve.
-- Kis piros sziluett a helyeden (repülő, hajó, autó, motor, kerékpár, Fut/túra — ugyanaz, mint a Beállításokban). Álló portrén vízszintesen marad. Az északjelző mindig a térképen van.
+- Kis piros sziluett a helyeden (repülő, hajó, autó, motor, kerékpár, Fut/túra — ugyanaz, mint a Beállításokban). Élő GPS-fixnél cián GNSS-retikuluson ül. Álló portrén vízszintesen marad. Az északjelző mindig a térképen van.
 - Zöld **S** a kirajzolt track elején; piros **E** a végén, ha nincs naplózás (naplózáskor a sziluett a most).
-- Ha mentett track látszik és nincs naplózás, a bal felső seprő leveszi a vonalat a térképről, a logot nem törli. Indítás vagy Mentett útvonalak → Térképen újra kirajzol.
+- Ha mentett track látszik és nincs naplózás, a bal felső seprő leveszi a vonalat a térképről, a logot nem törli. Indítás vagy Mentett útvonalak → Térképen újra kirajzol. A **Saját hely** a seprő alatt van (vagy egyedül bal fent, ha nincs mentett track).
 - Douglas–Peucker egyszerűsítés a kirajzolt vonalon, ha az **Útvonal egyszerűsítése a térképen** be van (lásd lent). Az SQLite, az Útvonal összesítők és a KMZ soha nem egyszerűsödik.
 
 
@@ -148,7 +148,7 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 - **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (Fut/túra és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
 - **Mértékegység** — metrikus, angolszász vagy ICAO az Útvonalon (km/h és méter; mph és láb/mérföld; csomó, tengeri mérföld és láb). A letárolt koordinátákat nem mozgatja.
 - **QNH** — tengerszinti nyomás a barométerhez, **900–1100 hPa** (alap `PRESSURE_STANDARD_ATMOSPHERE` 1013,25). Csak akkor látszik, ha a telefonnak van nyomásszenzora. Az élő baro, a magasságprofil szaggatott vonala és a KMZ `Baro:` / ExtendedData `baro` a `getAltitude(QNH, nyomás − offset)` (KMZ **megosztáskor**). Ha ez a magasság több mint 1500 m-re van a pont GPS-magasságától, a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad. A letárolt `pressureHpa` nyers; a `baroAltitude` íráskor az akkor érvényes QNH-t és offsetet használja. Valós tengerszinti QNH-t METAR-ból, ATIS-ból vagy reptéri időjárásból nézz (nem állomásnyomás). **Kalibrálás GPS-ből** (állj, jó GPS-magasság) a chip offsetjét a DataStore-ba írja (±10 hPa), a QNH csúszkát nem; **Baro visszaállítás** törli. **Automatikus kalibrálás induláskor** (alapból be) ugyanezt a kalibrálást futtatja le automatikusan, amint minden felvétel indulása után két egymást követő GPS-fix 15 méteren belül egyezik a magasságban, hogy ezt ne neked kelljen megnyomnod. Részletek: [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
-- **Letöltött OSM térkép használata** — Mapsforge fájl a Google Maps helyett. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót.
+- **Letöltött OSM térkép használata** — letöltésig ki van kapcsolva és nem állítható. Bekapcsolva Mapsforge fájl; kikapcsolva a Térkép fül Google Térképet mutat. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót. A kapcsoló bekapcsolva a Beállításokban megjelenik az **OSM térkép** kártya, és a Térkép fül réteg gombja (ugyanott, ahol a Google rétegek) ugyanazokat a kapcsolókat nyitja: Épületek (alapból be), **POI** (ki; boltok, éttermek, parkolók, kutak 14-es zoomtól — nem buszmegálló), Tömegközlekedés (ki; vasút/villamos/állomás és buszmegálló), Kerékpárutak kiemelése (Kerékpár usage-nél be; magenta overlay 12-es zoomtól; a külön `highway=cycleway` kék marad; usage-váltás visszaállítja), Védett terület / park (be), Domborzat (ki). A kapcsoló a csempét újrarajzolja, a kamera nem mozog. A hivatalos Mapsforge fájlban bármely országnál csak a külön `highway=cycleway` van, úttesti sáv nincs. A Domborzat ki marad, kivéve ha HGT fájlok vannak a `.map` mellett vagy a `hills/` mappában (a hivatalos Mapsforge-letöltésekben általában nincs).
 - **Útvonal egyszerűsítése a térképen** — kevesebb csúcs csak a Térképen. A kapcsoló bekapcsolva **1–20 m** csúszka (1 m-es lépés). A KMZ és az odométer minden letárolt pontot megtart.
 - **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad. A seprő leveszi a kirajzolt mentett tracket, a logot nem törli.
 - **Teljes útvonal a képernyőn** — naplózáskor minden GPS-frissítés a teljes nyomvonalat a képernyőre illeszti. A nagyítás és mozgatás a következő fixig megengedett.
@@ -163,10 +163,11 @@ A meglévő telepítések, amelyeknél még a régi **19,5 m** egyszerűsítési
 ### További képernyők
 
 - Első indításkori biztonságos vezetés nyilatkozat.
-- OSM térkép letöltése (Mapsforge v5 régiók: Európa, válogatott Ázsia / Amerika / Ausztrália).
+- OSM térkép letöltése (Mapsforge v5 régiók: Európa, válogatott Ázsia / Amerika / Ausztrália). A letöltött régiót onnan törölheted.
 - Helymeghatározás beállításai (megnyitja a rendszer GPS-panelét).
-- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal, Térkép (OSM fájl, S/E), Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
+- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH, OSM térképrétegek és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal, Térkép (OSM fájl, S/E), Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
 - Adatvédelmi tájékoztató hivatkozás.
+- Névjegy: opcionális OpenStreetMap-használat, ODbL és Mapsforge-letöltő linkek. Az OSM Térkép fülön **© OpenStreetMap**.
 
 ---
 
@@ -179,7 +180,7 @@ Két Gradle-modul:
 
 | Modul     | Szerep                                                                                                                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
+| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, OSM megjelenítési kategóriák, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
 | `:app`    | Android: Compose UI, Room, DataStore, hely/GNSS/szenzorok, előtér-szolgáltatás, Google Maps, Mapsforge, WorkManager OSM-letöltés, FileProvider megosztás.                            |
 
 
@@ -194,7 +195,7 @@ docs/    Adatvédelmi tájékoztató, Play-anyagok
 ### Adatok
 
 - **Room:** `track_sessions` + `gps_events` (kaszkád törlés). A Map polyline mindig a Room-ból olvasódik, nem memóriabeli vázlatból. Ezért a látott vonal az a log, amit eltároltál.
-- **DataStore:** nyilatkozat, használat, mértékegység, QNH, baro nyomás-offset, szűrők, OSM-fájlútvonal, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
+- **DataStore:** nyilatkozat, használat, mértékegység, QNH, baro nyomás-offset, szűrők, OSM-fájlútvonal, OSM rétegkapcsolók, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
 - **Fájlok:** OSM `.map` letöltések; KMZ a `files/gtltracklogs/` alatt (FileProvider).
 - **RemoteTrackSync:** no-op csonk egy későbbi backendhez. Nincs élő helyfeltöltés.
 
@@ -491,8 +492,10 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../GpsAltitude.kt` — MSL, majd GNSS, majd fused; −430…9000 m-en kívül eldobva
 - `engine/.../BaroAltitude.kt` — ISA / QNH méter a `pressureHpa`-ból; `displayedMeters` / `pickDisplayed` (1500 m a GPS-hez képest)
 - `engine/.../OsmMapFile.kt` — Mapsforge mágia + header fájlméret
-- `engine/.../OsmMapCamera.kt` — OSM közép/zoom a `.map` boundsön belül
+- `engine/.../OsmMapCamera.kt` — OSM közép/zoom a `.map` boundsön belül; locate cél
+- `engine/.../MapCameraMode.kt` — idle szabad húzás, követés naplózáskor, mentett/teljes track illesztés
 - `engine/.../OsmMapViewRedraw.kt` — mikor kell a Compose-nak OSM csempét invalidálni
+- `engine/.../OsmRenderOptions.kt` — OSM rétegkategóriák a Mapsforge theme-hez
 - `engine/.../MapFitZoom.kt` — zoom szorítás / fit méretellenőrzés
 - `engine/.../TrackEndpoints.kt` — zöld S / piros E (vég rejtve naplózáskor)
 - `engine/.../FixCloud.kt` — memóriabeli állóhelyi pontfelhő / CEP95
