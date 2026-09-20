@@ -33,6 +33,7 @@ import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
+import com.lkovari.mobile.apps.gtl.engine.OsmMapLocale
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectDump
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectEvent
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
@@ -634,6 +635,29 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             app.preferences.setSelectedMapFile(file.absolutePath)
             app.preferences.setUseOfflineMap(true)
+        }
+    }
+
+    fun observeDownloadedRevision(): StateFlow<Int> = app.osmMapStore.downloadedRevision
+
+    fun deleteDownloadedMap(region: OsmRegion) {
+        val file = app.osmMapStore.downloadedFile(region.id)
+        val selectedPath = settings.value.selectedMapFile
+        val deletingSelected = file != null && file.absolutePath == selectedPath
+        val localeCountry = app.resources.configuration.locales[0].country
+        val switchToGoogle = OsmMapLocale.switchToGoogleMapsOnDelete(
+            region.countryCode,
+            localeCountry,
+            deletingSelected
+        )
+        app.osmMapStore.delete(region.id)
+        viewModelScope.launch {
+            if (deletingSelected) {
+                app.preferences.setSelectedMapFile("")
+            }
+            if (switchToGoogle) {
+                app.preferences.setUseOfflineMap(false)
+            }
         }
     }
 

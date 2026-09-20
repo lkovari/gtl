@@ -2915,6 +2915,36 @@ class OsmMapFileTest {
     }
 }
 
+class OsmMapLocaleTest {
+    @Test
+    fun localeCountryMatchSwitchesToGoogleMaps() {
+        assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("HU", "HU", false))
+        assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("hu", "HU", false))
+    }
+
+    @Test
+    fun otherCountryKeepsOsmUnlessDeletingSelected() {
+        assertFalse(OsmMapLocale.switchToGoogleMapsOnDelete("AT", "HU", false))
+        assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("AT", "HU", true))
+    }
+
+    @Test
+    fun emptyLocaleDoesNotMatch() {
+        assertFalse(OsmMapLocale.switchToGoogleMapsOnDelete("HU", "", false))
+        assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("HU", "", true))
+    }
+
+    @Test
+    fun usLocaleMatchesUsStateMap() {
+        assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("US", "US", false))
+    }
+
+    @Test
+    fun gbLocaleMatchesEnglandMap() {
+        assertTrue(OsmMapLocale.switchToGoogleMapsOnDelete("GB", "gb", false))
+    }
+}
+
 class MapFitZoomTest {
     @Test
     fun missingOrZeroDimensionCannotFit() {

@@ -235,7 +235,10 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(stringResource(R.string.settings_usage), style = titleStyle, maxLines = 1)
-                            Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 UsageType.selectable.chunked(3).forEach { rowTypes ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -692,27 +695,39 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
     val download by viewModel.observeDownload(region.id).collectAsState(
         initial = com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState(region.id, false, 0, false)
     )
-    val downloaded = viewModel.isDownloaded(region)
+    val mapsRevision by viewModel.observeDownloadedRevision().collectAsState()
+    val downloaded = remember(mapsRevision, download.running, download.failed, region.id) {
+        viewModel.isDownloaded(region)
+    }
+    var pendingDelete by rememberSaveable { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(region.label, style = MaterialTheme.typography.titleLarge)
                 Text(
                     if (downloaded) stringResource(R.string.osm_downloaded) else region.id,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            if (downloaded) {
-                Button(onClick = { viewModel.selectDownloadedMap(region) }) {
-                    Text(stringResource(R.string.osm_use))
-                }
-            } else {
-                Button(onClick = { viewModel.downloadRegion(region) }, enabled = !download.running) {
-                    Text(stringResource(R.string.osm_download))
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (downloaded) {
+                    Button(onClick = { viewModel.selectDownloadedMap(region) }) {
+                        Text(stringResource(R.string.osm_use))
+                    }
+                    Button(onClick = { pendingDelete = true }) {
+                        Text(stringResource(R.string.action_delete))
+                    }
+                } else {
+                    Button(onClick = { viewModel.downloadRegion(region) }, enabled = !download.running) {
+                        Text(stringResource(R.string.osm_download))
+                    }
                 }
             }
         }
@@ -726,6 +741,28 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
         if (download.failed) {
             Text(stringResource(R.string.osm_failed), color = MaterialTheme.colorScheme.error)
         }
+    }
+    if (pendingDelete) {
+        AlertDialog(
+            onDismissRequest = { pendingDelete = false },
+            title = { Text(stringResource(R.string.osm_delete_title)) },
+            text = { Text(stringResource(R.string.osm_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteDownloadedMap(region)
+                        pendingDelete = false
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }
 

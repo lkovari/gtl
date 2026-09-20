@@ -9,6 +9,20 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Added
+
+- Download OSM map: **Delete** on each downloaded region (confirm first). Deleting the map for the phone locale country, or the map currently in use, turns **Use downloaded OSM map** off so Map uses Google Maps.
+
+### Changed
+
+- Settings: a small gap between the two usage-type rows.
+
+### Magyar
+
+- OSM térkép letöltése: **Törlés** minden letöltött régión (előtte megerősítés). Ha a törölt térkép országa a telefon locale-je, vagy épp ezt a térképet használod, a **Letöltött OSM térkép használata** kikapcsol, a Térkép Google Térképre vált.
+
+- Beállítások: kis rés a két használati-mód sor között.
+
 ## [2.0.10] — 2026-09-19
 
 Play production track **28 (2.0.10)** (signed AAB). Auto-calibrate baro at Start.

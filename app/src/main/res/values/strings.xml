@@ -115,6 +115,8 @@
     <string name="osm_use">Use</string>
     <string name="osm_downloaded">On this phone</string>
     <string name="osm_failed">Download failed</string>
+    <string name="osm_delete_title">Delete this map?</string>
+    <string name="osm_delete_body">This removes the downloaded OSM file from the phone. It cannot be undone.</string>
     <string name="osm_map_unavailable">The OSM file is missing or not a Mapsforge map. Download again, or turn off Use downloaded OSM map in Settings.</string>
     <string name="tracks_title">Saved tracks</string>
     <string name="help_title">Help</string>

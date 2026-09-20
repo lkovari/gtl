@@ -115,6 +115,8 @@
     <string name="osm_use">Használ</string>
     <string name="osm_downloaded">A telefonon van</string>
     <string name="osm_failed">A letöltés sikertelen</string>
+    <string name="osm_delete_title">Törlöd ezt a térképet?</string>
+    <string name="osm_delete_body">A letöltött OSM fájl lekerül a telefonról. Ez nem vonható vissza.</string>
     <string name="osm_map_unavailable">Az OSM fájl hiányzik, vagy nem Mapsforge térkép. Töltsd le újra, vagy a Beállításokban kapcsold ki a Letöltött OSM térkép használatát.</string>
     <string name="tracks_title">Mentett útvonalak</string>
     <string name="help_title">Súgó</string>

@@ -10,6 +10,9 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import java.io.File
 
@@ -23,6 +26,8 @@ data class OsmDownloadState(
 class OsmMapStore(private val context: Context) {
     private val workManager = WorkManager.getInstance(context.applicationContext)
     private val mapsDir = File(context.applicationContext.filesDir, "maps")
+    private val _downloadedRevision = MutableStateFlow(0)
+    val downloadedRevision: StateFlow<Int> = _downloadedRevision.asStateFlow()
 
     fun downloadedFile(regionId: String): File? {
         val file = File(mapsDir, "$regionId.map")
@@ -53,7 +58,14 @@ class OsmMapStore(private val context: Context) {
             )
             .addTag(WORK_TAG)
             .build()
-        workManager.enqueueUniqueWork(workName(region.id), ExistingWorkPolicy.KEEP, request)
+        workManager.enqueueUniqueWork(workName(region.id), ExistingWorkPolicy.REPLACE, request)
+    }
+
+    fun delete(regionId: String) {
+        workManager.cancelUniqueWork(workName(regionId))
+        File(mapsDir, "$regionId.map.part").delete()
+        File(mapsDir, "$regionId.map").delete()
+        _downloadedRevision.value = _downloadedRevision.value + 1
     }
 
     fun observe(regionId: String): Flow<OsmDownloadState> {
