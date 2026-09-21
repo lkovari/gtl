@@ -3,11 +3,15 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.11** / `versionCode` **29** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.12** / `versionCode` **30** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.12] — 2026-09-21
+
+Play production track **30 (2.0.12)** (signed AAB). Route Idle speeds, OSM Help, thinner magenta paths.
 
 ### Changed
 
