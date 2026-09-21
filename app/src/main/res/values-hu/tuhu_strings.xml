@@ -10,7 +10,7 @@
     <string name="tuhu_blazes">Turistajelzések</string>
     <string name="tuhu_blazes_hint">Magyar K/P/S/Z (B/R/Y/G) jelzések. Alapból be.</string>
     <string name="tuhu_paths">Ösvénykiemelés</string>
-    <string name="tuhu_paths_hint">Vastagabb gyalogút és földút. Alapból be.</string>
+    <string name="tuhu_paths_hint">Magenta kiemelés a gyalogúton és a földúton. Alapból be.</string>
     <string name="tuhu_contours">Szintvonal</string>
     <string name="tuhu_contours_hint">Fő szintvonalak. Alapból be.</string>
     <string name="tuhu_contours_minor">Mellék szintvonal</string>
@@ -31,11 +31,11 @@
     <string name="tuhu_help_hungary">Csak Magyarország. Teljesen magyar készítésű térkép a Turistautak.hu-tól — nem OSM-országletöltés, és más országot nem fed.</string>
     <string name="tuhu_help_intro">Ezek a kapcsolók akkor érvényesek, ha a Turistautak térkép van a Térkép fülön. A Google Térképet és a letöltött OSM-régiót nem változtatják.</string>
     <string name="tuhu_help_blazes">Turistajelzések — be. Színes magyar jelzések (kék/piros/sárga/zöld). Településen kapcsold ki, ha zsúfolt.</string>
-    <string name="tuhu_help_paths">Ösvénykiemelés — be. A gyalogutat és a földutat vastagabban rajzolja, mint az alaptérkép.</string>
+    <string name="tuhu_help_paths">Ösvénykiemelés — be. Magenta kiemelés a gyalogúton és a földúton, ugyanaz a szín, mint az OSM Kerékpárutak kiemelése.</string>
     <string name="tuhu_help_contours">Szintvonal — be. Fő magasságvonalak a terep formájához.</string>
     <string name="tuhu_help_contours_minor">Mellék szintvonal — ki. Extra köztes vonalak; gerincen hasznos, városban zajos.</string>
     <string name="tuhu_help_hike_poi">Túra-POI — be. Csúcs, forrás, kunyhó, esőház, barlang, kilátó.</string>
     <string name="tuhu_help_parks">Védett terület — ki. Nemzeti parki kitöltés és felirat.</string>
-    <string name="tuhu_help_urban_poi">Városi POI — ki. Bolt, étel, parkoló, buszmegálló. Faluban kapcsold be.</string>
+    <string name="tuhu_help_urban_poi">Városi POI — ki. Bolt, étel, parkoló, buszmegálló. Adott helyégben kapcsold be.</string>
     <string name="tuhu_help_hillshading">Domborzat — ki, amíg nincs HGT a térkép mellett vagy a hills/ mappában. Ugyanaz a DEM, mint az OSM domborzatnál.</string>
 </resources>

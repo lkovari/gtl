@@ -9,6 +9,18 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Changed
+
+- Route tab: while Idle (not logging), Speed and Avg. speed show 0 even if you are moving. After Start they keep live GPS speed and the session average. Map HUD is unchanged.
+- Help: **OSM map options** accordion (same style as Turistautak options) lists Buildings, POI, Public transport, Highlight cycleways, Parks, and Terrain relief. It does not mention Turistautak.
+- Turistautak **Emphasize paths** uses the same magenta as OSM Highlight cycleways (`#C4007A` / `#FF4FBF`). Cycleway and path highlights are thinner (halo 2.0 / core 1.1) so they stay conspicuous without a thick overlay.
+
+### Magyar
+
+- Útvonal fül: Idle-ben (nincs naplózás) a Sebesség és az Átlagsebesség 0, akkor is ha mozogsz. Indítás után az élő GPS-sebesség és a session átlaga. A térkép HUD nem változott.
+- Súgó: **OSM térkép opciók** harmonika (ugyanolyan, mint a Turistautak opciók) Épületek, POI, Tömegközlekedés, Kerékpárutak kiemelése, Parkok, Domborzat. Nem említi a Turistautakot.
+- Turistautak **Ösvénykiemelés** ugyanazt a magentát használja, mint az OSM Kerékpárutak kiemelése (`#C4007A` / `#FF4FBF`). A kerékpárút- és ösvénykiemelés vékonyabb (halo 2,0 / mag 1,1), feltűnő, de nem vastag.
+
 ## [2.0.11] — 2026-09-20
 
 Play production track **29 (2.0.11)** (signed AAB). Offline OSM maps, layers, GPS recenter.

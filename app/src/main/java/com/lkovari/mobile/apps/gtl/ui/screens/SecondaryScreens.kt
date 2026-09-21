@@ -1156,6 +1156,15 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                     Text(stringResource(R.string.help_map_body), style = MaterialTheme.typography.bodyLarge)
                 }
             }
+            item {
+                AccordionSection(
+                    title = stringResource(R.string.help_osm_title),
+                    expanded = expandedId == HelpSectionOsm,
+                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionOsm) }
+                ) {
+                    OsmHelpSection()
+                }
+            }
             if (TuhuFeature.showHelp(tuhuMapDownloaded)) {
                 item {
                     AccordionSection(
@@ -1227,6 +1236,7 @@ private const val HelpSectionLogging = "logging"
 private const val HelpSectionGps = "gps"
 private const val HelpSectionRoute = "route"
 private const val HelpSectionMap = "map"
+private const val HelpSectionOsm = "osm"
 private const val HelpSectionTuhu = "tuhu"
 private const val HelpSectionCompass = "compass"
 private const val HelpSectionKmz = "kmz"

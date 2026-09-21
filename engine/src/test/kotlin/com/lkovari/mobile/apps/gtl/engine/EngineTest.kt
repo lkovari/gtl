@@ -3376,7 +3376,7 @@ class OsmRenderThemePathTest {
         val xml = gtlThemeXml().readText()
         assertTrue(
             Regex(
-                """<rule cat="cycleways" e="way" k="highway" v="cycleway"[^>]*>\s*<line stroke="#C4007A"[^/]*/>\s*<line stroke="#FF4FBF""""
+                """<rule cat="cycleways" e="way" k="highway" v="cycleway"[^>]*>\s*<line stroke="#C4007A"[^/]*stroke-width="2.0"[^/]*/>\s*<line stroke="#FF4FBF"[^/]*stroke-width="1.1""""
             ).containsMatchIn(xml)
         )
     }
@@ -3610,6 +3610,25 @@ class MapHudVisibilityTest {
     @Test
     fun hiddenWhenIdleWithoutFix() {
         assertEquals(MapHudMode.Hidden, MapHudVisibility.mode(false, null, false))
+    }
+}
+
+class RouteTabSpeedsTest {
+    @Test
+    fun idleShowsZeroEvenWhenMoving() {
+        assertEquals(0f, RouteTabSpeeds.instantMps(logging = false, liveSpeedMps = 3.4f))
+        assertEquals(0f, RouteTabSpeeds.averageMps(logging = false, sessionAverageMps = 20.5f))
+    }
+
+    @Test
+    fun loggingKeepsLiveAndSessionSpeeds() {
+        assertEquals(3.4f, RouteTabSpeeds.instantMps(logging = true, liveSpeedMps = 3.4f))
+        assertEquals(20.5f, RouteTabSpeeds.averageMps(logging = true, sessionAverageMps = 20.5f))
+    }
+
+    @Test
+    fun loggingWithoutFixLeavesInstantNull() {
+        assertEquals(null, RouteTabSpeeds.instantMps(logging = true, liveSpeedMps = null))
     }
 }
 

@@ -73,7 +73,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Route tab
 
-Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, speed, average speed, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
+Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). Speed and average speed are 0 while Idle; after Start they follow live GPS speed and the session average. Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 ### Map tab
 
@@ -165,7 +165,7 @@ Existing installs that still have the old **19.5 m** simplify default migrate to
 - First-run safe-driving disclaimer.
 - Download Offline map (Turistautak.hu first, then Mapsforge v5 OSM regions). A downloaded map shows **Can Use** or **In Use**; only one map can be In Use. Tapping In Use goes back to Google Maps. Delete a downloaded region from that screen. Optional hiking map is gated in code (`TuhuFeature.enabled`, default on); see `docs/tuhu-hu.md`.
 - Location settings (opens the system GPS panel).
-- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, OSM map layers, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route, Map (OSM file, S/E), Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
+- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, OSM map layers, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route (Idle speed and avg. speed are 0), Map (OSM file, S/E), **OSM map options**, Turistautak options when that map is downloaded, Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
 - Privacy-policy link.
 - About: optional OpenStreetMap use, ODbL, and Mapsforge download links. The OSM Map tab shows **© OpenStreetMap**.
 
@@ -180,7 +180,7 @@ Two Gradle modules:
 
 | Module    | Role                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, OSM render-option categories, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
+| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, Route-tab idle speeds, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, OSM render-option categories, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
 | `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
 
 

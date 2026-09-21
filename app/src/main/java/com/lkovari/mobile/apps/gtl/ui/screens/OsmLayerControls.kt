@@ -117,3 +117,16 @@ fun OsmLayerControls(
         )
     }
 }
+
+@Composable
+fun OsmHelpSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(R.string.help_osm_intro), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.help_osm_buildings), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.help_osm_poi), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.help_osm_transit), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.help_osm_cycleways), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.help_osm_parks), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.help_osm_hillshading), style = MaterialTheme.typography.bodyLarge)
+    }
+}

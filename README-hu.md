@@ -73,7 +73,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Útvonal fül
 
-Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, sebesség, átlagsebesség, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
+Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). Idle-ben a sebesség és az átlagsebesség 0; Indítás után az élő GPS-sebesség és a session átlaga. A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
 
 ### Térkép fül
 
@@ -165,7 +165,7 @@ A meglévő telepítések, amelyeknél még a régi **19,5 m** egyszerűsítési
 - Első indításkori biztonságos vezetés nyilatkozat.
 - Offline térkép letöltése (először Turistautak.hu, aztán Mapsforge v5 OSM-régiók). A letöltött térkép **Használható** vagy **Használatban**; egyszerre csak egy lehet Használatban. A Használatban gomb Google Térképre vált. A letöltött régiót onnan törölheted. Opcionális túratérkép kódban kapuzva (`TuhuFeature.enabled`, alapból be); részletek: `docs/tuhu-hu.md`.
 - Helymeghatározás beállításai (megnyitja a rendszer GPS-panelét).
-- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH, OSM térképrétegek és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal, Térkép (OSM fájl, S/E), Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
+- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH, OSM térképrétegek és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal (Idle-ben sebesség és átlagsebesség 0), Térkép (OSM fájl, S/E), **OSM térkép opciók**, Turistautak opciók ha az a térkép le van töltve, Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
 - Adatvédelmi tájékoztató hivatkozás.
 - Névjegy: opcionális OpenStreetMap-használat, ODbL és Mapsforge-letöltő linkek. Az OSM Térkép fülön **© OpenStreetMap**.
 
@@ -180,7 +180,7 @@ Két Gradle-modul:
 
 | Modul     | Szerep                                                                                                                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, OSM megjelenítési kategóriák, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
+| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, Útvonal-fül idle sebesség, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, OSM megjelenítési kategóriák, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
 | `:app`    | Android: Compose UI, Room, DataStore, hely/GNSS/szenzorok, előtér-szolgáltatás, Google Maps, Mapsforge, WorkManager OSM-letöltés, FileProvider megosztás.                            |
 
 

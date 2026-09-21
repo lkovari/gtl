@@ -57,6 +57,7 @@ import com.lkovari.mobile.apps.gtl.engine.CompassHeading
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
 import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
+import com.lkovari.mobile.apps.gtl.engine.RouteTabSpeeds
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.ui.components.CompassDial
 import com.lkovari.mobile.apps.gtl.ui.components.ConstellationStrip
@@ -430,12 +431,16 @@ private fun RoutePane(state: GtlUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             HudMetric(
                 stringResource(R.string.route_speed),
-                location?.let { Units.formatSpeed(it.speed, units) } ?: "—",
+                RouteTabSpeeds.instantMps(state.live.logging, location?.speed)
+                    ?.let { Units.formatSpeed(it, units) } ?: "—",
                 Modifier.weight(1f)
             )
             HudMetric(
                 stringResource(R.string.route_avg_speed),
-                Units.formatSpeed(stats.averageSpeedMps, units),
+                Units.formatSpeed(
+                    RouteTabSpeeds.averageMps(state.live.logging, stats.averageSpeedMps),
+                    units
+                ),
                 Modifier.weight(1f)
             )
         }

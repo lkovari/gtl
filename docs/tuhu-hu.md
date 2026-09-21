@@ -36,6 +36,7 @@ Törlés: OSM letöltő lista **fölött** Turistautak sor. Ha a törölt fájl 
 | OSM letöltő | csak OSM régiók | + Turistautak sor felül | + Használható / Használatban / Törlés |
 | Settings overlay | nincs TUHU blokk | nincs | TUHU accordion, ha Turistautak **Használatban** |
 | Map Layers | OSM, ha OSM aktív | OSM, ha OSM aktív | Tuhu kapcsolók, ha tuhu a kiválasztott map |
+| Help OSM térkép opciók | van | van | van |
 | Help Turistautak opciók | nincs | nincs | van |
 | About | csak OSM szekció | OSM + TUHU | OSM + TUHU |
 
@@ -50,7 +51,7 @@ Saját DataStore: `tuhu_settings` (`tuhu_blazes` …). Nem keverednek az `osm_*`
 | Kapcsoló | Cat | Alap | Mit csinál |
 |---|---|---|---|
 | Turistajelzések | `blazes` | be | `ref=(B)/(R)/(Y)/(G)` és társaik |
-| Ösvénykiemelés | `paths` | be | `highway=path/track` vastagítás |
+| Ösvénykiemelés | `paths` | be | `highway=path/track` magenta kiemelés (`#C4007A` / `#FF4FBF`, ugyanaz mint az OSM kerékpárút-kiemelés) |
 | Szintvonal | `contours` | be | `contour=elevation` + major |
 | Mellék szintvonal | `contours_minor` | ki | `contour_ext=elevation_minor` |
 | Túra-POI | `hike_poi` | be | peak, spring, hut, shelter, cave, viewpoint |

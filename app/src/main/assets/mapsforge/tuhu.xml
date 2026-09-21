@@ -1546,15 +1546,15 @@
 
 
     <rule cat="cycleways" e="way" k="highway" v="cycleway" zoom-min="12">
-        <line stroke="#C4007A" stroke-linecap="round" stroke-width="3.6" />
-        <line stroke="#FF4FBF" stroke-linecap="round" stroke-width="2.2" />
+        <line stroke="#C4007A" stroke-linecap="round" stroke-width="2.0" />
+        <line stroke="#FF4FBF" stroke-linecap="round" stroke-width="1.1" />
     </rule>
     <rule cat="cycleways" e="way" k="cycleway" v="lane|track|opposite_lane|opposite_track|share_busway|shared_lane|yes|designated" zoom-min="13">
-        <line stroke="#C4007A" stroke-dasharray="10,5" stroke-linecap="butt" stroke-width="2.4" />
+        <line stroke="#C4007A" stroke-dasharray="8,4" stroke-linecap="butt" stroke-width="1.5" />
     </rule>
     <rule cat="cycleways" e="way" k="highway" v="path|footway|pedestrian" zoom-min="13">
         <rule e="way" k="bicycle" v="designated|yes">
-            <line stroke="#C4007A" stroke-linecap="round" stroke-width="2.6" />
+            <line stroke="#C4007A" stroke-linecap="round" stroke-width="1.5" />
         </rule>
     </rule>
 
@@ -1564,10 +1564,12 @@
         <line stroke="#1E5AA8" stroke-width="1.6" stroke-dasharray="8,6" />
     </rule>
     <rule cat="paths" e="way" k="highway" v="path" zoom-min="12">
-        <line stroke="#6B3A12" stroke-width="2.4" />
+        <line stroke="#C4007A" stroke-linecap="round" stroke-width="2.0" />
+        <line stroke="#FF4FBF" stroke-linecap="round" stroke-width="1.1" />
     </rule>
     <rule cat="paths" e="way" k="highway" v="track" zoom-min="12">
-        <line stroke="#8A5A2B" stroke-width="2.2" />
+        <line stroke="#C4007A" stroke-linecap="round" stroke-width="2.0" />
+        <line stroke="#FF4FBF" stroke-linecap="round" stroke-width="1.1" />
     </rule>
     <rule cat="contours" e="way" k="contour" v="elevation">
         <line stroke="#C4A574" stroke-width="0.7" />

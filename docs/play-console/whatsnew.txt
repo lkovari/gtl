@@ -129,3 +129,21 @@ Offline térkép: egyszerre egy Használatban, Turistautak felül.
 • A letöltött térkép Használható vagy Használatban — egyszerre egy OSM-régió vagy a Turistautak lehet Használatban
 • A Használatban Google Térképre vált; a Beállítások OSM / Turistautak kártyája a Használatban lévő térképet követi
 </hu-HU>
+
+Date: 2026-09-21
+
+<en-US>
+Route Idle speeds, OSM Help, thinner magenta paths.
+
+• Route tab: Speed and Avg. speed show 0 while Idle; after Start they follow live GPS and the session average
+• Help: OSM map options accordion (buildings, POI, transit, cycleways, parks, terrain)
+• Emphasize paths uses the same magenta as Highlight cycleways; both highlights are thinner
+</en-US>
+
+<hu-HU>
+Útvonal Idle sebesség, OSM súgó, vékonyabb magenta ösvény.
+
+• Útvonal fül: Idle-ben a Sebesség és az Átlagsebesség 0; Indítás után az élő GPS és a session átlaga
+• Súgó: OSM térkép opciók (épületek, POI, tömegközlekedés, kerékpárutak, parkok, domborzat)
+• Az Ösvénykiemelés ugyanazt a magentát használja, mint a Kerékpárutak kiemelése; mindkettő vékonyabb
+</hu-HU>

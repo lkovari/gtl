@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl.tuhu
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -19,6 +20,33 @@ class TuhuThemeXmlTest {
             assertTrue("missing cat $id", xml.contains("""cat="$id""""))
         }
         assertTrue(xml.contains("""<hillshading cat="hillshading""""))
+    }
+
+    @Test
+    fun emphasizePathsUsesMagentaCyclewayHighlight() {
+        val xml = tuhuThemeXml().readText()
+        assertTrue(
+            Regex(
+                """<rule cat="paths" e="way" k="highway" v="path"[^>]*>\s*<line stroke="#C4007A"[^/]*stroke-width="2.0"[^/]*/>\s*<line stroke="#FF4FBF"[^/]*stroke-width="1.1""""
+            ).containsMatchIn(xml)
+        )
+        assertTrue(
+            Regex(
+                """<rule cat="paths" e="way" k="highway" v="track"[^>]*>\s*<line stroke="#C4007A"[^/]*stroke-width="2.0"[^/]*/>\s*<line stroke="#FF4FBF"[^/]*stroke-width="1.1""""
+            ).containsMatchIn(xml)
+        )
+        assertFalse(xml.contains("#6B3A12"))
+        assertFalse(xml.contains("#8A5A2B"))
+    }
+
+    @Test
+    fun cyclewayHighlightMatchesOsmMagentaAndWidth() {
+        val xml = tuhuThemeXml().readText()
+        assertTrue(
+            Regex(
+                """<rule cat="cycleways" e="way" k="highway" v="cycleway"[^>]*>\s*<line stroke="#C4007A"[^/]*stroke-width="2.0"[^/]*/>\s*<line stroke="#FF4FBF"[^/]*stroke-width="1.1""""
+            ).containsMatchIn(xml)
+        )
     }
 
     private fun overlayIds(): List<String> {
