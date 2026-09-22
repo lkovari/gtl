@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +44,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -70,6 +74,7 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.prefs.GoogleMapLayer
+import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.FixCloudStats
@@ -77,14 +82,19 @@ import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.LatLonBounds
 import com.lkovari.mobile.apps.gtl.engine.MapCameraMode
 import com.lkovari.mobile.apps.gtl.engine.MapFitZoom
+import com.lkovari.mobile.apps.gtl.engine.PostalAddress
 import com.lkovari.mobile.apps.gtl.engine.OsmMapCamera
 import com.lkovari.mobile.apps.gtl.engine.OsmMapViewRedraw
 import com.lkovari.mobile.apps.gtl.engine.TrackCameraBounds
+import com.lkovari.mobile.apps.gtl.engine.TapReadout
 import com.lkovari.mobile.apps.gtl.engine.TrackEndpoints
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.engine.MapAddressLookup
 import com.lkovari.mobile.apps.gtl.engine.MapHudMode
 import com.lkovari.mobile.apps.gtl.engine.MapHudVisibility
 import com.lkovari.mobile.apps.gtl.ui.components.MapHud
+import com.lkovari.mobile.apps.gtl.ui.components.MapSearchOverlay
+import com.lkovari.mobile.apps.gtl.ui.components.MapTapOverlay
 import com.lkovari.mobile.apps.gtl.ui.drawLiveFixReticle
 import com.lkovari.mobile.apps.gtl.ui.rememberUsageMarkerBitmap
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerBorder
@@ -104,6 +114,7 @@ import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerControls
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderOptions
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderTheme
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
+import com.lkovari.mobile.apps.gtl.viewmodel.MapSearchUi
 import org.mapsforge.core.graphics.Bitmap as ForgeBitmap
 import org.mapsforge.core.graphics.Canvas
 import org.mapsforge.core.graphics.Style
@@ -141,13 +152,56 @@ fun MapPane(
     onOsmFailed: () -> Unit = {},
     onGoogleMapLayer: (GoogleMapLayer) -> Unit = {},
     onOsmLayers: OsmLayerActions? = null,
-    onTuhuLayers: TuhuLayerActions? = null
+    onTuhuLayers: TuhuLayerActions? = null,
+    onSearchQuery: (String) -> Unit = {},
+    onClearSearch: () -> Unit = {},
+    mapSearch: StateFlow<MapSearchUi>
 ) {
     Box(modifier = modifier) {
         val points = state.displayPoints
         val osmFile = state.osmFile
         var locateRequest by remember { mutableIntStateOf(0) }
+        var tapPoint by remember { mutableStateOf<GeoPoint?>(null) }
+        var menuOpen by remember { mutableStateOf(false) }
+        val tapAnchor = remember { TapAnchor() }
+        var coordinateText by remember { mutableStateOf<String?>(null) }
+        var postalAddress by remember { mutableStateOf<PostalAddress?>(null) }
+        var distanceTarget by remember { mutableStateOf<GeoPoint?>(null) }
+        var cameraHold by remember { mutableStateOf(false) }
+        var searchFocus by remember { mutableStateOf<MapSearchFocus?>(null) }
+        var searchOpen by remember { mutableStateOf(false) }
+        var searchQuery by remember { mutableStateOf("") }
+        val mapPath = osmFile?.absolutePath
+        var trackedMapPath by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(mapPath) {
+            val switchedFile = trackedMapPath != null && mapPath != null && trackedMapPath != mapPath
+            if (mapPath != null) {
+                trackedMapPath = mapPath
+            }
+            cameraHold = false
+            searchFocus = null
+            if (switchedFile) {
+                tapPoint = null
+                menuOpen = false
+                coordinateText = null
+                postalAddress = null
+                tapAnchor.screen = null
+                distanceTarget = null
+            }
+            if (searchOpen) {
+                searchOpen = false
+                searchQuery = ""
+                onClearSearch()
+            }
+        }
         val viewingSaved = state.selectedSessionId != null && !state.live.logging
+        val onMapTap = { point: GeoPoint ->
+            tapPoint = point
+            menuOpen = true
+            coordinateText = null
+            postalAddress = null
+            tapAnchor.screen = null
+        }
         if (state.showingOsmMap && osmFile != null) {
             Box(modifier = Modifier.fillMaxSize()) {
                 OsmMapView(
@@ -165,7 +219,17 @@ fun MapPane(
                     tuhuRenderOptions = state.tuhuRenderOptions.forMap(state.tuhuHillshadingAvailable),
                     mapActive = mapActive,
                     locateRequest = locateRequest,
-                    onOsmFailed = onOsmFailed
+                    cameraHold = cameraHold,
+                    searchFocus = searchFocus,
+                    onOsmFailed = onOsmFailed,
+                    tapAnchor = tapPoint,
+                    onTap = onMapTap,
+                    onAnchorScreen = { tapAnchor.screen = it },
+                    onUserPan = {
+                        if (cameraHold) {
+                            cameraHold = false
+                        }
+                    }
                 )
                 NorthIndicator(
                     mapBearingDegrees = 0f,
@@ -213,12 +277,21 @@ fun MapPane(
                 )
             }
         } else {
-            GoogleMapContent(state, points, locateRequest, onGoogleMapLayer)
+            GoogleMapContent(
+                state,
+                points,
+                locateRequest,
+                onGoogleMapLayer,
+                tapPoint,
+                onMapTap,
+                onAnchorScreen = { tapAnchor.screen = it }
+            )
         }
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(10.dp),
+                .padding(10.dp)
+                .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (viewingSaved) {
@@ -226,8 +299,57 @@ fun MapPane(
             }
             LocateMeButton(
                 enabled = state.live.lastLocation != null,
-                onClick = { locateRequest++ }
+                onClick = {
+                    cameraHold = false
+                    locateRequest++
+                }
             )
+            if (state.showingOsmMap) {
+                SearchMapButton(
+                    onClick = {
+                        if (searchOpen) {
+                            searchOpen = false
+                            searchQuery = ""
+                            onClearSearch()
+                        } else {
+                            searchOpen = true
+                        }
+                    }
+                )
+                if (searchOpen) {
+                    MapSearchSlot(
+                        search = mapSearch,
+                        query = searchQuery,
+                        onQueryChange = { value ->
+                            searchQuery = value
+                            onSearchQuery(value)
+                        },
+                        measurement = state.settings.measurementSystem,
+                        onNavigate = { hit ->
+                            cameraHold = true
+                            distanceTarget = GeoPoint(hit.latitude, hit.longitude)
+                            val token = (searchFocus?.token ?: 0) + 1
+                            searchFocus = MapSearchFocus(
+                                latitude = hit.latitude,
+                                longitude = hit.longitude,
+                                zoom = hit.kind.zoom(),
+                                token = token
+                            )
+                            searchOpen = false
+                            searchQuery = ""
+                            onClearSearch()
+                        },
+                        onClose = {
+                            searchOpen = false
+                            searchQuery = ""
+                            onClearSearch()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 56.dp)
+                    )
+                }
+            }
         }
         val hudMode = MapHudVisibility.mode(
             logging = state.live.logging,
@@ -235,7 +357,25 @@ fun MapPane(
             hasFix = state.live.lastLocation != null
         )
         val showCloudPaused = state.settings.showFixCloud && !state.fixCloud.stats.active
-        if (hudMode != MapHudMode.Hidden || showCloudPaused) {
+        val distancePrefix = stringResource(R.string.map_tap_distance_prefix)
+        val liveFix = state.live.lastLocation
+        val distanceText = distanceTarget?.let { target ->
+            if (liveFix == null) {
+                stringResource(R.string.map_tap_no_fix)
+            } else {
+                TapReadout.formatStraightLine(
+                    FixAcceptance.haversineMeters(
+                        liveFix.latitude,
+                        liveFix.longitude,
+                        target.latitude,
+                        target.longitude
+                    ),
+                    state.settings.measurementSystem,
+                    distancePrefix
+                )
+            }
+        }
+        if (hudMode != MapHudMode.Hidden || showCloudPaused || distanceText != null) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -263,11 +403,104 @@ fun MapPane(
                     elapsedMillis = state.stats.elapsedMillis,
                     accuracyMeters = state.live.lastLocation?.accuracy,
                     satellitesInFix = state.live.gnss?.satellitesInFix ?: 0,
-                    satellitesInView = state.live.gnss?.satellitesInView ?: 0
+                    satellitesInView = state.live.gnss?.satellitesInView ?: 0,
+                    distanceText = distanceText,
+                    onClearDistance = { distanceTarget = null }
                 )
             }
         }
+        TapMenuHost(
+            anchor = tapAnchor,
+            tapPoint = tapPoint,
+            menuOpen = menuOpen,
+            coordinateText = coordinateText,
+            postalAddress = postalAddress,
+            onDistance = {
+                distanceTarget = tapPoint
+                menuOpen = false
+            },
+            onCoordinate = {
+                val point = tapPoint
+                if (point != null) {
+                    coordinateText = TapReadout.formatCoordinate(point.latitude, point.longitude)
+                    postalAddress = null
+                    menuOpen = false
+                }
+            },
+            onAddress = {
+                val point = tapPoint
+                if (point != null) {
+                    postalAddress = MapAddressLookup.lookup(point.latitude, point.longitude)
+                    coordinateText = null
+                    menuOpen = false
+                }
+            },
+            onClose = {
+                coordinateText = null
+                postalAddress = null
+            }
+        )
     }
+}
+
+private class TapAnchor {
+    var screen by mutableStateOf<Offset?>(null)
+}
+
+@Composable
+private fun MapSearchSlot(
+    search: StateFlow<MapSearchUi>,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    measurement: com.lkovari.mobile.apps.gtl.engine.MeasurementSystem,
+    onNavigate: (com.lkovari.mobile.apps.gtl.engine.MapSearchHit) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier
+) {
+    val ui by search.collectAsStateWithLifecycle()
+    MapSearchOverlay(
+        query = query,
+        onQueryChange = onQueryChange,
+        hits = ui.hits,
+        indexing = ui.indexing,
+        failed = ui.failed,
+        truncated = ui.truncated,
+        searching = ui.searching,
+        measurement = measurement,
+        onNavigate = onNavigate,
+        onClose = onClose,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun TapMenuHost(
+    anchor: TapAnchor,
+    tapPoint: GeoPoint?,
+    menuOpen: Boolean,
+    coordinateText: String?,
+    postalAddress: PostalAddress?,
+    onDistance: () -> Unit,
+    onCoordinate: () -> Unit,
+    onAddress: () -> Unit,
+    onClose: () -> Unit
+) {
+    val screen = anchor.screen ?: return
+    if (tapPoint == null || (!menuOpen && coordinateText == null && postalAddress == null)) {
+        return
+    }
+    MapTapOverlay(
+        screen = screen,
+        menuOpen = menuOpen,
+        showAddress = MapAddressLookup.supported(),
+        coordinateLatitude = if (coordinateText != null) tapPoint.latitude else null,
+        coordinateLongitude = if (coordinateText != null) tapPoint.longitude else null,
+        address = postalAddress,
+        onDistance = onDistance,
+        onCoordinate = onCoordinate,
+        onAddress = onAddress,
+        onClose = onClose
+    )
 }
 
 @Composable
@@ -275,7 +508,10 @@ private fun GoogleMapContent(
     state: GtlUiState,
     points: List<GeoPoint>,
     locateRequest: Int,
-    onGoogleMapLayer: (GoogleMapLayer) -> Unit
+    onGoogleMapLayer: (GoogleMapLayer) -> Unit,
+    tapAnchor: GeoPoint?,
+    onTap: (GeoPoint) -> Unit,
+    onAnchorScreen: (Offset) -> Unit
 ) {
     val live = state.live.lastLocation?.let { LatLng(it.latitude, it.longitude) }
     val start = live
@@ -296,7 +532,10 @@ private fun GoogleMapContent(
             zoomControlsEnabled = true,
             compassEnabled = false,
             mapToolbarEnabled = false
-        )
+        ),
+        onMapClick = { latLng ->
+            onTap(GeoPoint(latLng.latitude, latLng.longitude))
+        }
     ) {
         if (latLngs.size >= 2) {
             Polyline(points = latLngs, color = CarmineTrack, width = 10f)
@@ -403,6 +642,12 @@ private fun GoogleMapContent(
             .align(Alignment.BottomEnd)
             .padding(end = 60.dp, bottom = 12.dp)
     )
+    }
+    LaunchedEffect(tapAnchor, camera.position) {
+        val point = tapAnchor ?: return@LaunchedEffect
+        val projection = camera.projection ?: return@LaunchedEffect
+        val pixels = projection.toScreenLocation(LatLng(point.latitude, point.longitude))
+        onAnchorScreen(Offset(pixels.x.toFloat(), pixels.y.toFloat()))
     }
     var centeredOnce by remember { mutableStateOf(false) }
     val keepWhole = state.settings.keepWholeTrackOnScreen
@@ -523,6 +768,26 @@ private fun ClearMapButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             imageVector = Icons.Filled.CleaningServices,
             contentDescription = stringResource(R.string.map_clear_track),
             tint = UsageMarkerRed,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun SearchMapButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(40.dp)
+            .background(
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                CircleShape
+            )
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Search,
+            contentDescription = stringResource(R.string.map_search),
+            tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp)
         )
     }
@@ -754,19 +1019,37 @@ private fun GoogleMapLayer.labelRes(): Int {
 
 private class GtlOsmMapView(context: Context) : MapView(context) {
     var mapActive: Boolean = false
+    var onMapTap: ((Double, Double) -> Unit)? = null
+    var onAnchorScreen: ((Float, Float) -> Unit)? = null
+    var onUserPan: (() -> Unit)? = null
+    var suppressUserPan: Boolean = false
+    var anchorLatitude: Double? = null
+    var anchorLongitude: Double? = null
 
     init {
         addInputListener(object : InputListener {
             override fun onMoveEvent() {
+                publishAnchor()
+                if (!suppressUserPan) {
+                    onUserPan?.invoke()
+                }
                 if (mapActive) {
                     repaint()
                 }
             }
 
             override fun onZoomEvent() {
+                publishAnchor()
                 requestVisibleTiles()
             }
         })
+    }
+
+    fun publishAnchor() {
+        val latitude = anchorLatitude ?: return
+        val longitude = anchorLongitude ?: return
+        val pixels = mapViewProjection.toPixels(LatLong(latitude, longitude)) ?: return
+        onAnchorScreen?.invoke(pixels.x.toFloat(), pixels.y.toFloat())
     }
 
     override fun repaint() {
@@ -821,7 +1104,15 @@ private class OsmMapOverlays {
     var mapStart: GeoPoint? = null
     var mapStartZoom: Int? = null
     var lastLocateRequest: Int = 0
+    var lastFocusToken: Int = 0
 }
+
+private data class MapSearchFocus(
+    val latitude: Double,
+    val longitude: Double,
+    val zoom: Int,
+    val token: Int
+)
 
 @Composable
 private fun OsmMapView(
@@ -839,7 +1130,13 @@ private fun OsmMapView(
     tuhuRenderOptions: TuhuRenderOptions,
     mapActive: Boolean,
     locateRequest: Int,
-    onOsmFailed: () -> Unit
+    cameraHold: Boolean,
+    searchFocus: MapSearchFocus?,
+    onOsmFailed: () -> Unit,
+    tapAnchor: GeoPoint?,
+    onTap: (GeoPoint) -> Unit,
+    onAnchorScreen: (Offset) -> Unit,
+    onUserPan: () -> Unit
 ) {
     val overlays = remember(filePath) { OsmMapOverlays() }
     val usageBitmap = rememberUsageMarkerBitmap(usageType, liveFix = location != null)
@@ -865,6 +1162,11 @@ private fun OsmMapView(
             update = { view ->
                 val mapView = view as? GtlOsmMapView ?: return@AndroidView
                 mapView.mapActive = mapActive
+                mapView.onMapTap = { latitude, longitude -> onTap(GeoPoint(latitude, longitude)) }
+                mapView.onAnchorScreen = { x, y -> onAnchorScreen(Offset(x, y)) }
+                mapView.onUserPan = onUserPan
+                mapView.anchorLatitude = tapAnchor?.latitude
+                mapView.anchorLongitude = tapAnchor?.longitude
                 if (!overlays.layersReady) {
                     return@AndroidView
                 }
@@ -872,15 +1174,26 @@ private fun OsmMapView(
                 if (!mapActive) {
                     return@AndroidView
                 }
+                val focus = searchFocus
+                if (focus != null && focus.token != overlays.lastFocusToken) {
+                    overlays.lastFocusToken = focus.token
+                    mapView.suppressUserPan = true
+                    mapView.model.mapViewPosition.setCenter(LatLong(focus.latitude, focus.longitude))
+                    mapView.model.mapViewPosition.setZoomLevel(focus.zoom.toByte(), false)
+                    mapView.post { mapView.suppressUserPan = false }
+                    overlays.didInitialCenter = true
+                }
                 if (locateRequest != overlays.lastLocateRequest) {
                     overlays.lastLocateRequest = locateRequest
                     val target = OsmMapCamera.locateCenter(location?.latitude, location?.longitude)
                     if (target != null) {
+                        mapView.suppressUserPan = true
                         mapView.model.mapViewPosition.center = LatLong(target.latitude, target.longitude)
+                        mapView.post { mapView.suppressUserPan = false }
                     }
                 }
                 val cameraMode = MapCameraMode.of(logging, keepWholeTrack, viewingSaved)
-                if (cameraMode == MapCameraMode.FitTrack) {
+                if (!cameraHold && cameraMode == MapCameraMode.FitTrack) {
                     val extra = if (logging) {
                         location?.takeIf { loc ->
                             val bounds = overlays.mapBounds
@@ -897,7 +1210,7 @@ private fun OsmMapView(
                             overlays.didInitialCenter = true
                         }
                     }
-                } else if (cameraMode == MapCameraMode.FollowLive) {
+                } else if (!cameraHold && cameraMode == MapCameraMode.FollowLive) {
                     followOsmLiveCamera(mapView, overlays, location, points, logging)
                 }
                 updateOsmTrack(overlays, points)
@@ -923,6 +1236,7 @@ private fun OsmMapView(
                 overlays.lastTuhuRenderOptions = null
                 overlays.layersReady = false
                 overlays.lastLocateRequest = 0
+                overlays.lastFocusToken = 0
                 try {
                     view.destroyAll()
                 } catch (_: Throwable) {
@@ -976,6 +1290,7 @@ private fun attachOsmLayers(
     val usage = UsagePositionLayer()
     mapView.layerManager.layers.add(usage)
     overlays.usage = usage
+    mapView.layerManager.layers.add(MapTapLayer(mapView))
     val box = mapFile.boundingBox()
     overlays.mapBounds = LatLonBounds(box.minLatitude, box.minLongitude, box.maxLatitude, box.maxLongitude)
     val start = mapFile.startPosition()
@@ -1225,6 +1540,26 @@ private fun updateOsmUsage(
     layer.latitude = lat
     layer.longitude = lon
     layer.requestRedraw()
+}
+
+private class MapTapLayer(
+    private val host: GtlOsmMapView
+) : Layer() {
+    override fun draw(
+        boundingBox: BoundingBox,
+        zoomLevel: Byte,
+        canvas: Canvas,
+        topLeftPoint: Point,
+        _rotation: Rotation
+    ) {
+    }
+
+    override fun onTap(tapLatLong: LatLong, layerXY: Point?, tapXY: Point): Boolean {
+        val listener = host.onMapTap ?: return false
+        listener.invoke(tapLatLong.latitude, tapLatLong.longitude)
+        host.onAnchorScreen?.invoke(tapXY.x.toFloat(), tapXY.y.toFloat())
+        return true
+    }
 }
 
 private class UsagePositionLayer : Layer() {

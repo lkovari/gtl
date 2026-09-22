@@ -30,6 +30,8 @@ import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
+import com.lkovari.mobile.apps.gtl.engine.MapSearch
+import com.lkovari.mobile.apps.gtl.engine.MapSearchHit
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmHillshading
@@ -58,8 +60,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private data class OsmTuhuBits(
@@ -78,6 +87,15 @@ private data class MapUiBits(
     val hasDownloadedOsmMap: Boolean,
     val tuhuRenderOptions: TuhuRenderOptions,
     val tuhuMapDownloaded: Boolean
+)
+
+data class MapSearchUi(
+    val indexing: Boolean = false,
+    val ready: Boolean = false,
+    val failed: Boolean = false,
+    val truncated: Boolean = false,
+    val searching: Boolean = false,
+    val hits: List<MapSearchHit> = emptyList()
 )
 
 data class GtlUiState(
@@ -134,6 +152,9 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private val savedElevationSamples = MutableStateFlow<List<ElevationSample>>(emptyList())
     private var lastObservedNanos = Long.MIN_VALUE
     private var lastGnssOnly: Boolean? = null
+    private val mapSearchUi = MutableStateFlow(MapSearchUi())
+    val mapSearch: StateFlow<MapSearchUi> = mapSearchUi.asStateFlow()
+    private var searchJob: Job? = null
 
     val settings: StateFlow<GtlSettings> = app.preferences.settings.stateIn(
         viewModelScope,
@@ -156,6 +177,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         observeFixCloud()
         observeSavedElevationQnh()
         observeOsmDownloadAvailability()
+        observeActiveMapSearch()
     }
 
     fun startPreview() {
@@ -838,6 +860,85 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun observeDownloadedRevision(): StateFlow<Int> = app.osmMapStore.downloadedRevision
 
+    fun searchPlaces(query: String) {
+        searchJob?.cancel()
+        if (!MapSearch.accepts(query)) {
+            mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
+            return
+        }
+        mapSearchUi.update { it.copy(searching = true) }
+        searchJob = viewModelScope.launch {
+            var published = false
+            try {
+                delay(300)
+                val liveFix = live.value.lastLocation
+                val stored = app.mapSearch.origin()
+                val latitude = liveFix?.latitude ?: stored?.first
+                val longitude = liveFix?.longitude ?: stored?.second
+                if (latitude == null || longitude == null) {
+                    mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
+                    published = true
+                    return@launch
+                }
+                val hits = app.mapSearch.search(query, latitude, longitude)
+                if (!isActive) {
+                    return@launch
+                }
+                mapSearchUi.update { it.copy(hits = hits, searching = false) }
+                published = true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (isActive) {
+                    mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
+                    published = true
+                }
+            } finally {
+                if (!published && isActive) {
+                    mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
+                }
+            }
+        }
+    }
+
+    fun clearPlaceSearch() {
+        searchJob?.cancel()
+        mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
+    }
+
+    private fun observeActiveMapSearch() {
+        viewModelScope.launch {
+            combine(
+                settings,
+                app.osmMapStore.observeHasDownloadedMap(),
+                app.osmMapStore.downloadedRevision
+            ) { prefs, hasMap, _ ->
+                prefs.selectedMapFile to
+                    OsmOfflineAvailability.effectiveUseOffline(prefs.useOfflineMap, hasMap)
+            }.distinctUntilChanged().collect { (path, offline) ->
+                searchJob?.cancel()
+                mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
+                val file = withContext(Dispatchers.IO) {
+                    val candidate = path.takeIf { it.isNotBlank() }?.let { File(it) }
+                    candidate?.takeIf { offline && OsmMapFile.isReadable(it) }
+                }
+                app.mapSearch.activate(file)
+            }
+        }
+        viewModelScope.launch {
+            app.mapSearch.status.collect { status ->
+                mapSearchUi.update {
+                    it.copy(
+                        indexing = status.indexing,
+                        ready = status.ready,
+                        failed = status.failed,
+                        truncated = status.truncated
+                    )
+                }
+            }
+        }
+    }
+
     fun deleteDownloadedMap(region: OsmRegion) {
         val file = app.osmMapStore.downloadedFile(region.id)
         val selectedPath = settings.value.selectedMapFile
@@ -847,6 +948,9 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         val mapsRemain = app.osmMapStore.hasDownloadedMap()
         val localeMatch = OsmMapLocale.countryMatches(region.countryCode, localeCountry)
         viewModelScope.launch {
+            if (file != null) {
+                app.mapSearch.delete(file)
+            }
             if (deletingSelected) {
                 app.preferences.setSelectedMapFile("")
             }
@@ -906,6 +1010,9 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         val deletingSelected = file != null && file.absolutePath == selectedPath
         app.tuhuMapStore.delete()
         viewModelScope.launch {
+            if (file != null) {
+                app.mapSearch.delete(file)
+            }
             if (TuhuDeletePolicy.forceGoogle(deletingSelected)) {
                 app.preferences.setSelectedMapFile("")
                 app.preferences.setUseOfflineMap(false)

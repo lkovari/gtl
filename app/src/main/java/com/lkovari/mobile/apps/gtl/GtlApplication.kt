@@ -5,6 +5,7 @@ import com.lkovari.mobile.apps.gtl.data.db.GtlDatabase
 import com.lkovari.mobile.apps.gtl.data.db.TrackRepository
 import com.lkovari.mobile.apps.gtl.data.gnss.GnssStatusSource
 import com.lkovari.mobile.apps.gtl.data.maps.OsmMapStore
+import com.lkovari.mobile.apps.gtl.data.search.MapSearchRepository
 import com.lkovari.mobile.apps.gtl.data.prefs.GtlPreferences
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuMapStore
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuPreferences
@@ -44,6 +45,8 @@ class GtlApplication : Application() {
         private set
     lateinit var tuhuMapStore: TuhuMapStore
         private set
+    lateinit var mapSearch: MapSearchRepository
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -61,6 +64,7 @@ class GtlApplication : Application() {
         osmMapStore = OsmMapStore(this)
         tuhuPreferences = TuhuPreferences(this)
         tuhuMapStore = TuhuMapStore(this, osmMapStore)
+        mapSearch = MapSearchRepository(this)
         trackingState.update {
             it.copy(
                 temperatureAvailable = ambientTemperatureSource.isAvailable,

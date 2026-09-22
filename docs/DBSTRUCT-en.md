@@ -82,7 +82,7 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 ## Not stored
 
 - Raw GNSS constellation mix and skyplot samples (HUD / GPS tab only, in memory).
-- Map / OSM settings (including OSM layer switches: buildings, POI, transit, cycleways, parks, hillshading). Hillshading only draws when HGT/HF2 files sit next to the `.map` or in `hills/`. Kalman / density / GNSS-only / QNH switches (DataStore, not SQLite).
+- Map / OSM settings (including OSM layer switches: buildings, POI, transit, cycleways, parks, hillshading). Hillshading only draws when HGT/HF2 files sit next to the `.map` or in `hills/`. Kalman / density / GNSS-only / QNH switches (DataStore, not SQLite). Named places from the `.map` are not in `gtl.db`; they live in [`map-search.db`](#map-searchdb).
 - The raw HUD fix when Kalman is on (only the filter output is stored).
 - Fix cloud / Pontfelhő samples (in-memory sliding window only). Turning **Show fix cloud** on also writes Show accuracy marker in DataStore; turning it off only clears the in-memory cloud.
 - Map-cleared flag (ViewModel memory). The Map broom hides the drawn line; it does not delete `gps_events`.
@@ -90,3 +90,95 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 ## Access
 
 `TrackRepository` is the only app-layer API. `RemoteTrackSync.uploadSession` runs on stop and is a no-op.
+
+# `map-search.db`
+
+File: `map-search.db` (Room, schema version **2**, exported under `app/schemas`).  
+Package: `com.lkovari.mobile.apps.gtl.data.search`.  
+On device: `databases/map-search.db` (Room default).  
+API: `MapSearchRepository`. Writer: `MapSearchIndexWorker` (WorkManager).
+
+Derived cache of named places read from the Mapsforge `.map` that is in use (OSM region or Turistautak). It is not the track log. Search, the navigate dialog, and the straight-line distance to a search hit read it. The red polyline does not.
+
+A local debug install that still has schema 1 is emptied on open (`fallbackToDestructiveMigration`). The file stays; the tables are recreated empty and the worker fills them again from the `.map`. The track database is not migrated by this.
+
+```mermaid
+erDiagram
+    map_index_state ||--o{ map_places : "mapKey"
+    map_places ||--|| map_places_fts : "rowid nameFold"
+
+    map_index_state {
+        TEXT mapKey PK "path length lastModified"
+        TEXT path
+        INTEGER done "1 = walk finished"
+        INTEGER truncated "1 = 250000 cap"
+        INTEGER attempt
+        INTEGER nextAttemptAtMillis
+        INTEGER subIndex
+        INTEGER tileX
+        INTEGER tileY
+        REAL originLatitude
+        REAL originLongitude
+    }
+
+    map_places {
+        INTEGER id PK "autoincrement"
+        TEXT mapKey
+        TEXT path
+        TEXT name
+        TEXT nameFold
+        TEXT kind "MapPlaceKind name"
+        REAL latitude
+        REAL longitude
+        INTEGER gridLat
+        INTEGER gridLon
+    }
+```
+
+`mapKey` is `path|length|lastModified` of the `.map` file. Unique index on `(mapKey, nameFold, kind, gridLat, gridLon)`. Duplicate inserts are ignored. `map_places_fts` is an FTS4 content table on `nameFold` only; Room keeps it in sync when `map_places` rows are inserted or deleted. There is no second write path.
+
+| Column | Meaning |
+|---|---|
+| `done` | The tile walk finished under the cap. Search uses the rows. The worker does not open the `.map` again for this key. |
+| `truncated` | `MapSearch.MaxIndexedPlaces` (250 000 successful inserts) was hit. Search works on the partial set and the UI says so. The walk does not resume. |
+| `attempt` / `nextAttemptAtMillis` | After a failed read. The worker returns `Result.retry()` and does not scan until `nextAttemptAtMillis`. Places already stored stay. |
+| `subIndex`, `tileX`, `tileY` | Next tile to read. `tileX = Long.MIN_VALUE` means the walk has not started. A killed process resumes here. |
+| `originLatitude` / `originLongitude` | `.map` start position. Distance ranking uses the live GPS fix when there is one, otherwise this origin. |
+
+## When the file is created
+
+`GtlApplication` builds `MapSearchRepository` at process start. Room does not create the file until the first query.
+
+That query is `activate`, from `GtlViewModel.observeActiveMapSearch`, and only when a selected `.map` is in use and `OsmMapFile.isReadable` is true (OSM or Turistautak, **Use downloaded OSM map** effective). Google Maps alone, a blank selection, or an unreadable file calls `activate(null)`, which does not open SQLite. The file appears the first time such a map is actually in use.
+
+## When rows are deleted
+
+The app never deletes the `map-search.db` file. Uninstall and Clear storage do. Schema 1→2 drops the tables inside the file and leaves the file in place.
+
+| Event | Rows | File | Walk |
+|---|---|---|---|
+| Delete downloaded OSM region, or delete Turistautak | `deletePath`: places and state for that path, one transaction. The unique work is cancelled first. | kept | stopped |
+| Switch to a different `.map` path | `deleteExcept`: every path other than the new one, one transaction. The previous work is cancelled. | kept | the new path follows the rules below |
+| Same path, new `mapKey` (length or lastModified changed) | `deletePath` for that path, because the new key has no state row. | kept | full walk from the first tile (`REPLACE`) |
+| Leave offline maps (Google, switch off, unreadable file) | kept | kept | work cancelled (`stopActive`). No row delete. |
+| Process death mid-walk | kept | kept | resumes from the cursor on the next launch |
+| Read exception | kept | kept | no scan until `nextAttemptAtMillis`; then resume, not a wipe |
+| Cap reached (`truncated`) | kept | kept | does not run again for this key |
+| Walk finished (`done`) | kept | kept | does not run again for this key |
+
+Only one `.map` path is stored at a time. Switching maps drops the previous path’s places.
+
+## When it indexes again
+
+`IndexResume.action` decides. `activate` enqueues `MapSearchIndexWorker` only for **Resume** and **Backoff**. Constraints: battery not low, storage not low. Backoff is exponential from 30 s. Unique work name is `map-search-<path length>-<path hashCode>`.
+
+| State for this `mapKey` | What happens |
+|---|---|
+| No row | Full walk from the first tile. This is first use, a replaced file, a wiped path, or an emptied schema-1 database. |
+| `done = 0`, `truncated = 0`, retry time reached | Resume at `subIndex` / `tileX` / `tileY`. Places stay. The `MapFile` opens and closes every 32 tiles. The cursor is saved after each batch. |
+| `done = 0`, `truncated = 0`, retry time in the future | No tile read. Worker `Result.retry()`. |
+| `done = 1` | Ready. Work cancelled. Search only. |
+| `truncated = 1` | Partial ready. Work cancelled. Search only. |
+| Same path and key already indexing or ready | `activate` returns. It does not enqueue a second walk. |
+
+A killed worker does not wipe places. The next `activate` sees the cursor and continues. `done` is written only after the last tile. `truncated` is written when the 250 000 insert cap is hit, and that key is never resumed.

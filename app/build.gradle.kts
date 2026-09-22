@@ -93,6 +93,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 configurations.configureEach {
     resolutionStrategy {
         force("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")

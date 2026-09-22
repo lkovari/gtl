@@ -7,9 +7,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,9 +51,12 @@ fun MapHud(
     accuracyMeters: Float?,
     satellitesInFix: Int,
     satellitesInView: Int,
+    distanceText: String? = null,
+    onClearDistance: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    if (mode == MapHudMode.Hidden) {
+    val showSpeed = mode != MapHudMode.Hidden
+    if (!showSpeed && distanceText == null) {
         return
     }
     val dark = MaterialTheme.colorScheme.background == Cockpit
@@ -75,58 +80,74 @@ fun MapHud(
                 vertical = if (compact) 8.dp else 10.dp
             )
     ) {
-        Row(
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 14.dp)
-        ) {
+        if (showSpeed) {
             Row(
                 verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 14.dp)
             ) {
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (mode == MapHudMode.Full) {
+                        RecBadge()
+                    }
+                    Column {
+                        Text(
+                            text = speedText,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = if (compact) 28.sp else 44.sp,
+                            color = number,
+                            letterSpacing = (-0.6).sp
+                        )
+                        Text(
+                            text = unitText,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = muted
+                        )
+                    }
+                }
                 if (mode == MapHudMode.Full) {
-                    RecBadge()
-                }
-                Column {
-                    Text(
-                        text = speedText,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = if (compact) 28.sp else 44.sp,
-                        color = number,
-                        letterSpacing = (-0.6).sp
-                    )
-                    Text(
-                        text = unitText,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = muted
-                    )
-                }
-            }
-            if (mode == MapHudMode.Full) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = Units.formatDistance(odometerMeters, system),
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp,
-                        color = number
-                    )
-                    Text(
-                        text = Units.formatDuration(elapsedMillis),
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp,
-                        color = number
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = Units.formatDistance(odometerMeters, system),
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp,
+                            color = number
+                        )
+                        Text(
+                            text = Units.formatDuration(elapsedMillis),
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp,
+                            color = number
+                        )
+                    }
                 }
             }
+            Text(
+                text = stringResource(R.string.map_hud_accuracy_gnss, accuracyText, gnssText),
+                style = MaterialTheme.typography.labelMedium,
+                color = muted,
+                modifier = Modifier.padding(top = 6.dp)
+            )
         }
-        Text(
-            text = stringResource(R.string.map_hud_accuracy_gnss, accuracyText, gnssText),
-            style = MaterialTheme.typography.labelMedium,
-            color = muted,
-            modifier = Modifier.padding(top = 6.dp)
-        )
+        if (distanceText != null) {
+            val clearLabel = stringResource(R.string.map_distance_clear)
+            Text(
+                text = distanceText,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium,
+                fontSize = 16.sp,
+                color = number,
+                modifier = Modifier
+                    .padding(top = if (showSpeed) 6.dp else 0.dp)
+                    .heightIn(min = 48.dp)
+                    .clickable(onClickLabel = clearLabel, onClick = onClearDistance)
+            )
+        }
     }
 }
 

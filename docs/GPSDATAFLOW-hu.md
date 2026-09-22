@@ -168,3 +168,36 @@ Részletes leírás: [README-hu.md — Hogyan működik a naplózás](../README-
 **Hogyan.** A szakasz első és utolsó pontja mindig megmarad. A köztes pontok közül azt választjuk, amelynek a merőleges távolsága (méterben, helyi `111_320` m/fok vetület) a két végpontot összekötő húrhoz a legnagyobb. Ha ez a távolság a tolerancia fölött van, a pontot megtartjuk, és mindkét oldalon rekurzívan folytatjuk; különben minden köztes pontot eldobunk.
 
 Ez a közel egyenes szakaszok zaját csökkenti. GPS-zajt nem simít — a megmaradó sarkok élesek maradnak. Részletes leírás: [README-hu.md](../README-hu.md#douglaspeucker-térkép-egyszerűsítés).
+
+## A `map-search.db` nem ez a lánc
+
+A helykeresés nem olvassa és nem írja a `gps_events` táblát. A helyek külön Room-fájlban vannak: `map-search.db` (séma **2**, a készüléken `databases/map-search.db`). Oszlopok és ábra: [DBSTRUCT-en.md](DBSTRUCT-en.md#map-searchdb). A fenti naplózási lánc nem nyitja meg.
+
+A `GtlViewModel.observeActiveMapSearch` akkor hívja a `MapSearchRepository.activate` függvényt, ha a kiválasztott OSM- vagy Turistautak-`.map` használatban van és az `OsmMapFile.isReadable` igaz. A `MapSearchIndexWorker` tölti. A keresés a távolságot az élő GPS-fixhez méri, ha van fix; különben a `map_index_state` origójához, ami a `.map` start pozíciója.
+
+**Mikor jön létre a fájl.** A folyamat indulása nem hozza létre. A Room az első lekérdezéskor írja ki, amikor először van használatban olvasható offline térkép. A csak Google Térkép, az üres választás és az olvashatatlan fájl `activate(null)`: ez nem nyit SQLite-ot, a fájl nem készül el.
+
+**Mikor törlődik.** Az app a `map-search.db` fájlt nem törli. Az eltávolítás és a tárhely törlése igen. A séma 1→2 a táblákat a fájlon belül eldobja, a fájl megmarad, a worker újratölti.
+
+A sorok törlése:
+
+| Esemény | Sorok | Bejárás |
+|---|---|---|
+| Letöltött OSM-régió törlése, vagy a Turistautak törlése | Az adott `path` helyei és indexállapota egy tranzakcióban. A work előtte leáll. | leáll |
+| Váltás másik `.map` útvonalra | Minden más `path` törlődik (`deleteExcept`). Egyszerre egy térkép marad. | az új fájl a lenti szabály szerint |
+| Ugyanaz az útvonal, új `mapKey` (a fájl hossza vagy `lastModified` változott) | A `path` sorai törlődnek, mert az új kulcsnak nincs állapot sora. | teljes bejárás az első csempétől |
+| Offline térkép kikapcsolása, Google, olvashatatlan fájl | A sorok megmaradnak. | a work leáll, sor nem törlődik |
+| A folyamat meghal a bejárás közben | A sorok és a kurzor megmarad. | a következő indulás a kurzortól folytatja |
+| Olvasási hiba | A sorok megmaradnak. | nincs csempeolvasás `nextAttemptAtMillis` előtt, utána folytatás, nem törlés |
+| 250 000 hely (`truncated`) vagy kész bejárás (`done`) | A sorok megmaradnak. | ez a kulcs nem indul újra |
+
+**Mikor indexelődik újra.** A `mapKey` a `path|length|lastModified`. Az `IndexResume.action` dönt. A worker csak **Resume** és **Backoff** esetén indul. Feltétel: az akkumulátor és a tárhely nem alacsony. A backoff 30 másodperctől exponenciális.
+
+| Állapot erre a `mapKey`-re | Mi történik |
+|---|---|
+| Nincs sor | Teljes bejárás az első csempétől. Első használat, cserélt fájl, letörölt path, vagy az 1-es sémából kiürített adatbázis. |
+| `done = 0`, `truncated = 0`, a várakozás lejárt | Folytatás a mentett csempétől (`subIndex`, `tileX`, `tileY`). A helyek bent maradnak. A `MapFile` 32 csempénként nyílik és zárul. A kurzor kötegenként íródik. |
+| `done = 0`, `truncated = 0`, a várakozás még tart | Nincs csempeolvasás. A worker `Result.retry()`. |
+| `done = 1` | Kész. A work leáll. Csak keresés. |
+| `truncated = 1` | Részleges kész. A work leáll. Csak keresés. A felület megmondja, hogy a térképnek csak egy része van beolvasva. |
+| Ugyanaz a path és kulcs már indexel vagy kész | Az `activate` visszatér. Második bejárást nem indít. |

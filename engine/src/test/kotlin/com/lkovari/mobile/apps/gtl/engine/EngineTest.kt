@@ -3823,6 +3823,33 @@ class UnitsHudTest {
     }
 }
 
+class TapReadoutTest {
+    @Test
+    fun coordinateUsesSixDecimals() {
+        assertEquals(
+            "47.497913, 19.040236",
+            TapReadout.formatCoordinate(47.497913, 19.040236)
+        )
+        assertEquals("19.040236", TapReadout.formatLongitude(19.040236))
+        assertEquals("47.497913", TapReadout.formatLatitude(47.497913))
+    }
+
+    @Test
+    fun straightLineUsesPrefixAndMeasurementSystem() {
+        assertEquals("D2.7km", TapReadout.formatStraightLine(2700.0, MeasurementSystem.METRIC, "D"))
+        assertEquals("T655km", TapReadout.formatStraightLine(655_000.0, MeasurementSystem.METRIC, "T"))
+        assertEquals("D10km", TapReadout.formatStraightLine(10_000.0, MeasurementSystem.METRIC, "D"))
+        assertEquals("D1.0mi", TapReadout.formatStraightLine(1609.344, MeasurementSystem.IMPERIAL, "D"))
+        assertEquals("D1.0NM", TapReadout.formatStraightLine(1852.0, MeasurementSystem.ICAO, "D"))
+    }
+
+    @Test
+    fun addressLookupIsUnavailable() {
+        assertFalse(MapAddressLookup.supported())
+        assertNull(MapAddressLookup.lookup(47.497913, 19.040236))
+    }
+}
+
 class ElevationSeriesTest {
     @Test
     fun accumulatesDistanceAndKeepsAltitudes() {
@@ -3952,5 +3979,158 @@ class TrackInspectDumpTest {
         assertTrue(dump.contains("1001.200"))
         val stopLine = dump.lineSequence().first { it.startsWith("2\t") }
         assertTrue(stopLine.contains("\t-\t-\t"))
+    }
+}
+
+class MapSearchTest {
+    @Test
+    fun queryNeedsThreeCharacters() {
+        assertFalse(MapSearch.accepts("  ab "))
+        assertFalse(MapSearch.accepts("áé"))
+        assertTrue(MapSearch.accepts("áéí"))
+        assertTrue(MapSearch.accepts("  bud "))
+        assertNull(MapSearch.sqlToken("ab"))
+    }
+
+    @Test
+    fun foldDropsHungarianAccents() {
+        assertEquals("szent istvan szobor", MapSearch.fold("  Szent   István   szobor "))
+        assertEquals("aeiou", MapSearch.fold("áéíóú"))
+        assertEquals("oo uu", MapSearch.fold("őő űű"))
+    }
+
+    @Test
+    fun kindComesFromTags() {
+        assertEquals(MapPlaceKind.City, MapSearch.record(mapOf("place" to "city", "name" to "Budapest"))?.kind)
+        assertEquals(MapPlaceKind.Village, MapSearch.record(mapOf("place" to "village", "name" to "Hollókő"))?.kind)
+        assertEquals(
+            MapPlaceKind.Statue,
+            MapSearch.record(mapOf("historic" to "memorial", "memorial" to "statue", "name" to "István"))?.kind
+        )
+        assertEquals(
+            MapPlaceKind.House,
+            MapSearch.record(mapOf("addr:street" to "Fő utca", "addr:housenumber" to "1"))?.kind
+        )
+        assertEquals(
+            "fo utca 1",
+            MapSearch.record(mapOf("addr:street" to "Fő utca", "addr:housenumber" to "1"))?.foldedAliases?.single()
+        )
+        assertEquals(MapPlaceKind.Street, MapSearch.record(mapOf("highway" to "residential", "name" to "Kossuth utca"))?.kind)
+        assertEquals(MapPlaceKind.Peak, MapSearch.record(mapOf("natural" to "peak", "name" to "Kékes"))?.kind)
+        assertNull(MapSearch.record(mapOf("highway" to "primary", "ref" to "M1")))
+        assertNull(MapSearch.record(mapOf("building" to "yes")))
+    }
+
+    @Test
+    fun displayPrefersNameThenHungarian() {
+        val multilingual = MapSearch.record(
+            mapOf("name" to "Budapest\ren\u0008Budapest\rde\u0008Budapest", "place" to "city")
+        )
+        assertEquals("Budapest", multilingual?.displayName)
+        assertTrue(multilingual?.foldedAliases?.contains("budapest") == true)
+        val hungarian = MapSearch.record(mapOf("name:hu" to "Hollókő", "place" to "village"))
+        assertEquals("Hollókő", hungarian?.displayName)
+        assertEquals(listOf("holloko"), hungarian?.foldedAliases)
+    }
+
+    @Test
+    fun houseAddressIsAnAliasOfANamedBuilding() {
+        val record = MapSearch.record(
+            mapOf(
+                "building" to "yes",
+                "name" to "Kovács ház",
+                "addr:street" to "Fő utca",
+                "addr:housenumber" to "12"
+            )
+        )
+        assertEquals(MapPlaceKind.Building, record?.kind)
+        assertEquals("Kovács ház", record?.displayName)
+        assertTrue(record?.foldedAliases?.contains("fo utca 12") == true)
+    }
+
+    @Test
+    fun closerMatchWinsInsideTheSameTier() {
+        val near = candidate("Fő utca 1", 47.50, 19.05)
+        val far = candidate("Fő utca 1", 47.80, 19.40)
+        val hits = MapSearch.rank("Fő utca 1", listOf(far, near), 47.50, 19.04)
+        assertEquals(near.latitude, hits.first().latitude, 0.0)
+        assertTrue(hits.first().distanceMeters < hits.last().distanceMeters)
+    }
+
+    @Test
+    fun exactBeatsACloserPartialName() {
+        val exactFar = candidate("Budapest", 47.50, 19.04)
+        val partialNear = candidate("Budapest körút", 47.501, 19.041)
+        val hits = MapSearch.rank("Budapest", listOf(partialNear, exactFar), 47.501, 19.041)
+        assertEquals("Budapest", hits.first().name)
+    }
+
+    @Test
+    fun tokenPrefixFindsStatueAndKeepsFive() {
+        val statue = candidate("Szent István szobor", 47.5, 19.0)
+        val other = candidate("Istvánfalva", 47.5, 19.0)
+        val hits = MapSearch.rank("istvan szob", listOf(statue, other), 47.0, 19.0)
+        assertEquals(listOf("Szent István szobor"), hits.map { it.name })
+        val many = (0 until 8).map { index ->
+            candidate("Szobor $index", 47.0 + index * 0.1, 19.0)
+        }
+        assertEquals(5, MapSearch.rank("szobor", many, 47.0, 19.0).size)
+    }
+
+    @Test
+    fun zoomFollowsKind() {
+        assertEquals(11, MapPlaceKind.City.zoom())
+        assertEquals(14, MapPlaceKind.Village.zoom())
+        assertEquals(17, MapPlaceKind.Statue.zoom())
+        assertEquals(17, MapPlaceKind.House.zoom())
+        assertTrue(MapPlaceKind.City.zoom() in MapFitZoom.Min..MapFitZoom.Max)
+    }
+
+    @Test
+    fun ftsMatchUsesTheLongestToken() {
+        assertEquals("\"istvan\"*", MapSearch.ftsMatch("szent istvan szobor"))
+        assertNull(MapSearch.ftsMatch("ab"))
+        assertEquals("\"istvan\"*", MapSearch.ftsMatch("István%_"))
+    }
+
+    private fun candidate(name: String, latitude: Double, longitude: Double): MapSearchCandidate {
+        return MapSearchCandidate(
+            name = name,
+            nameFold = MapSearch.fold(name),
+            kind = MapPlaceKind.Place,
+            latitude = latitude,
+            longitude = longitude
+        )
+    }
+}
+
+class IndexResumeTest {
+    @Test
+    fun missingProgressResumes() {
+        assertEquals(IndexResumeAction.Resume, IndexResume.action(null, 1_000L))
+    }
+
+    @Test
+    fun doneIsReadyAndTruncatedStaysPartial() {
+        assertEquals(
+            IndexResumeAction.Ready,
+            IndexResume.action(IndexProgress(done = true, truncated = false, nextAttemptAtMillis = 0L), 1_000L)
+        )
+        assertEquals(
+            IndexResumeAction.Truncated,
+            IndexResume.action(IndexProgress(done = false, truncated = true, nextAttemptAtMillis = 0L), 1_000L)
+        )
+    }
+
+    @Test
+    fun futureAttemptBacksOff() {
+        assertEquals(
+            IndexResumeAction.Backoff,
+            IndexResume.action(IndexProgress(done = false, truncated = false, nextAttemptAtMillis = 5_000L), 1_000L)
+        )
+        assertEquals(
+            IndexResumeAction.Resume,
+            IndexResume.action(IndexProgress(done = false, truncated = false, nextAttemptAtMillis = 5_000L), 5_000L)
+        )
     }
 }

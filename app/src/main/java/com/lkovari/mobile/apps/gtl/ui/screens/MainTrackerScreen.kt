@@ -290,7 +290,10 @@ fun MainTrackerScreen(
                         onOsmFailed = { viewModel.onOsmMapFailed() },
                         onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
                         onOsmLayers = osmLayerActions(viewModel),
-                        onTuhuLayers = tuhuLayerActions(viewModel)
+                        onTuhuLayers = tuhuLayerActions(viewModel),
+                        onSearchQuery = { viewModel.searchPlaces(it) },
+                        onClearSearch = { viewModel.clearPlaceSearch() },
+                        mapSearch = viewModel.mapSearch
                     )
                 }
                 when (tab) {
@@ -303,7 +306,10 @@ fun MainTrackerScreen(
                             onOsmFailed = { viewModel.onOsmMapFailed() },
                             onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
                             onOsmLayers = osmLayerActions(viewModel),
-                            onTuhuLayers = tuhuLayerActions(viewModel)
+                            onTuhuLayers = tuhuLayerActions(viewModel),
+                            onSearchQuery = { viewModel.searchPlaces(it) },
+                            onClearSearch = { viewModel.clearPlaceSearch() },
+                            mapSearch = viewModel.mapSearch
                         )
                     }
                     else -> CompassPane(

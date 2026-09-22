@@ -9,19 +9,34 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Added
+
+- Map tap on Google, OSM, and Turistautak opens a menu on that point. Drag and zoom stay. A new tap replaces the menu, and the menu follows the point when the camera moves. The menu and the distance target live on the Map tab, so the HUD distance survives switching between Google and an offline map.
+- **Distance** sets the tapped point as the target. Straight-line distance (haversine) updates on every live GPS fix, including when you move away. The row sits under the map HUD even when the speed HUD is hidden. No fix shows an em dash. A new target replaces the old one. Tap the row to clear it. No space: prefix **D** (English) or **T** (Hungarian); unit from Settings — Metric `km` (one decimal under 10, otherwise a whole number: `D2.7km`, `T655km`), Imperial `mi`, ICAO `NM`.
+- **GPS coordinate** shows latitude and longitude on separate lines of a card, six decimals, dot as the decimal mark (`Lat:` above `Lon:`). The copy icon puts `latitude, longitude` on the clipboard so a map search finds the point. The card stays until the next tap or Close. It does not start the HUD distance.
+- **Address** appears only when the map format can return ZIP, country, city, street, and house number together. Choosing it would show those five fields on a card and leave the HUD unchanged. None of the three current formats can, so the item stays hidden: a Google tap is only a coordinate; the OSM `.map` has a nearby street name and house number but no ZIP, country, or city tied to them; the Turistautak `.map` has no house numbers.
+- **Search** on OSM and Turistautak: a magnifying glass under My location. At least 3 characters, accents ignored. Up to 5 named places from the `.map` in use (city, village, statue, house, street, and other names), stronger name first and closer first when the name matches equally. Layer switches do not filter them. **Navigate to &lt;name&gt;?** shows the kind and the straight-line distance. **Yes** moves the camera there and sets the HUD distance target; while logging or fitting the whole track, the camera stays until **My location** or the first pan. **No** leaves the map. Google Maps has no search. The map in use is indexed in the background and the next launch continues from the saved cursor. A full index cap shows that only part of the map is indexed. Indexing waits while the battery or storage is low.
+
 ### Fixed
 
 - Fixes without a reported accuracy (including accuracy 0) are not stored. Recording waits for an accurate location and drops fixes older than 10 s. STOP uses the last accepted GPS time.
 - GNSS-only no longer falls back to fused when GPS is off. Logging requires fine location. The HUD preview stops while the service is recording.
 - Missing GPS altitude is stored as null (schema 5); GPX omits `<ele>`. Aircraft altitudes up to 20 000 m are kept. A missing speed is MOVE, not PAUSE.
 - Turistautak map download is HTTPS only (no HTTP fallback), with redirect host checks and size limits.
+- Map search keeps places already read if the process dies, and does not start the tile walk over. Dragging the map after **Navigate** releases the held camera. Switching `.map` files clears the tap menu and the HUD distance. The distance row is a 48 dp target.
 
 ### Magyar
 
+- Koppintás a Google, az OSM és a Turistautak térképen menüt nyit a ponton. A húzás és a zoom megmarad. Új koppintás a menüt leváltja, és a menü követi a pontot, ha a kamera mozog. A menü és a távolságcél a Térkép fülön él, ezért a HUD-távolság megmarad Google és offline térkép között.
+- A **Távolság** a koppintott pontot teszi céllá. A légvonal (haversine) minden élő GPS-fixnél frissül, távolodáskor is. A sor a térkép HUD alatt van, akkor is, ha a sebesség-HUD rejtett. Nincs fix: gondolatjel. Új célpont felülírja a régit. A sor megnyomása törli. Szóköz nélkül: előtag **T** (magyar) vagy **D** (angol); mérték a Beállításokból — Metric `km` (10 alatt egy tizedes, attól felfelé egész: `T2.7km`, `D655km`), Imperial `mi`, ICAO `NM`.
+- A **GPS koordináta** kártyán a szélesség és a hosszúság egymás alatt, hat tizedes, pont a tizedesjel (`Lat:` felül, `Lon:` alatta). A másolás ikon `szélesség, hosszúság` formát tesz a vágólapra, hogy egy térképkereső egyből megtalálja. A következő koppintásig vagy Bezárásig marad. Nem indítja a HUD-távolságot.
+- A **Cím** csak akkor látszik, ha a térképformátum együtt visszaadja az irányítószámot, az országot, a várost, az utcát és a házszámot. Választásra ezek a mezők kerülnének egy kártyára, a HUD változatlan. A mostani három formátum ezt nem tudja, ezért a pont rejtve marad: a Google koppintás csak koordináta; az OSM `.map`-ben van közeli utcanév és házszám, de nincs hozzájuk kötött irányítószám, ország és város; a Turistautak `.map`-ben házszám nincs.
+- **Keresés** OSM és Turistautak térképen: nagyító a Saját hely alatt. Legalább 3 karakter, ékezet nélkül is. Legfeljebb 5 névvel bíró hely a használatban lévő `.map`-ből (város, falu, szobor, ház, utca és más nevek), előbb az erősebb név, azonos névnél a közelebbi. A rétegkapcsolók nem szűrnek. A **Navigáljak ide: &lt;név&gt;?** mutatja a fajtát és a légvonalat. Az **Igen** oda viszi a kamerát és beállítja a HUD távolságcélját; naplózás vagy a teljes útvonal illesztése közben a kamera ott marad, amíg a **Saját hely** vagy az első húzás nem enged követni. A **Nem** nem mozdítja a térképet. Google Térképen nincs keresés. A használatban lévő térkép a háttérben indexelődik, a következő indulás a mentett kurzortól folytatja. Ha a plafon betelik, a kereső jelzi, hogy csak egy rész van beolvasva. Alacsony akkumulátornál vagy kevés tárhelynél az indexelés vár.
 - Pontosság nélküli (és 0-s) fix nem tárolódik. Felvételnél pontos helyre vár, és 10 s-nél idősebb pontot eldob. A STOP az utolsó elfogadott GPS-idő.
 - Csak GNSS mellett GPS ki esetén nincs fused tartalék. Naplózáshoz precíz hely kell. A HUD preview leáll, amíg a service rögzít.
 - Hiányzó GPS-magasság null a Roomban (séma 5); a GPX-ből kimarad az `<ele>`. A 20 000 m-ig tartó magasság bent marad. Hiányzó sebesség MOVE, nem PAUSE.
 - A Turistautak térkép csak HTTPS-en jön (nincs HTTP tartalék), redirect-hoszt és méretplafonnal.
+- A térképkereső a folyamat halála után megtartja a már beolvasott helyeket, és nem kezdi elölről a csempéket. A **Navigáljak** utáni húzás feloldja a rögzített kamerát. Másik `.map` fájl törli a koppintás menüjét és a HUD-távolságot. A távolságsor 48 dp-s cél.
 
 ## [2.0.12] — 2026-09-21
 

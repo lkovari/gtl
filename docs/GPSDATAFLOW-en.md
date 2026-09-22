@@ -168,3 +168,15 @@ Full prose: [README-en.md — How logging works](../README-en.md#how-logging-wor
 **How.** Keep the segment’s first and last points. Find the intermediate point with the largest perpendicular distance (metres, local `111_320` m/deg projection) to the chord between them. If that distance is above the tolerance, keep the point and recurse on both sides; otherwise drop every intermediate point.
 
 This discards near-colinear jitter. It does not smooth GPS noise — leftover corners stay sharp. Full write-up: [README-en.md](../README-en.md#douglaspeucker-map-simplify).
+
+## `map-search.db` is not this pipeline
+
+Named-place search does not read or write `gps_events`. The place cache is a second Room file, `map-search.db` (schema 2). Columns and the ER diagram: [DBSTRUCT-en.md](DBSTRUCT-en.md#map-searchdb).
+
+The logging chain above never opens it. `GtlViewModel.observeActiveMapSearch` calls `MapSearchRepository.activate` when the selected OSM or Turistautak `.map` is in use and readable. `MapSearchIndexWorker` fills it. Search ranks hits against the live GPS fix when there is one, otherwise against the `.map` start position stored in `map_index_state`.
+
+**Created.** The file is not created at process start. Room creates it on the first `activate` query, the first time a readable offline map is in use. Google Maps alone does not create it.
+
+**Not deleted as a file.** Uninstall and Clear storage remove the file. The app only deletes rows. Delete OSM region or delete Turistautak deletes that path’s places and index state in one transaction and cancels the worker. Switching to another `.map` deletes every other path, so one map is stored. Turning offline maps off, or an unreadable file, cancels the worker and leaves the rows. Schema 1→2 drops the tables inside the same file and the worker fills them again.
+
+**Indexed again.** A new `mapKey` (`path|length|lastModified`) with no state row walks every tile from the start, after wiping that path. A half-finished walk (`done = 0`, `truncated = 0`) resumes at the saved tile; a killed process does not start over. `done = 1` and the 250 000-place cap (`truncated = 1`) do not walk again. A failed read keeps the rows and waits until `nextAttemptAtMillis` (`Result.retry()`). The worker also waits while the battery or storage is low. The same path and key already indexing or ready does not enqueue a second walk.

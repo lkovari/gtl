@@ -147,3 +147,39 @@ Route Idle speeds, OSM Help, thinner magenta paths.
 • Súgó: OSM térkép opciók (épületek, POI, tömegközlekedés, kerékpárutak, parkok, domborzat)
 • Az Ösvénykiemelés ugyanazt a magentát használja, mint a Kerékpárutak kiemelése; mindkettő vékonyabb
 </hu-HU>
+
+Date: 2026-09-22
+
+<en-US>
+Tap a point for a straight-line distance or its GPS coordinate.
+
+• Google, OSM, and Turistautak: tap opens Distance and GPS coordinate. Drag and zoom stay
+• Distance is the live straight line on the HUD, also when you move away (D2.7km; mi or NM from Settings). Tap that row to remove it
+• GPS coordinate stacks Lat and Lon on a card. Copy puts latitude, longitude on the clipboard for a map search. Address stays off: these maps do not return a full address
+</en-US>
+
+<hu-HU>
+Koppints egy pontra: légvonal a HUD-on, vagy a GPS-koordináta.
+
+• Google, OSM és Turistautak: a koppintás Távolságot és GPS koordinátát nyit. A húzás és a zoom megmarad
+• A Távolság élő légvonal a HUD-on, távolodáskor is (T2.7km; mi vagy NM a Beállításokból). A sor megnyomása törli
+• A GPS koordináta Lat és Lon egymás alatt. A másolás szélesség, hosszúság formát tesz a vágólapra, térképkeresőhöz. A Cím ki marad: ezek a térképek nem adnak teljes címet
+</hu-HU>
+
+Date: 2026-09-22
+
+<en-US>
+Search a place on the offline map.
+
+• Magnifying glass on OSM and Turistautak. Type at least 3 characters
+• Up to 5 matches on this map, closest good name first: city, village, statue, house
+• Yes centers the map and shows the straight-line distance. No leaves it. My location follows you again
+</en-US>
+
+<hu-HU>
+Keresés a letöltött térképen.
+
+• Nagyító az OSM és a Turistautak térképen. Legalább 3 karakter
+• Legfeljebb 5 találat, a legjobb név közül a legközelebbi elöl: város, falu, szobor, ház
+• Az Igen odaugrik és légvonalat mutat. A Nem nem mozdít. A Saját hely újra követ
+</hu-HU>

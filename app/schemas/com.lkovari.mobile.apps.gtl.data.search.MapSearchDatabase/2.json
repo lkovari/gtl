@@ -1,0 +1,220 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "34d93490548fadcfe9768c654efa6293",
+    "entities": [
+      {
+        "tableName": "map_places",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mapKey` TEXT NOT NULL, `path` TEXT NOT NULL, `name` TEXT NOT NULL, `nameFold` TEXT NOT NULL, `kind` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `gridLat` INTEGER NOT NULL, `gridLon` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mapKey",
+            "columnName": "mapKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nameFold",
+            "columnName": "nameFold",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gridLat",
+            "columnName": "gridLat",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gridLon",
+            "columnName": "gridLon",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_map_places_path",
+            "unique": false,
+            "columnNames": [
+              "path"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_map_places_path` ON `${TABLE_NAME}` (`path`)"
+          },
+          {
+            "name": "index_map_places_mapKey_nameFold_kind_gridLat_gridLon",
+            "unique": true,
+            "columnNames": [
+              "mapKey",
+              "nameFold",
+              "kind",
+              "gridLat",
+              "gridLon"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_map_places_mapKey_nameFold_kind_gridLat_gridLon` ON `${TABLE_NAME}` (`mapKey`, `nameFold`, `kind`, `gridLat`, `gridLon`)"
+          }
+        ]
+      },
+      {
+        "tableName": "map_places_fts",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`nameFold` TEXT NOT NULL, content=`map_places`)",
+        "fields": [
+          {
+            "fieldPath": "nameFold",
+            "columnName": "nameFold",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "map_places",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_map_places_fts_BEFORE_UPDATE BEFORE UPDATE ON `map_places` BEGIN DELETE FROM `map_places_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_map_places_fts_BEFORE_DELETE BEFORE DELETE ON `map_places` BEGIN DELETE FROM `map_places_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_map_places_fts_AFTER_UPDATE AFTER UPDATE ON `map_places` BEGIN INSERT INTO `map_places_fts`(`docid`, `nameFold`) VALUES (NEW.`rowid`, NEW.`nameFold`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_map_places_fts_AFTER_INSERT AFTER INSERT ON `map_places` BEGIN INSERT INTO `map_places_fts`(`docid`, `nameFold`) VALUES (NEW.`rowid`, NEW.`nameFold`); END"
+        ]
+      },
+      {
+        "tableName": "map_index_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mapKey` TEXT NOT NULL, `path` TEXT NOT NULL, `done` INTEGER NOT NULL, `truncated` INTEGER NOT NULL, `attempt` INTEGER NOT NULL, `nextAttemptAtMillis` INTEGER NOT NULL, `subIndex` INTEGER NOT NULL, `tileX` INTEGER NOT NULL, `tileY` INTEGER NOT NULL, `originLatitude` REAL NOT NULL, `originLongitude` REAL NOT NULL, PRIMARY KEY(`mapKey`))",
+        "fields": [
+          {
+            "fieldPath": "mapKey",
+            "columnName": "mapKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "done",
+            "columnName": "done",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "truncated",
+            "columnName": "truncated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempt",
+            "columnName": "attempt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nextAttemptAtMillis",
+            "columnName": "nextAttemptAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subIndex",
+            "columnName": "subIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tileX",
+            "columnName": "tileX",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tileY",
+            "columnName": "tileY",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originLatitude",
+            "columnName": "originLatitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originLongitude",
+            "columnName": "originLongitude",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mapKey"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '34d93490548fadcfe9768c654efa6293')"
+    ]
+  }
+}
