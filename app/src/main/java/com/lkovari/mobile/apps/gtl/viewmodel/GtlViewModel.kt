@@ -152,19 +152,49 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
-        startPreview()
+        observeLoggingPreview()
         observeFixCloud()
         observeSavedElevationQnh()
         observeOsmDownloadAvailability()
     }
 
     fun startPreview() {
+        if (app.trackingState.state.value.logging) {
+            return
+        }
         listenGnss()
         listenLocation()
         listenCompass()
         listenTemperature()
         listenGravity()
         listenPressure()
+    }
+
+    private fun stopPreview() {
+        gnssJob?.cancel()
+        gnssJob = null
+        locationJob?.cancel()
+        locationJob = null
+        compassJob?.cancel()
+        compassJob = null
+        temperatureJob?.cancel()
+        temperatureJob = null
+        gravityJob?.cancel()
+        gravityJob = null
+        pressureJob?.cancel()
+        pressureJob = null
+    }
+
+    private fun observeLoggingPreview() {
+        viewModelScope.launch {
+            app.trackingState.state.map { it.logging }.distinctUntilChanged().collect { logging ->
+                if (logging) {
+                    stopPreview()
+                } else {
+                    startPreview()
+                }
+            }
+        }
     }
 
     private fun listenGnss() {
@@ -181,7 +211,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         locationJob = viewModelScope.launch {
             settings.map { it.gnssOnly }.distinctUntilChanged().collectLatest { gnssOnly ->
                 val client = com.lkovari.mobile.apps.gtl.data.location.LocationClient(app)
-                client.locations(1000L, 0f, gnssOnly).collect { location ->
+                client.locations(1000L, 0f, gnssOnly, recording = false).collect { location ->
                     app.trackingState.update {
                         it.copy(lastLocation = location, provider = location.provider)
                     }
@@ -465,7 +495,6 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     fun startLogging() {
         selectedSessionId.value = null
         mapCleared.value = false
-        startPreview()
         val intent = Intent(app, TrackingForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             app.startForegroundService(intent)
@@ -485,13 +514,6 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun showSessionOnMap(id: Long) {
         viewModelScope.launch {
-            val session = app.trackRepository.sessionById(id)
-            val usage = session?.usageType?.let { raw ->
-                runCatching { UsageType.valueOf(raw) }.getOrNull()
-            }
-            if (usage != null) {
-                app.preferences.setUsageType(usage)
-            }
             mapCleared.value = false
             selectedSessionId.value = id
             mainTab.value = 2
@@ -510,6 +532,9 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteSession(id: Long) {
         viewModelScope.launch {
+            if (id == app.trackingState.state.value.sessionId) {
+                return@launch
+            }
             app.trackRepository.deleteSession(id)
             if (savedElevationSessionId.value == id) {
                 savedElevationSessionId.value = null
@@ -690,6 +715,9 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val live = app.trackingState.state.value
             val pressure = live.pressureHpa ?: return@launch
+            if (!BaroAltitude.isPlausiblePressureHpa(pressure)) {
+                return@launch
+            }
             val location = live.lastLocation ?: return@launch
             if (!location.hasAltitude()) {
                 return@launch

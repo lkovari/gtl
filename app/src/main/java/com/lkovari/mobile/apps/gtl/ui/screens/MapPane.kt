@@ -257,7 +257,7 @@ fun MapPane(
                 }
                 MapHud(
                     mode = hudMode,
-                    speedMps = state.live.lastLocation?.speed,
+                    speedMps = state.live.lastLocation?.takeIf { it.hasSpeed() }?.speed,
                     system = state.settings.measurementSystem,
                     odometerMeters = state.stats.odometerMeters,
                     elapsedMillis = state.stats.elapsedMillis,

@@ -158,6 +158,98 @@ class TuhuZipTest {
         }
     }
 
+    @Test
+    fun tooManyEntriesFails() {
+        val dir = kotlin.io.path.createTempDirectory("tuhu-many").toFile()
+        try {
+            val zip = File(dir, "tuhu.zip")
+            writeZip(
+                zip,
+                mapOf(
+                    "a.txt" to "a".toByteArray(),
+                    "b.txt" to "b".toByteArray(),
+                    "c.txt" to "c".toByteArray()
+                )
+            )
+            try {
+                TuhuZip.extract(zip, File(dir, "out"), maxEntries = 2)
+                fail("expected too many entries")
+            } catch (_: IllegalStateException) {
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun nonRenderThemeXmlIsIgnoredAndMapRemains() {
+        val dir = kotlin.io.path.createTempDirectory("tuhu-badtheme").toFile()
+        try {
+            val zip = File(dir, "tuhu.zip")
+            writeZip(
+                zip,
+                mapOf(
+                    "tuhu.map" to fakeMapsforgeBytes(2048),
+                    "notes.xml" to "<style/>".toByteArray()
+                )
+            )
+            val result = TuhuZip.extract(zip, File(dir, "out"))
+            assertTrue(OsmMapFile.isReadable(result.mapFile))
+            assertNull(result.themeFile)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun skipsNonThemeXmlAndKeepsRenderTheme() {
+        val dir = kotlin.io.path.createTempDirectory("tuhu-theme").toFile()
+        try {
+            val zip = File(dir, "tuhu.zip")
+            val theme = """<?xml version="1.0"?><rendertheme xmlns="http://mapsforge.org/renderTheme"/>""".toByteArray()
+            writeZip(
+                zip,
+                mapOf(
+                    "tuhu.map" to fakeMapsforgeBytes(2048),
+                    "notes.xml" to "<notatheme/>".toByteArray(),
+                    "pack/tuhu.xml" to theme
+                )
+            )
+            val result = TuhuZip.extract(zip, File(dir, "out"))
+            assertEquals("tuhu.xml", result.themeFile?.name)
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun renderThemeBuriedPastProbeIsRejected() {
+        val dir = kotlin.io.path.createTempDirectory("tuhu-probe").toFile()
+        try {
+            val xml = File(dir, "late.xml")
+            xml.writeBytes(ByteArray(TuhuZip.MaxThemeProbeBytes + 1) { ' '.code.toByte() } + "<rendertheme/>".toByteArray())
+            assertFalse(TuhuZip.isRenderTheme(xml))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun uncompressedTooLargeFails() {
+        val dir = kotlin.io.path.createTempDirectory("tuhu-huge").toFile()
+        try {
+            val zip = File(dir, "tuhu.zip")
+            writeZip(zip, mapOf("tuhu.map" to fakeMapsforgeBytes(4096)))
+            try {
+                TuhuZip.extract(zip, File(dir, "out"), maxUncompressedBytes = 100L)
+                fail("expected uncompressed too large")
+            } catch (_: IllegalStateException) {
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     private fun writeZip(zip: File, entries: Map<String, ByteArray>) {
         ZipOutputStream(zip.outputStream()).use { out ->
             entries.forEach { (name, bytes) ->

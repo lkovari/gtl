@@ -4,8 +4,8 @@ data class TrackSample(
     val timestampMillis: Long,
     val latitude: Double,
     val longitude: Double,
-    val altitude: Double,
-    val speedMps: Float,
+    val altitude: Double?,
+    val speedMps: Float?,
     val bearing: Float,
     val ambientTemperature: Float?,
     val eventKind: EventKind
@@ -60,10 +60,13 @@ object TrackStatsCalculator {
                 current.longitude
             )
             val dt = (current.timestampMillis - previous.timestampMillis).coerceAtLeast(0L)
-            if (current.speedMps >= MOVING_SPEED_MPS) {
-                moving += dt
-            } else {
-                waiting += dt
+            val speed = current.speedMps
+            if (speed != null) {
+                if (speed >= MOVING_SPEED_MPS) {
+                    moving += dt
+                } else {
+                    waiting += dt
+                }
             }
         }
         val elapsed = samples.last().timestampMillis - samples.first().timestampMillis
@@ -73,8 +76,8 @@ object TrackStatsCalculator {
         } else {
             TemperatureRange(temps.min(), temps.max())
         }
-        val altitudes = samples.map { it.altitude }
-        val speeds = samples.map { it.speedMps }
+        val altitudes = samples.mapNotNull { it.altitude }
+        val speeds = samples.mapNotNull { it.speedMps }
         val movingElapsedSeconds = moving / 1000.0
         val average = if (movingElapsedSeconds > 0) {
             (odometer / movingElapsedSeconds).toFloat()
@@ -87,10 +90,10 @@ object TrackStatsCalculator {
             elapsedMillis = elapsed.coerceAtLeast(0L),
             movingMillis = moving,
             waitingMillis = waiting,
-            maxSpeedMps = speeds.max(),
+            maxSpeedMps = speeds.maxOrNull() ?: 0f,
             averageSpeedMps = average,
-            maxAltitude = altitudes.max(),
-            minAltitude = altitudes.min(),
+            maxAltitude = altitudes.maxOrNull() ?: 0.0,
+            minAltitude = altitudes.minOrNull() ?: 0.0,
             temperatureRange = temperatureRange
         )
     }

@@ -166,6 +166,15 @@ class FixAcceptanceTest {
     )
 
     @Test
+    fun rejectsMissingOrZeroAccuracy() {
+        assertFalse(FixAcceptance.hasUsableAccuracy(hasAccuracy = false, accuracyMeters = 0f))
+        assertFalse(FixAcceptance.hasUsableAccuracy(hasAccuracy = true, accuracyMeters = 0f))
+        assertFalse(FixAcceptance.hasUsableAccuracy(hasAccuracy = true, accuracyMeters = -1f))
+        assertFalse(FixAcceptance.hasUsableAccuracy(hasAccuracy = true, accuracyMeters = Float.NaN))
+        assertTrue(FixAcceptance.hasUsableAccuracy(hasAccuracy = true, accuracyMeters = 8f))
+    }
+
+    @Test
     fun acceptsFirstFix() {
         val current = sample(10_000L, 47.0, 19.0, 8f, 6)
         assertTrue(FixAcceptance.shouldAccept(null, current, filter))
@@ -181,6 +190,35 @@ class FixAcceptanceTest {
     fun rejectsTooFewSatellites() {
         val current = sample(10_000L, 47.0, 19.0, 8f, 2)
         assertFalse(FixAcceptance.shouldAccept(null, current, filter))
+    }
+
+    @Test
+    fun rejectsNonFiniteOrOutOfRangeCoordinatesEvenAsFirstFix() {
+        assertFalse(FixAcceptance.shouldAccept(null, sample(10_000L, Double.NaN, 19.0, 8f, 6), filter))
+        assertFalse(
+            FixAcceptance.shouldAccept(null, sample(10_000L, Double.POSITIVE_INFINITY, 19.0, 8f, 6), filter)
+        )
+        assertFalse(FixAcceptance.shouldAccept(null, sample(10_000L, 91.0, 19.0, 8f, 6), filter))
+        assertFalse(FixAcceptance.shouldAccept(null, sample(10_000L, 47.0, 181.0, 8f, 6), filter))
+        assertTrue(FixAcceptance.shouldAccept(null, sample(10_000L, 47.0, 19.0, 8f, 6), filter))
+    }
+
+    @Test
+    fun rejectsNonIncreasingTimestamp() {
+        val previous = sample(10_000L, 47.0, 19.0, 8f, 6)
+        val earlier = sample(9_000L, 47.001, 19.0, 8f, 6)
+        val same = sample(10_000L, 47.001, 19.0, 8f, 6)
+        val later = sample(12_000L, 47.001, 19.0, 8f, 6)
+        assertFalse(FixAcceptance.shouldAccept(previous, earlier, filter))
+        assertFalse(FixAcceptance.shouldAccept(previous, same, filter))
+        assertTrue(FixAcceptance.shouldAccept(previous, later, filter))
+    }
+
+    @Test
+    fun haversineAntipodesIsFinite() {
+        val meters = FixAcceptance.haversineMeters(0.0, 0.0, 0.0, 180.0)
+        assertTrue(meters.isFinite())
+        assertTrue(meters > 20_000_000.0)
     }
 
     @Test
@@ -1510,6 +1548,28 @@ class GpxExporterTest {
         assertTrue(gpx.contains("<name>Evening</name>"))
     }
 
+    @Test
+    fun omitsEleWhenAltitudeIsNull() {
+        val gpx = GpxExporter.export(
+            GpxDocument(
+                tracks = listOf(
+                    GpxTrack(
+                        name = "No ele",
+                        points = listOf(
+                            GpxTrackPoint(GeoPoint(47.5, 19.05, null), SAMPLE_TIME)
+                        ),
+                        waypoints = listOf(
+                            GpxWaypoint("START", GeoPoint(47.5, 19.05, null), SAMPLE_TIME)
+                        )
+                    )
+                )
+            )
+        )
+        assertFalse(gpx.contains("<ele>"))
+        assertTrue(gpx.contains("""<trkpt lat="47.5" lon="19.05">"""))
+        assertTrue(gpx.contains("""<wpt lat="47.5" lon="19.05">"""))
+    }
+
     private fun sampleGpx(): String {
         return GpxExporter.export(
             GpxDocument(
@@ -1823,11 +1883,75 @@ class TrackStatsCalculatorTest {
         assertEquals(0.0, along[0], 0.0)
         assertEquals(stats.odometerMeters, along[1], 0.0)
     }
+
+    @Test
+    fun nullAltitudeIsSkippedForMinMax() {
+        val samples = listOf(
+            TrackSample(0, 47.0, 19.0, null, 0f, 0f, null, EventKind.START),
+            TrackSample(10_000, 47.001, 19.0, 110.0, 8f, 0f, null, EventKind.MOVE),
+            TrackSample(20_000, 47.002, 19.0, null, 8f, 0f, null, EventKind.STOP)
+        )
+        val stats = TrackStatsCalculator.compute(samples)
+        assertEquals(110.0, stats.minAltitude, 0.0)
+        assertEquals(110.0, stats.maxAltitude, 0.0)
+    }
+
+    @Test
+    fun nullSpeedDoesNotCountAsWaitingAndIsSkippedForMax() {
+        val samples = listOf(
+            TrackSample(0, 47.0, 19.0, 100.0, null, 0f, null, EventKind.START),
+            TrackSample(10_000, 47.001, 19.0, 110.0, null, 0f, null, EventKind.MOVE),
+            TrackSample(20_000, 47.002, 19.0, 120.0, 8f, 0f, null, EventKind.MOVE)
+        )
+        val stats = TrackStatsCalculator.compute(samples)
+        assertEquals(0L, stats.waitingMillis)
+        assertEquals(10_000L, stats.movingMillis)
+        assertEquals(8f, stats.maxSpeedMps)
+        assertTrue(stats.odometerMeters > 90.0)
+    }
+}
+
+class GpsQualityNoticeTest {
+    @Test
+    fun poorStartsAtTwentySeconds() {
+        assertFalse(GpsQualityNotice.isPoor(19_999L))
+        assertTrue(GpsQualityNotice.isPoor(20_000L))
+        assertTrue(GpsQualityNotice.isPoor(30_000L))
+    }
 }
 
 class KalmanTrackFilterTest {
     private val originLat = 47.0
     private val originLon = 19.0
+
+    @Test
+    fun seedFromRejectsNonFiniteThenObserveInitializes() {
+        val filter = KalmanTrackFilter()
+        filter.seedFrom(
+            sample(
+                time = 10_000L,
+                lat = Double.NaN,
+                lon = originLon,
+                speedMps = 5f,
+                bearing = 90f
+            )
+        )
+        val out = filter.observe(
+            sample(
+                time = 11_000L,
+                lat = originLat,
+                lon = originLon,
+                speedMps = 5f,
+                bearing = 90f
+            ),
+            UsageType.RUNNER,
+            SmoothingStrength.LOW,
+            stationaryLock = false
+        )
+        assertTrue(out.latitude.isFinite())
+        assertEquals(originLat, out.latitude, 0.0001)
+        assertEquals(originLon, out.longitude, 0.0001)
+    }
 
     @Test
     fun highwaySmoothedCrossTrackRmseIsLowerAndLengthStaysNearTruth() {
@@ -2666,6 +2790,48 @@ class BaroAltitudeTest {
     }
 
     @Test
+    fun autoCalibrateNotEligibleForZeroNanOrLowPressure() {
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 0f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = Float.NaN,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+        assertEquals(
+            false,
+            BaroAltitude.autoCalibrateEligible(
+                pressureHpa = 200f,
+                gpsAltitudeMeters = 124.0,
+                alreadyCalibratedThisSession = false,
+                enabled = true,
+                previousGpsAltitudeMeters = 124.0
+            )
+        )
+    }
+
+    @Test
+    fun offsetHpaRejectsNonPlausiblePressure() {
+        val offset = BaroAltitude.offsetHpa(Float.NaN, 124.0, 1013.25f)
+        assertTrue(offset.isFinite())
+        assertEquals(0f, offset, 0f)
+        assertEquals(0f, BaroAltitude.clampOffset(Float.NaN), 0f)
+    }
+
+    @Test
     fun autoCalibrateNotEligibleWithoutAltitude() {
         assertEquals(
             false,
@@ -2857,6 +3023,7 @@ class MapCameraModeTest {
 class GpsAltitudeTest {
     @Test
     fun fusedMinus1787IsRejected() {
+        assertFalse(GpsAltitude.isPlausible(-1787.0))
         assertEquals(
             null,
             GpsAltitude.pick(
@@ -2900,6 +3067,20 @@ class GpsAltitudeTest {
             null,
             GpsAltitude.pick(
                 gnssMsl = null,
+                fusedMsl = null,
+                gnssEllipsoid = null,
+                fusedEllipsoid = null
+            )
+        )
+    }
+
+    @Test
+    fun cruiseAltitude11000IsPlausible() {
+        assertTrue(GpsAltitude.isPlausible(11000.0))
+        assertEquals(
+            11000.0,
+            GpsAltitude.pick(
+                gnssMsl = 11000.0,
                 fusedMsl = null,
                 gnssEllipsoid = null,
                 fusedEllipsoid = null
@@ -3654,8 +3835,8 @@ class ElevationSeriesTest {
         assertEquals(2, samples.size)
         assertEquals(0.0, samples[0].distanceMeters, 0.01)
         assertTrue(samples[1].distanceMeters > 100.0)
-        assertEquals(120.0, samples[1].gpsAltitude, 0.0)
-        assertEquals(119.0, samples[1].baroAltitude ?: 0.0, 0.0)
+        assertEquals(120.0, samples[1].gpsAltitude)
+        assertEquals(119.0, samples[1].baroAltitude)
         assertTrue(ElevationSeries.hasBaroLine(samples))
     }
 
@@ -3666,8 +3847,8 @@ class ElevationSeriesTest {
         }
         val samples = ElevationSeries.downsample(ElevationSeries.fromPoints(points), 200)
         assertEquals(200, samples.size)
-        assertEquals(100.0, samples.first().gpsAltitude, 0.0)
-        assertEquals(599.0, samples.last().gpsAltitude, 0.0)
+        assertEquals(100.0, samples.first().gpsAltitude)
+        assertEquals(599.0, samples.last().gpsAltitude)
         assertFalse(ElevationSeries.hasBaroLine(samples))
     }
 

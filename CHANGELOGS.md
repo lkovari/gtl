@@ -9,9 +9,29 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixes without a reported accuracy (including accuracy 0) are not stored. Recording waits for an accurate location and drops fixes older than 10 s. STOP uses the last accepted GPS time.
+- GNSS-only no longer falls back to fused when GPS is off. Logging requires fine location. The HUD preview stops while the service is recording.
+- Missing GPS altitude is stored as null (schema 5); GPX omits `<ele>`. Aircraft altitudes up to 20 000 m are kept. A missing speed is MOVE, not PAUSE.
+- Turistautak map download is HTTPS only (no HTTP fallback), with redirect host checks and size limits.
+
+### Magyar
+
+- Pontosság nélküli (és 0-s) fix nem tárolódik. Felvételnél pontos helyre vár, és 10 s-nél idősebb pontot eldob. A STOP az utolsó elfogadott GPS-idő.
+- Csak GNSS mellett GPS ki esetén nincs fused tartalék. Naplózáshoz precíz hely kell. A HUD preview leáll, amíg a service rögzít.
+- Hiányzó GPS-magasság null a Roomban (séma 5); a GPX-ből kimarad az `<ele>`. A 20 000 m-ig tartó magasság bent marad. Hiányzó sebesség MOVE, nem PAUSE.
+- A Turistautak térkép csak HTTPS-en jön (nincs HTTP tartalék), redirect-hoszt és méretplafonnal.
+
 ## [2.0.12] — 2026-09-21
 
 Play production track **30 (2.0.12)** (signed AAB). Route Idle speeds, OSM Help, thinner magenta paths.
+
+### Fixed
+
+- Stop then a quick Start no longer closes the new recording. Deleting the live session is blocked; a database write error stops logging and shows it on the HUD.
+- Show on map no longer overwrites the logging profile. Missing thermometer reads as —; while logging with no stored point the status is Waiting for GPS.
+- Baro auto-calibration ignores 0 / NaN / out-of-range pressure. Invalid lat/lon is not stored. OSM map replace keeps the old file if the rename fails.
 
 ### Changed
 
@@ -21,6 +41,9 @@ Play production track **30 (2.0.12)** (signed AAB). Route Idle speeds, OSM Help,
 
 ### Magyar
 
+- Stop után gyors Start nem zárja le az új felvételt. Az élő session törlése tiltva; adatbázis-hiba leállítja a naplózást, és a HUD jelzi.
+- A Mutasd a térképen nem írja felül a naplózó profilt. Hiányzó hőmérő: —; felvétel 0 tárolt ponttal: Várakozás a GPS-re.
+- A baro autokalibráció elutasítja a 0 / NaN / tartományon kívüli nyomást. Érvénytelen lat/lon nem tárolódik. OSM csere megtartja a régi fájlt, ha a rename elhasal.
 - Útvonal fül: Idle-ben (nincs naplózás) a Sebesség és az Átlagsebesség 0, akkor is ha mozogsz. Indítás után az élő GPS-sebesség és a session átlaga. A térkép HUD nem változott.
 - Súgó: **OSM térkép opciók** harmonika (ugyanolyan, mint a Turistautak opciók) Épületek, POI, Tömegközlekedés, Kerékpárutak kiemelése, Parkok, Domborzat. Nem említi a Turistautakot.
 - Turistautak **Ösvénykiemelés** ugyanazt a magentát használja, mint az OSM Kerékpárutak kiemelése (`#C4007A` / `#FF4FBF`). A kerékpárút- és ösvénykiemelés vékonyabb (halo 2,0 / mag 1,1), feltűnő, de nem vastag.

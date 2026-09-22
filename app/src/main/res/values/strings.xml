@@ -27,6 +27,11 @@
     <string name="gps_no_temp_sensor">No sensor</string>
     <string name="gps_status">Status</string>
     <string name="status_logging">Logging</string>
+    <string name="status_waiting_gps">Waiting for GPS</string>
+    <string name="status_gps_off">Turn on GPS</string>
+    <string name="status_poor_gps">GPS quality is too low</string>
+    <string name="location_fine_required">Precise location is required to start logging</string>
+    <string name="status_logging_error">Logging stopped</string>
     <string name="status_idle">Idle</string>
     <string name="route_elapsed">Elapsed</string>
     <string name="route_odometer">Odometer</string>
@@ -115,6 +120,7 @@
     <string name="tracks_share_kmz">KMZ</string>
     <string name="tracks_share_gpx">GPX</string>
     <string name="tracks_elevation">Elevation</string>
+    <string name="tracks_recording">Recording</string>
     <string name="tracks_delete_title">Delete this track?</string>
     <string name="tracks_delete_body">This removes the session and every GPS point from the phone. It cannot be undone.</string>
     <string name="elevation_empty">No elevation data</string>

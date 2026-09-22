@@ -78,7 +78,7 @@ flowchart TD
 
 | Forrás | Mit táplál |
 |---|---|
-| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, vagy `GPS_PROVIDER`, ha a **Csak GNSS** be van. Intervallum a beállításból, legalább 500 ms. A kérés `minDistance` értéke `0`; a sűrűséget később szűrjük. Ha a GPS-szolgáltató ki van kapcsolva, fused-et használ. Fused mellett a `GPS_PROVIDER` a magassághoz is figyel. A HUD/tárolt magasság `GpsAltitude.pick` ebben a sorrendben: GNSS MSL, fused MSL, GNSS ellipszoid, fused ellipszoid. −430…9000 m-en kívül eldobva; ha nincs maradék, a `Location`-ről levesszük a magasságot. Amíg az app nyitva van és nem logol, a `GtlViewModel` kb. másodpercenként figyel a GPS/Map HUD-hoz. Start után csak a foreground service ír SQLite-ot. |
+| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, vagy `GPS_PROVIDER`, ha a **Csak GNSS** be van. Intervallum a beállításból, legalább 500 ms. A kérés `minDistance` értéke `0`; a sűrűséget később szűrjük. Felvételnél `waitForAccurateLocation`, és 10 s-nél idősebb pont eldobva. Ha a **Csak GNSS** be van és a GPS ki, a flow üres (nincs fused tartalék). Precíz helymeghatározás kell. Fused mellett a `GPS_PROVIDER` a magassághoz is figyel. A HUD/tárolt magasság `GpsAltitude.pick` ebben a sorrendben: GNSS MSL, fused MSL, GNSS ellipszoid, fused ellipszoid. −430…20000 m-en kívül eldobva; ha nincs maradék, a `Location`-ről levesszük a magasságot, és nullként tároljuk. Amíg az app nyitva van és nem logol, a `GtlViewModel` kb. másodpercenként figyel a GPS/Map HUD-hoz. Start után a preview leáll, csak a foreground service ír SQLite-ot. |
 | `GnssStatusSource` | Műholdszám és SNR a GPS fülre; műholdankénti azimut/eleváció a `GnssSnapshot.satellites`-en a polar skyplothoz; `satellitesInFix` a letárolt soron. A konstelláció-mix és a skyplot csak memória. Lásd [Skyplot körök](#skyplot-körök-gps-fül). |
 | `AmbientTemperatureSource` | Opcionális; a sorra másolódik, ha van szenzor. |
 | `AccelerometerSource` | Opcionális; utolsó XYZ a soron. |
@@ -149,7 +149,7 @@ Nincs feltöltés. A Stop utáni `RemoteTrackSync` no-op.
 
 | Réteg | Feladat |
 |---|---|
-| GNSS chip vs fused | Fut/túra és kerékpár alapból `GPS_PROVIDER`, hogy egy utcai méretű kört ne lapítson el a fused Wi-Fi/cella. Járművek fused-en maradnak. |
+| GNSS chip vs fused | Fut/túra és kerékpár alapból `GPS_PROVIDER`, hogy egy utcai méretű kört ne lapítson el a fused Wi-Fi/cella. Járművek fused-en maradnak. Csak GNSS mellett GPS ki esetén nincs fused tartalék. |
 | Pontosság / műhold | Rossz fix nem megy Kalmanba és Roomba. |
 | Kalman (opcionális) | Mozgatja a letárolt szélességet/hosszúságot; járműveknél be, Fut/túránál és kerékpárnál ki. A HUD világos lila köre a nyers fixen marad. |
 | Pontfelhő | Csak memória: nyers pöttyök + CEP95 állva. Nem Room. Bekapcsoláskor a pontossági jelzés is bekapcsol. |

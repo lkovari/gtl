@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.hardware.GeomagneticField
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
@@ -102,10 +103,16 @@ fun MainTrackerScreen(
     val startLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
-        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        ) {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val locOk = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            fineGranted
+        if (locOk) {
             viewModel.startLogging()
+        } else if (grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            Toast.makeText(context, R.string.location_fine_required, Toast.LENGTH_LONG).show()
         }
     }
     LaunchedEffect(Unit) {
@@ -152,17 +159,28 @@ fun MainTrackerScreen(
                                     context,
                                     Manifest.permission.ACCESS_FINE_LOCATION
                                 ) == PackageManager.PERMISSION_GRANTED
-                                if (fine) {
+                                val notifyGranted = Build.VERSION.SDK_INT < 33 ||
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                if (fine && notifyGranted) {
                                     viewModel.startLogging()
                                 } else {
                                     val needed = buildList {
-                                        add(Manifest.permission.ACCESS_FINE_LOCATION)
-                                        add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                                        if (Build.VERSION.SDK_INT >= 33) {
+                                        if (!fine) {
+                                            add(Manifest.permission.ACCESS_FINE_LOCATION)
+                                            add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                                        }
+                                        if (Build.VERSION.SDK_INT >= 33 && !notifyGranted) {
                                             add(Manifest.permission.POST_NOTIFICATIONS)
                                         }
                                     }
-                                    startLauncher.launch(needed.toTypedArray())
+                                    if (needed.isEmpty()) {
+                                        viewModel.startLogging()
+                                    } else {
+                                        startLauncher.launch(needed.toTypedArray())
+                                    }
                                 }
                             }
                         },
@@ -329,7 +347,13 @@ private fun GpsPane(state: GtlUiState) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                 HudMetric(
                     stringResource(R.string.gps_accuracy),
-                    location?.let { String.format(Locale.US, "%.1f m", it.accuracy) } ?: "—",
+                    location?.let { loc ->
+                        if (loc.hasAccuracy() && loc.accuracy > 0f) {
+                            String.format(Locale.US, "%.1f m", loc.accuracy)
+                        } else {
+                            "—"
+                        }
+                    } ?: "—",
                     Modifier.weight(1f),
                     compact = true
                 )
@@ -431,7 +455,10 @@ private fun RoutePane(state: GtlUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             HudMetric(
                 stringResource(R.string.route_speed),
-                RouteTabSpeeds.instantMps(state.live.logging, location?.speed)
+                RouteTabSpeeds.instantMps(
+                    state.live.logging,
+                    location?.takeIf { it.hasSpeed() }?.speed
+                )
                     ?.let { Units.formatSpeed(it, units) } ?: "—",
                 Modifier.weight(1f)
             )
@@ -465,15 +492,26 @@ private fun RoutePane(state: GtlUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             HudMetric(
                 stringResource(R.string.gps_status),
-                if (state.live.logging) stringResource(R.string.status_logging) else stringResource(R.string.status_idle),
+                when {
+                    state.live.loggingError -> stringResource(R.string.status_logging_error)
+                    state.live.gpsOff -> stringResource(R.string.status_gps_off)
+                    state.live.poorGps -> stringResource(R.string.status_poor_gps)
+                    state.live.logging && state.live.acceptedFixCount == 0 ->
+                        stringResource(R.string.status_waiting_gps)
+                    state.live.logging -> stringResource(R.string.status_logging)
+                    else -> stringResource(R.string.status_idle)
+                },
                 Modifier.weight(1f)
             )
             HudMetric(
                 stringResource(R.string.gps_temperature),
-                if (state.live.temperatureAvailable) {
-                    Units.formatTemperature(state.live.temperatureCelsius ?: 0f, units)
-                } else {
-                    Units.formatTemperature(0f, units)
+                run {
+                    val temp = state.live.temperatureCelsius
+                    if (state.live.temperatureAvailable && temp != null) {
+                        Units.formatTemperature(temp, units)
+                    } else {
+                        "—"
+                    }
                 },
                 Modifier.weight(1f)
             )

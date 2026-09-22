@@ -3,13 +3,13 @@ package com.lkovari.mobile.apps.gtl.engine
 data class ElevationPoint(
     val latitude: Double,
     val longitude: Double,
-    val gpsAltitude: Double,
+    val gpsAltitude: Double?,
     val baroAltitude: Double?
 )
 
 data class ElevationSample(
     val distanceMeters: Double,
-    val gpsAltitude: Double,
+    val gpsAltitude: Double?,
     val baroAltitude: Double?
 )
 
@@ -74,14 +74,17 @@ object ElevationSeries {
         samples: List<ElevationSample>,
         minSpanMeters: Double = MinPlotSpanMeters
     ): ElevationPlotScale {
-        val minGps = samples.minOf { it.gpsAltitude }
-        val maxGps = samples.maxOf { it.gpsAltitude }
+        val minGps = samples.mapNotNull { it.gpsAltitude }.minOrNull()
+        val maxGps = samples.mapNotNull { it.gpsAltitude }.maxOrNull()
         var minAlt = minGps
         var maxAlt = maxGps
         if (hasBaroLine(samples)) {
             val baros = samples.mapNotNull { it.baroAltitude }
-            minAlt = minOf(minAlt, baros.min())
-            maxAlt = maxOf(maxAlt, baros.max())
+            minAlt = if (minAlt == null) baros.min() else minOf(minAlt, baros.min())
+            maxAlt = if (maxAlt == null) baros.max() else maxOf(maxAlt, baros.max())
+        }
+        if (minAlt == null || maxAlt == null) {
+            return ElevationPlotScale(plotMin = 0.0, plotMax = minSpanMeters)
         }
         val raw = (maxAlt - minAlt).coerceAtLeast(1.0)
         val span = raw.coerceAtLeast(minSpanMeters)

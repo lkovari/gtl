@@ -8,6 +8,8 @@ object BaroAltitude {
     const val MaxOffsetHpa = 10f
     const val MaxGpsDeltaMeters = 1500.0
     const val MaxAltitudeJitterMeters = 15.0
+    const val MinPlausiblePressureHpa = 300f
+    const val MaxPlausiblePressureHpa = 1100f
     private const val IsaScale = 44330.0
     private const val IsaExponent = 5.255
 
@@ -16,7 +18,14 @@ object BaroAltitude {
     }
 
     fun clampOffset(hpa: Float): Float {
+        if (!hpa.isFinite()) {
+            return 0f
+        }
         return hpa.coerceIn(MinOffsetHpa, MaxOffsetHpa)
+    }
+
+    fun isPlausiblePressureHpa(hpa: Float): Boolean {
+        return hpa.isFinite() && hpa >= MinPlausiblePressureHpa && hpa <= MaxPlausiblePressureHpa
     }
 
     fun expectedStationHpa(gpsMeters: Double, qnhHpa: Float): Float? {
@@ -32,6 +41,9 @@ object BaroAltitude {
     }
 
     fun offsetHpa(pressureHpa: Float, gpsMeters: Double, qnhHpa: Float): Float {
+        if (!isPlausiblePressureHpa(pressureHpa)) {
+            return 0f
+        }
         val expected = expectedStationHpa(gpsMeters, qnhHpa) ?: return 0f
         return clampOffset(pressureHpa - expected)
     }
@@ -46,7 +58,9 @@ object BaroAltitude {
         if (!enabled || alreadyCalibratedThisSession) {
             return false
         }
-        if (pressureHpa == null || gpsAltitudeMeters == null || previousGpsAltitudeMeters == null) {
+        if (pressureHpa == null || !isPlausiblePressureHpa(pressureHpa) ||
+            gpsAltitudeMeters == null || previousGpsAltitudeMeters == null
+        ) {
             return false
         }
         if (!GpsAltitude.isPlausible(gpsAltitudeMeters)) {

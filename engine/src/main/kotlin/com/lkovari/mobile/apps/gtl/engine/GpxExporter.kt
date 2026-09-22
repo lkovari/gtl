@@ -46,7 +46,10 @@ object GpxExporter {
     private fun appendWaypoint(builder: StringBuilder, waypoint: GpxWaypoint) {
         val point = waypoint.point
         builder.appendLine("""<wpt lat="${point.latitude}" lon="${point.longitude}">""")
-        builder.appendLine("<ele>${point.altitude}</ele>")
+        val waypointEle = point.altitude
+        if (waypointEle != null) {
+            builder.appendLine("<ele>$waypointEle</ele>")
+        }
         builder.appendLine("<time>${utcWhen(waypoint.timestampMillis)}</time>")
         builder.appendLine("<name>${escape(waypoint.name)}</name>")
         builder.appendLine("</wpt>")
@@ -55,7 +58,10 @@ object GpxExporter {
     private fun appendTrackPoint(builder: StringBuilder, vertex: GpxTrackPoint) {
         val point = vertex.point
         builder.appendLine("""<trkpt lat="${point.latitude}" lon="${point.longitude}">""")
-        builder.appendLine("<ele>${point.altitude}</ele>")
+        val trackEle = point.altitude
+        if (trackEle != null) {
+            builder.appendLine("<ele>$trackEle</ele>")
+        }
         builder.appendLine("<time>${utcWhen(vertex.timestampMillis)}</time>")
         builder.appendLine("</trkpt>")
     }

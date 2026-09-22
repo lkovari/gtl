@@ -1,6 +1,6 @@
 # SQLite database structure
 
-File: `gtl.db` (Room, schema version **4**).  
+File: `gtl.db` (Room, schema version **6**).  
 Package: `com.lkovari.mobile.apps.gtl.data.db`.
 
 Two tables. A session is one logging run. Each stored GPS fix is one row in `gps_events`. Deleting a session **cascade-deletes** its points. Map, Route, and KMZ all read `gps_events` — the red polyline is this table.
@@ -23,8 +23,8 @@ erDiagram
         INTEGER timestamp "epoch ms"
         REAL latitude
         REAL longitude
-        REAL altitude "GPS m, GpsAltitude.pick on Location"
-        REAL speed "m/s"
+        REAL altitude "GPS m nullable, GpsAltitude.pick on Location"
+        REAL speed "m/s, null when the fix has no speed"
         REAL bearing "degrees"
         REAL accuracy "GPS accuracy m"
         INTEGER satellitesInFix
@@ -63,8 +63,8 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `sessionId` | Parent session |
 | `timestamp` | Fix time |
 | `latitude` / `longitude` | WGS84. Source is `GPS_PROVIDER` when **Use GNSS only** is on, otherwise fused HIGH_ACCURACY. If **Smooth recorded track** is on, these are the Kalman output, not the raw HUD fix. |
-| `altitude` | metres from the same `Location` after `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid; drop outside −430…9000 m). Missing if none remain. |
-| `speed` | metres per second (Kalman velocity when smoothing is on and speed ≥ 0.3 m/s) |
+| `altitude` | metres from the same `Location` after `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid; drop outside −430…20000 m). **null** if Android reports no altitude or none remain plausible. Existing `0.0` rows stay `0.0` after the 4→5 migration. |
+| `speed` | metres per second when the fix reports speed (Kalman velocity when smoothing is on and speed ≥ 0.3 m/s). **null** when Android has no speed for that fix. Existing rows stay as stored through the 5→6 migration. Waiting time ignores null speed. |
 | `bearing` | heading degrees (same Kalman rule as speed) |
 | `accuracy` | horizontal accuracy metres (raw GPS, even when Kalman moved lat/lon) |
 | `satellitesInFix` | GNSS snapshot at insert |

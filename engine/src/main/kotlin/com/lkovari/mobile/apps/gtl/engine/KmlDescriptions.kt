@@ -13,9 +13,9 @@ object KmlDescriptions {
         timestampMillis: Long,
         latitude: Double,
         longitude: Double,
-        altitude: Double,
+        altitude: Double?,
         baroAltitude: Double? = null,
-        speedMps: Float,
+        speedMps: Float?,
         tempCelsius: Float?,
         maxSpeedMps: Float? = null,
         averageSpeedMps: Float? = null,
@@ -33,17 +33,23 @@ object KmlDescriptions {
         } else {
             Units.formatAltitude(baroAltitude, system)
         }
+        val altitudeText = if (altitude == null) {
+            "-"
+        } else {
+            Units.formatAltitude(altitude, system)
+        }
         val lines = mutableListOf(
             formatTime(timestampMillis),
             "temp=$temp",
             "lon=${formatCoord(longitude)}",
             "lat=${formatCoord(latitude)}",
-            "Altitude: ${Units.formatAltitude(altitude, system)}",
+            "Altitude: $altitudeText",
             "Baro: $baro"
         )
         when (kind) {
             EventKind.PAUSE -> {
-                lines.add("Speed: ${Units.formatSpeed(speedMps, system)}")
+                val speedText = if (speedMps == null) "-" else Units.formatSpeed(speedMps, system)
+                lines.add("Speed: $speedText")
                 lines.add("duration=${Units.formatBalloonDuration(elapsedMillis)}")
                 lines.add("distance=${Units.formatDistance(odometerMeters, system)}")
             }

@@ -9,6 +9,11 @@ import kotlinx.coroutines.flow.asStateFlow
 data class LiveTrackingState(
     val logging: Boolean = false,
     val sessionId: Long? = null,
+    val acceptedFixCount: Int = 0,
+    val rejectedFixCount: Int = 0,
+    val poorGps: Boolean = false,
+    val loggingError: Boolean = false,
+    val gpsOff: Boolean = false,
     val lastLocation: Location? = null,
     val gnss: GnssSnapshot? = null,
     val temperatureCelsius: Float? = null,

@@ -780,6 +780,22 @@ fun OsmDownloadScreen(viewModel: GtlViewModel, onBack: () -> Unit) {
 }
 
 @Composable
+private fun osmRegionDetail(
+    regionId: String,
+    downloaded: Boolean,
+    download: com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
+): String {
+    if (downloaded) {
+        return stringResource(R.string.osm_downloaded)
+    }
+    if (download.running && download.totalBytes > 0L) {
+        val mb = (download.totalBytes + (1024L * 1024L) - 1L) / (1024L * 1024L)
+        return "$regionId · $mb MB"
+    }
+    return regionId
+}
+
+@Composable
 private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
     val download by viewModel.observeDownload(region.id).collectAsState(
         initial = com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState(region.id, false, 0, false)
@@ -802,7 +818,7 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(region.label, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    if (downloaded) stringResource(R.string.osm_downloaded) else region.id,
+                    osmRegionDetail(region.id, downloaded, download),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -920,6 +936,7 @@ fun TracksScreen(
             }
             items(state.sessions) { session ->
                 val checked = session.id in visibleSelected
+                val recording = state.live.logging && session.id == state.live.sessionId
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -944,8 +961,17 @@ fun TracksScreen(
                                 }
                         ) {
                             Text(format.format(Date(session.startedAt)), style = MaterialTheme.typography.titleLarge)
+                            val recordingLabel = stringResource(R.string.tracks_recording)
                             Text(
-                                "${session.usageType} · ${session.measurementSystem}",
+                                buildString {
+                                    append(session.usageType)
+                                    append(" · ")
+                                    append(session.measurementSystem)
+                                    if (recording) {
+                                        append(" · ")
+                                        append(recordingLabel)
+                                    }
+                                },
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -963,7 +989,10 @@ fun TracksScreen(
                         Button(onClick = { viewModel.toggleSavedElevation(session.id) }) {
                             Text(stringResource(R.string.tracks_elevation))
                         }
-                        Button(onClick = { pendingDeleteId = session.id }) {
+                        Button(
+                            onClick = { pendingDeleteId = session.id },
+                            enabled = !recording
+                        ) {
                             Text(stringResource(R.string.action_delete))
                         }
                     }

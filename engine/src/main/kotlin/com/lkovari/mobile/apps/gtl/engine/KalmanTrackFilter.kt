@@ -13,6 +13,12 @@ class KalmanTrackFilter {
     private var lastOutput: TrackFix? = null
 
     fun seedFrom(fix: TrackFix) {
+        if (!fix.latitude.isFinite() || !fix.longitude.isFinite()) {
+            return
+        }
+        if (kotlin.math.abs(fix.latitude) > 90.0 || kotlin.math.abs(fix.longitude) > 180.0) {
+            return
+        }
         originLat = fix.latitude
         originLon = fix.longitude
         initializeAt(fix)

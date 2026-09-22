@@ -8,6 +8,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationCompat
 import com.google.android.gms.location.LocationCallback
@@ -30,35 +31,42 @@ class LocationClient(context: Context) {
     fun locations(
         minTimeMillis: Long,
         minDistanceMeters: Float,
-        gnssOnly: Boolean = false
+        gnssOnly: Boolean = false,
+        recording: Boolean = false
     ): Flow<Location> {
-        val granted = ContextCompat.checkSelfPermission(
+        val fineGranted = ContextCompat.checkSelfPermission(
             appContext,
             Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(
-                appContext,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) {
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!fineGranted) {
             return emptyFlow()
         }
-        if (gnssOnly && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            return gpsProviderLocations(minTimeMillis, minDistanceMeters).map { location ->
+        if (gnssOnly) {
+            if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                return emptyFlow()
+            }
+            return gpsProviderLocations(minTimeMillis, minDistanceMeters, recording).map { location ->
                 withTrustedAltitude(location, location)
             }
         }
-        return fusedLocations(minTimeMillis, minDistanceMeters)
+        return fusedLocations(minTimeMillis, minDistanceMeters, recording)
+    }
+
+    fun isGpsProviderEnabled(): Boolean {
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
     }
 
     private fun gpsProviderLocations(
         minTimeMillis: Long,
-        minDistanceMeters: Float
+        minDistanceMeters: Float,
+        recording: Boolean
     ): Flow<Location> {
         return callbackFlow {
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
-                    trySend(location)
+                    if (isFreshEnough(location, recording)) {
+                        trySend(location)
+                    }
                 }
 
                 @Deprecated("Deprecated in Java")
@@ -93,7 +101,8 @@ class LocationClient(context: Context) {
 
     private fun fusedLocations(
         minTimeMillis: Long,
-        minDistanceMeters: Float
+        minDistanceMeters: Float,
+        recording: Boolean
     ): Flow<Location> {
         return callbackFlow {
             var lastGnss: Location? = null
@@ -129,12 +138,14 @@ class LocationClient(context: Context) {
                 minTimeMillis.coerceAtLeast(500L)
             )
                 .setMinUpdateDistanceMeters(minDistanceMeters)
-                .setWaitForAccurateLocation(false)
+                .setWaitForAccurateLocation(recording)
                 .build()
             val callback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
                     result.locations.forEach { location ->
-                        trySend(withTrustedAltitude(location, lastGnss))
+                        if (isFreshEnough(location, recording)) {
+                            trySend(withTrustedAltitude(location, lastGnss))
+                        }
                     }
                 }
             }
@@ -153,6 +164,22 @@ class LocationClient(context: Context) {
                 } catch (_: SecurityException) {
                 }
             }
+        }
+    }
+
+    companion object {
+        private const val MaxRecordingAgeNanos = 10_000_000_000L
+
+        internal fun isFreshEnough(location: Location, recording: Boolean): Boolean {
+            if (!recording) {
+                return true
+            }
+            val elapsed = location.elapsedRealtimeNanos
+            if (elapsed <= 0L) {
+                return false
+            }
+            val age = SystemClock.elapsedRealtimeNanos() - elapsed
+            return age in 0L..MaxRecordingAgeNanos
         }
     }
 }

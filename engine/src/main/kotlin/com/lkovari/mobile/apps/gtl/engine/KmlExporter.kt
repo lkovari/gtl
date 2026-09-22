@@ -11,7 +11,7 @@ data class KmlPlacemark(
 data class KmlVertex(
     val point: GeoPoint,
     val timestampMillis: Long,
-    val speedMps: Float,
+    val speedMps: Float?,
     val odometerMeters: Double = 0.0,
     val baroAltitude: Double? = null
 )
@@ -73,7 +73,12 @@ object KmlExporter {
                 builder.appendLine("<SchemaData schemaUrl=\"#trackPoint\">")
                 builder.appendLine("<gx:SimpleArrayData name=\"speed\">")
                 track.points.forEach { vertex ->
-                    builder.appendLine("<gx:value>${vertex.speedMps}</gx:value>")
+                    val speed = vertex.speedMps
+                    if (speed == null) {
+                        builder.appendLine("<gx:value>-</gx:value>")
+                    } else {
+                        builder.appendLine("<gx:value>$speed</gx:value>")
+                    }
                 }
                 builder.appendLine("</gx:SimpleArrayData>")
                 builder.appendLine("<gx:SimpleArrayData name=\"odometer\">")
@@ -83,7 +88,12 @@ object KmlExporter {
                 builder.appendLine("</gx:SimpleArrayData>")
                 builder.appendLine("<gx:SimpleArrayData name=\"alt\">")
                 track.points.forEach { vertex ->
-                    builder.appendLine("<gx:value>${vertex.point.altitude}</gx:value>")
+                    val alt = vertex.point.altitude
+                    if (alt == null) {
+                        builder.appendLine("<gx:value>-</gx:value>")
+                    } else {
+                        builder.appendLine("<gx:value>$alt</gx:value>")
+                    }
                 }
                 builder.appendLine("</gx:SimpleArrayData>")
                 builder.appendLine("<gx:SimpleArrayData name=\"baro\">")

@@ -78,7 +78,7 @@ flowchart TD
 
 | Source | What it feeds |
 |---|---|
-| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, or `GPS_PROVIDER` when **Use GNSS only** is on. Interval from settings, at least 500 ms. Min distance on the request is `0`; spacing is applied later. If the GPS provider is disabled, fused is used. Fused still listens to `GPS_PROVIDER` for altitude. HUD/store altitude is `GpsAltitude.pick` in this order: GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid. Values outside −430…9000 m are dropped; if none remain, altitude is removed from the `Location`. While the app is open and not logging, `GtlViewModel` also listens about once a second for the GPS/Map HUD. After Start, only the foreground service writes SQLite. |
+| `LocationClient` | Fused `PRIORITY_HIGH_ACCURACY`, or `GPS_PROVIDER` when **Use GNSS only** is on. Interval from settings, at least 500 ms. Min distance on the request is `0`; spacing is applied later. Recording waits for an accurate location and drops fixes older than 10 s. If **Use GNSS only** is on and GPS is off, the flow is empty (no fused fallback). Fine location is required. Fused still listens to `GPS_PROVIDER` for altitude. HUD/store altitude is `GpsAltitude.pick` in this order: GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid. Values outside −430…20000 m are dropped; if none remain, altitude is removed from the `Location` and stored as null. While the app is open and not logging, `GtlViewModel` also listens about once a second for the GPS/Map HUD. After Start, preview stops and only the foreground service writes SQLite. |
 | `GnssStatusSource` | Satellite counts and SNR for the GPS tab; per-satellite azimuth/elevation on `GnssSnapshot.satellites` for the polar skyplot; `satellitesInFix` on each stored row. The constellation mix and skyplot are memory-only. See [Skyplot circles](#skyplot-circles-gps-tab). |
 | `AmbientTemperatureSource` | Optional; copied onto the row if the sensor exists. |
 | `AccelerometerSource` | Optional; last XYZ on the row. |
@@ -149,7 +149,7 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
 | Layer | Job |
 |---|---|
-| GNSS chip vs fused | Run/Hike and bicycle default uses `GPS_PROVIDER` so a street-scale loop is not flattened by fused Wi-Fi/cell. Vehicles stay fused. |
+| GNSS chip vs fused | Run/Hike and bicycle default uses `GPS_PROVIDER` so a street-scale loop is not flattened by fused Wi-Fi/cell. Vehicles stay fused. GNSS-only does not fall back to fused when GPS is off. |
 | Accuracy / sats | Poor fixes never enter Kalman or Room. |
 | Kalman (optional) | Moves stored lat/lon; vehicles on, Run/Hike and bicycle off. HUD pale purple circle stays on the raw fix. |
 | Fix cloud | Memory-only raw dots + CEP95 while standing. Not Room. Turning it on enables the accuracy marker. |

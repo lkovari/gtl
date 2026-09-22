@@ -56,8 +56,21 @@ fun ElevationProfile(
     } else {
         emptyList()
     }
+    val gpsAlts = samples.mapNotNull { sample ->
+        val gps = sample.gpsAltitude
+        if (gps == null) {
+            null
+        } else {
+            sample.distanceMeters to gps
+        }
+    }
     val maxDistance = samples.last().distanceMeters.coerceAtLeast(1.0)
-    val lastGps = Units.formatAltitude(samples.last().gpsAltitude, system)
+    val lastGpsValue = samples.lastOrNull { it.gpsAltitude != null }?.gpsAltitude
+    val lastGps = if (lastGpsValue == null) {
+        "—"
+    } else {
+        Units.formatAltitude(lastGpsValue, system)
+    }
     val lastBaro = samples.lastOrNull { it.baroAltitude != null }?.baroAltitude?.let { baro ->
         Units.formatAltitude(baro, system)
     }
@@ -71,9 +84,9 @@ fun ElevationProfile(
             ) {
                 val gpsPath = Path()
                 val fillPath = Path()
-                samples.forEachIndexed { index, sample ->
-                    val x = (sample.distanceMeters / maxDistance).toFloat() * size.width
-                    val y = size.height - scale.yFraction(sample.gpsAltitude).toFloat() * size.height
+                gpsAlts.forEachIndexed { index, pair ->
+                    val x = (pair.first / maxDistance).toFloat() * size.width
+                    val y = size.height - scale.yFraction(pair.second).toFloat() * size.height
                     if (index == 0) {
                         gpsPath.moveTo(x, y)
                         fillPath.moveTo(x, size.height)
@@ -83,14 +96,16 @@ fun ElevationProfile(
                         fillPath.lineTo(x, y)
                     }
                 }
-                fillPath.lineTo(size.width, size.height)
-                fillPath.close()
-                drawPath(fillPath, HudTeal.copy(alpha = 0.22f), style = Fill)
-                drawPath(
-                    gpsPath,
-                    CarmineTrack,
-                    style = Stroke(width = 4f, cap = StrokeCap.Round)
-                )
+                if (gpsAlts.isNotEmpty()) {
+                    fillPath.lineTo(size.width, size.height)
+                    fillPath.close()
+                    drawPath(fillPath, HudTeal.copy(alpha = 0.22f), style = Fill)
+                    drawPath(
+                        gpsPath,
+                        CarmineTrack,
+                        style = Stroke(width = 4f, cap = StrokeCap.Round)
+                    )
+                }
                 if (baroSamples.size >= 2) {
                     val baroPath = Path()
                     baroSamples.forEachIndexed { index, pair ->

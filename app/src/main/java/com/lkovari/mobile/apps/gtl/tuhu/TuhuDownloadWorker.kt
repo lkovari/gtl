@@ -57,46 +57,76 @@ class TuhuDownloadWorker(
     }
 
     private suspend fun download(url: String, target: File) {
-        val opened = URL(url).openConnection()
-        if (opened !is HttpURLConnection) {
-            error("expected http connection")
-        }
-        val connection = opened
-        connection.setRequestProperty("User-Agent", USER_AGENT)
-        connection.connectTimeout = 60_000
-        connection.readTimeout = 120_000
-        connection.instanceFollowRedirects = true
-        connection.connect()
-        if (connection.responseCode !in 200..299) {
-            connection.disconnect()
-            error("HTTP ${connection.responseCode}")
-        }
-        val total = connection.contentLengthLong
-        connection.inputStream.use { input ->
-            target.outputStream().use { output ->
-                val buffer = ByteArray(64 * 1024)
-                var copied = 0L
-                var read = input.read(buffer)
-                while (read >= 0) {
-                    output.write(buffer, 0, read)
-                    copied += read
-                    val progress = if (total > 0) {
-                        ((copied * 100L) / total).toInt().coerceIn(0, 100)
-                    } else {
-                        0
-                    }
-                    setProgress(
-                        workDataOf(
-                            OsmDownloadWorker.KEY_PROGRESS to progress,
-                            OsmDownloadWorker.KEY_BYTES to copied,
-                            OsmDownloadWorker.KEY_TOTAL to total
-                        )
-                    )
-                    read = input.read(buffer)
-                }
+        var current = URL(url)
+        var hops = 0
+        while (hops <= TuhuDownloadPolicy.MaxRedirects) {
+            if (!TuhuDownloadPolicy.isAllowedUrl(current)) {
+                error("blocked url")
             }
+            val opened = current.openConnection()
+            if (opened !is HttpURLConnection) {
+                error("expected http connection")
+            }
+            val connection = opened
+            connection.setRequestProperty("User-Agent", USER_AGENT)
+            connection.connectTimeout = 60_000
+            connection.readTimeout = 120_000
+            connection.instanceFollowRedirects = false
+            connection.connect()
+            val code = connection.responseCode
+            if (code in 300..399) {
+                val location = connection.getHeaderField("Location")
+                connection.disconnect()
+                if (location.isNullOrBlank()) {
+                    error("redirect without location")
+                }
+                current = URL(current, location)
+                hops += 1
+                continue
+            }
+            if (code !in 200..299) {
+                connection.disconnect()
+                error("HTTP $code")
+            }
+            val total = connection.contentLengthLong
+            if (total > TuhuDownloadPolicy.MaxDownloadBytes) {
+                connection.disconnect()
+                error("download too large")
+            }
+            try {
+                connection.inputStream.use { input ->
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var copied = 0L
+                        var read = input.read(buffer)
+                        while (read >= 0) {
+                            copied += read
+                            if (copied > TuhuDownloadPolicy.MaxDownloadBytes) {
+                                error("download too large")
+                            }
+                            output.write(buffer, 0, read)
+                            val progress = if (total > 0) {
+                                ((copied * 100L) / total).toInt().coerceIn(0, 100)
+                            } else {
+                                0
+                            }
+                            setProgress(
+                                workDataOf(
+                                    OsmDownloadWorker.KEY_PROGRESS to progress,
+                                    OsmDownloadWorker.KEY_BYTES to copied,
+                                    OsmDownloadWorker.KEY_TOTAL to total
+                                )
+                            )
+                            read = input.read(buffer)
+                        }
+                    }
+                }
+            } finally {
+                connection.disconnect()
+            }
+            return
         }
-        connection.disconnect()
+        error("too many redirects")
     }
 
     companion object {

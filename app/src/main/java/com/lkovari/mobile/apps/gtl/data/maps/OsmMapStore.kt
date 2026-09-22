@@ -21,7 +21,8 @@ data class OsmDownloadState(
     val regionId: String?,
     val running: Boolean,
     val progress: Int,
-    val failed: Boolean
+    val failed: Boolean,
+    val totalBytes: Long = 0L
 )
 
 class OsmMapStore(private val context: Context) {
@@ -90,11 +91,13 @@ class OsmMapStore(private val context: Context) {
         return workManager.getWorkInfosForUniqueWorkFlow(workName(regionId)).map { infos ->
             val info = infos.firstOrNull()
             val progress = info?.progress?.getInt(OsmDownloadWorker.KEY_PROGRESS, 0) ?: 0
+            val totalBytes = info?.progress?.getLong(OsmDownloadWorker.KEY_TOTAL, 0L) ?: 0L
             OsmDownloadState(
                 regionId = regionId,
                 running = info?.state == WorkInfo.State.RUNNING || info?.state == WorkInfo.State.ENQUEUED,
                 progress = progress,
-                failed = info?.state == WorkInfo.State.FAILED
+                failed = info?.state == WorkInfo.State.FAILED,
+                totalBytes = totalBytes
             )
         }
     }

@@ -27,10 +27,13 @@ class OsmDownloadWorker(
                 temp.delete()
                 return Result.failure()
             }
-            if (target.exists()) {
-                target.delete()
+            if (!temp.renameTo(target)) {
+                temp.copyTo(target, overwrite = true)
+                temp.delete()
             }
-            temp.renameTo(target)
+            if (!OsmMapFile.isReadable(target)) {
+                return Result.failure()
+            }
             (applicationContext as? GtlApplication)?.osmMapStore?.notifyMapsChanged()
             Result.success(workDataOf(KEY_FILE to target.absolutePath))
         } catch (_: Exception) {
@@ -51,25 +54,44 @@ class OsmDownloadWorker(
             error("HTTP ${connection.responseCode}")
         }
         val total = connection.contentLengthLong
-        connection.inputStream.use { input ->
-            target.outputStream().use { output ->
-                val buffer = ByteArray(64 * 1024)
-                var copied = 0L
-                var read = input.read(buffer)
-                while (read >= 0) {
-                    output.write(buffer, 0, read)
-                    copied += read
-                    val progress = if (total > 0) {
-                        ((copied * 100L) / total).toInt().coerceIn(0, 100)
-                    } else {
-                        0
+        val usable = target.parentFile?.usableSpace ?: 0L
+        if (!OsmDownloadBudget.canStart(total, usable)) {
+            connection.disconnect()
+            error("download too large")
+        }
+        try {
+            connection.inputStream.use { input ->
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var copied = 0L
+                    var lastSpaceCheck = 0L
+                    var read = input.read(buffer)
+                    while (read >= 0) {
+                        output.write(buffer, 0, read)
+                        copied += read
+                        if (!OsmDownloadBudget.copiedAllowed(copied)) {
+                            error("download too large")
+                        }
+                        if (OsmDownloadBudget.shouldRecheckSpace(copied, lastSpaceCheck)) {
+                            lastSpaceCheck = copied
+                            val space = target.parentFile?.usableSpace ?: 0L
+                            if (!OsmDownloadBudget.spaceAllowsMore(space)) {
+                                error("not enough space")
+                            }
+                        }
+                        val progress = if (total > 0) {
+                            ((copied * 100L) / total).toInt().coerceIn(0, 100)
+                        } else {
+                            0
+                        }
+                        setProgress(workDataOf(KEY_PROGRESS to progress, KEY_BYTES to copied, KEY_TOTAL to total))
+                        read = input.read(buffer)
                     }
-                    setProgress(workDataOf(KEY_PROGRESS to progress, KEY_BYTES to copied, KEY_TOTAL to total))
-                    read = input.read(buffer)
                 }
             }
+        } finally {
+            connection.disconnect()
         }
-        connection.disconnect()
     }
 
     companion object {

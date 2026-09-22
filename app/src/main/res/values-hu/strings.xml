@@ -27,6 +27,11 @@
     <string name="gps_no_temp_sensor">Nincs szenzor</string>
     <string name="gps_status">Állapot</string>
     <string name="status_logging">Naplózás</string>
+    <string name="status_waiting_gps">Várakozás a GPS-re</string>
+    <string name="status_gps_off">Kapcsold be a GPS-t</string>
+    <string name="status_poor_gps">Nincs elég jó GPS</string>
+    <string name="location_fine_required">A naplózáshoz precíz helymeghatározás kell</string>
+    <string name="status_logging_error">Naplózás leállt</string>
     <string name="status_idle">Várakozik</string>
     <string name="route_elapsed">Eltelt idő</string>
     <string name="route_odometer">Út</string>
@@ -115,6 +120,7 @@
     <string name="tracks_share_kmz">KMZ</string>
     <string name="tracks_share_gpx">GPX</string>
     <string name="tracks_elevation">Magasság</string>
+    <string name="tracks_recording">Felvétel alatt</string>
     <string name="tracks_delete_title">Törlöd ezt a tracket?</string>
     <string name="tracks_delete_body">A munkamenet és minden GPS-pont lekerül a telefonról. Ez nem vonható vissza.</string>
     <string name="elevation_empty">Nincs magasságadat</string>

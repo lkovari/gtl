@@ -36,6 +36,15 @@ object FixAcceptance {
         densityMix: Float,
         usage: UsageType? = null
     ): Boolean {
+        if (!current.latitude.isFinite() || !current.longitude.isFinite()) {
+            return false
+        }
+        if (kotlin.math.abs(current.latitude) > 90.0 || kotlin.math.abs(current.longitude) > 180.0) {
+            return false
+        }
+        if (previous != null && current.timestampMillis <= previous.timestampMillis) {
+            return false
+        }
         if (current.accuracyMeters > filter.minAccuracyMeters) {
             return false
         }
@@ -76,6 +85,10 @@ object FixAcceptance {
         return false
     }
 
+    fun hasUsableAccuracy(hasAccuracy: Boolean, accuracyMeters: Float): Boolean {
+        return hasAccuracy && accuracyMeters.isFinite() && accuracyMeters > 0f
+    }
+
     fun everyFixMinDistanceMeters(usage: UsageType?): Double {
         return if (usage != null && usage.isPedestrianMode()) {
             PedestrianEveryFixMinDistanceMeters
@@ -88,10 +101,12 @@ object FixAcceptance {
         val earthRadius = 6_371_000.0
         val dLat = Math.toRadians(lat2 - lat1)
         val dLng = Math.toRadians(lng2 - lng1)
-        val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
-            kotlin.math.cos(Math.toRadians(lat1)) *
-            kotlin.math.cos(Math.toRadians(lat2)) *
-            kotlin.math.sin(dLng / 2) * kotlin.math.sin(dLng / 2)
+        val a = (
+            kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+                kotlin.math.cos(Math.toRadians(lat1)) *
+                kotlin.math.cos(Math.toRadians(lat2)) *
+                kotlin.math.sin(dLng / 2) * kotlin.math.sin(dLng / 2)
+            ).coerceIn(0.0, 1.0)
         val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
         return earthRadius * c
     }

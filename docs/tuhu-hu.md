@@ -12,13 +12,13 @@ A Mapsforge **motor** ugyanaz, mint az OSM-nél (`MapFile` / `TileRendererLayer`
 
 A kapu `TuhuFeature.enabled` (`app/.../tuhu/TuhuFeature.kt`). Alapból `true`. Kikapcsolás egy release-hez: `false`, majd rebuild. Nincs `local.properties` kulcs.
 
-Globális `usesCleartextTraffic` nincs. HTTP letöltéshez domain-kivétel: `res/xml/network_security_config.xml` csak `turistautak.elte.hu`.
+Globális `usesCleartextTraffic` nincs. A letöltés csak HTTPS: `cleartextTrafficPermitted="false"`, HTTP tartalék nincs.
 
 ---
 
 ## Letöltés
 
-URL: `http://turistautak.elte.hu/tuhu/tuhu_mapsforge.zip`  
+URL: `https://turistautak.elte.hu/tuhu/tuhu_mapsforge.zip`  
 User-Agent: `GPS Track Logger` (ugyanaz, mint az OSM worker).
 
 `TuhuDownloadWorker`: zip → `filesDir/maps/tuhu.zip.part` → kicsomagolás `cacheDir/tuhu-extract` → első olvasható Mapsforge `.map` → `filesDir/maps/tuhu.map`. Ha a zipben van render XML, `filesDir/tuhu/theme.xml`; különben az asset `mapsforge/tuhu.xml`.

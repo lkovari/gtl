@@ -9,6 +9,7 @@ keystore.properties
 google-services.json
 secrets.properties
 DONOTCOMMIT.md
+docs/android-dev-gtl-fix-hu.md
 
 *.log
 *.hprof
