@@ -1,185 +1,21 @@
 Release name (Play, not shown to users):
-next (after 2.0.10)
+2.0.13 (31)
 
 What's new — max 500 characters per language.
-Date: 2026-09-19
-
-<en-US>
-Baro auto-calibrates itself when you hit Start.
-
-• Auto-calibrate at start (Settings → Baro, on by default) sets the baro offset from GPS automatically — no more standing still and tapping Calibrate before every ride
-• Calibrate from GPS and Reset baro are still there for manual use, and take over if you turn the toggle off
-• Waits for two matching GPS fixes first, so a single stray reading can't throw the whole ride off
-</en-US>
-
-<hu-HU>
-A baro automatikusan kalibrálja magát Indításkor.
-
-• Az Automatikus kalibrálás induláskor (Beállítások → Baro, alapból bekapcsolva) GPS-ből állítja be a baro offsetet — nem kell többé megállni és Kalibrálást nyomni minden túra előtt
-• A Kalibrálás GPS-ből és a Baro visszaállítás továbbra is elérhető kézi használatra, és át is veszik a szerepet, ha kikapcsolod a kapcsolót
-• Két egyező GPS-fixre vár, mielőtt kalibrálna, hogy egyetlen téves mérés ne rontsa el az egész túrát
-</hu-HU>
-
-Date: 2026-09-20
-
-<en-US>
-OSM maps: delete a download, and pick what the map shows.
-
-• Use downloaded OSM map stays off until a region is downloaded; turn it off for Google Maps
-• Delete a downloaded OSM region; if it is in use or your phone’s country, Map switches to Google
-• Settings → OSM map (when Use downloaded OSM map is on): buildings, POI, transit, cycleways, parks, terrain
-</en-US>
-
-<hu-HU>
-OSM térkép: letöltés törlése, és hogy mi látszik a térképen.
-
-• Letöltött OSM térkép használata letöltésig ki van kapcsolva; kikapcsolva Google Térkép
-• Letöltött OSM régió törlése; ha ezt használod, vagy a telefon országa, a Térkép Google-re vált
-• Beállítások → OSM térkép (Letöltött OSM térkép használata mellett): épületek, POI, tömegközlekedés, kerékpárutak, parkok, domborzat
-</hu-HU>
-
-Date: 2026-09-20
-
-<en-US>
-Smaller OSM download buttons; GPS crosshair recenters the map.
-
-• Download OSM map: Use, Delete, and Download are smaller
-• Map: cyan GPS crosshair (top left, by the broom) jumps to the live fix without changing zoom
-• A live GPS fix sits on a cyan GNSS reticle around the usage silhouette
-</en-US>
-
-<hu-HU>
-Kisebb OSM-letöltés gombok; GPS-kereszt visszavisz a helyedre.
-
-• OSM térkép letöltése: a Használ, Törlés és Letöltés gombok kisebbek
-• Térkép: cián GPS-kereszt (bal fent, a seprő mellett) a zoom változtatása nélkül az élő fixre ugrik
-• Élő GPS-fix cián GNSS-retikuluson ül, a usage sziluett körül
-</hu-HU>
-
-Date: 2026-09-20
-
-<en-US>
-OSM layers on the Map tab, for any downloaded country.
-
-• Layers button on OSM (same spot as Google): buildings, POI, transit, cycleways, parks, terrain
-• POI is shops, restaurants, parking, and fuel — bus stops stay under Public transport
-• Terrain relief stays off unless HGT files sit next to the .map (official Mapsforge files have none)
-</en-US>
-
-<hu-HU>
-OSM-rétegek a Térkép fülön, bármely letöltött országhoz.
-
-• Réteg gomb OSM-en (ugyanott, ahol a Google): épületek, POI, tömegközlekedés, kerékpárutak, parkok, domborzat
-• A POI boltok, éttermek, parkolók, kutak — a buszmegálló a Tömegközlekedésnél marad
-• A Domborzat ki marad, kivéve ha HGT fájlok vannak a .map mellett (a hivatalos Mapsforge fájlokban nincs)
-</hu-HU>
-
-Date: 2026-09-20
-
-<en-US>
-OSM layer switches now actually change the map.
-
-• Buildings, POI, transit, cycleway highlight, and parks were parsed with an empty category set, so toggling them did nothing
-• Dedicated cycleways stayed blue; turning Highlight on now adds the magenta overlay
-• Same fix for every downloaded country map
-</en-US>
-
-<hu-HU>
-Az OSM-rétegkapcsolók most tényleg változtatják a térképet.
-
-• Épületek, POI, tömegközlekedés, kerékpárút-kiemelés és parkok üres kategóriahalmazzal parse-olódtak, a kapcsoló nem hatott
-• A külön kerékpárút kék maradt; a kiemelés most magenta overlay-t ad
-• Ugyanez minden letöltött ország térképén
-</hu-HU>
-
-Date: 2026-09-20
-
-<en-US>
-OSM options now say what they actually draw.
-
-• POI: shops, restaurants, parking, fuel from zoom 14 — not bus stops
-• Public transport: rail, tram, stations, and bus stops
-• Highlight cycleways: dedicated paths stay blue; magenta from zoom 12; on-road lanes are not in official Mapsforge files
-• Parks leave forests on the base map; Terrain relief needs HGT beside the .map
-</en-US>
-
-<hu-HU>
-Az OSM-opciók most azt írják, ami tényleg kirajzolódik.
-
-• POI: boltok, éttermek, parkolók, kutak 14-es zoomtól — nem buszmegálló
-• Tömegközlekedés: vasút, villamos, állomás és buszmegálló
-• Kerékpárutak kiemelése: a külön út kék marad; magenta 12-es zoomtól; úttesti sáv nincs a hivatalos Mapsforge fájlban
-• Parkoknál az erdő az alaptérképen marad; a Domborzathoz HGT kell a .map mellett
-</hu-HU>
-
-Date: 2026-09-20
-
-<en-US>
-Offline maps: one In Use at a time, Turistautak first.
-
-• Menu is now Download Offline map; Turistautak.hu sits at the top of the list
-• Downloaded maps show Can Use or In Use — only one OSM region or Turistautak can be In Use
-• Tapping In Use returns to Google Maps; Settings OSM / Turistautak cards follow whichever map is In Use
-</en-US>
-
-<hu-HU>
-Offline térkép: egyszerre egy Használatban, Turistautak felül.
-
-• A menü Offline térkép letöltése; a Turistautak.hu a lista tetején van
-• A letöltött térkép Használható vagy Használatban — egyszerre egy OSM-régió vagy a Turistautak lehet Használatban
-• A Használatban Google Térképre vált; a Beállítások OSM / Turistautak kártyája a Használatban lévő térképet követi
-</hu-HU>
-
-Date: 2026-09-21
-
-<en-US>
-Route Idle speeds, OSM Help, thinner magenta paths.
-
-• Route tab: Speed and Avg. speed show 0 while Idle; after Start they follow live GPS and the session average
-• Help: OSM map options accordion (buildings, POI, transit, cycleways, parks, terrain)
-• Emphasize paths uses the same magenta as Highlight cycleways; both highlights are thinner
-</en-US>
-
-<hu-HU>
-Útvonal Idle sebesség, OSM súgó, vékonyabb magenta ösvény.
-
-• Útvonal fül: Idle-ben a Sebesség és az Átlagsebesség 0; Indítás után az élő GPS és a session átlaga
-• Súgó: OSM térkép opciók (épületek, POI, tömegközlekedés, kerékpárutak, parkok, domborzat)
-• Az Ösvénykiemelés ugyanazt a magentát használja, mint a Kerékpárutak kiemelése; mindkettő vékonyabb
-</hu-HU>
-
 Date: 2026-09-22
 
 <en-US>
-Tap a point for a straight-line distance or its GPS coordinate.
+Tap for distance or GPS; search the offline map.
 
-• Google, OSM, and Turistautak: tap opens Distance and GPS coordinate. Drag and zoom stay
-• Distance is the live straight line on the HUD, also when you move away (D2.7km; mi or NM from Settings). Tap that row to remove it
-• GPS coordinate stacks Lat and Lon on a card. Copy puts latitude, longitude on the clipboard for a map search. Address stays off: these maps do not return a full address
+• Tap Google, OSM, or Turistautak: Distance (live HUD line, D2.7km) or GPS coordinate to copy
+• Search on OSM and Turistautak: 3+ characters, up to 5 nearby names
+• Yes jumps there and shows the line; No leaves the map
 </en-US>
 
 <hu-HU>
-Koppints egy pontra: légvonal a HUD-on, vagy a GPS-koordináta.
+Koppintás: légvonal vagy GPS; keresés a letöltött térképen.
 
-• Google, OSM és Turistautak: a koppintás Távolságot és GPS koordinátát nyit. A húzás és a zoom megmarad
-• A Távolság élő légvonal a HUD-on, távolodáskor is (T2.7km; mi vagy NM a Beállításokból). A sor megnyomása törli
-• A GPS koordináta Lat és Lon egymás alatt. A másolás szélesség, hosszúság formát tesz a vágólapra, térképkeresőhöz. A Cím ki marad: ezek a térképek nem adnak teljes címet
-</hu-HU>
-
-Date: 2026-09-22
-
-<en-US>
-Search a place on the offline map.
-
-• Magnifying glass on OSM and Turistautak. Type at least 3 characters
-• Up to 5 matches on this map, closest good name first: city, village, statue, house
-• Yes centers the map and shows the straight-line distance. No leaves it. My location follows you again
-</en-US>
-
-<hu-HU>
-Keresés a letöltött térképen.
-
-• Nagyító az OSM és a Turistautak térképen. Legalább 3 karakter
-• Legfeljebb 5 találat, a legjobb név közül a legközelebbi elöl: város, falu, szobor, ház
-• Az Igen odaugrik és légvonalat mutat. A Nem nem mozdít. A Saját hely újra követ
+• Google, OSM, Turistautak: Távolság (élő HUD, T2.7km) vagy GPS koordináta másoláshoz
+• Keresés OSM és Turistautak térképen: 3+ karakter, legfeljebb 5 közeli név
+• Az Igen odaugrik és légvonalat mutat; a Nem nem mozdít
 </hu-HU>
