@@ -1,5 +1,5 @@
 Release name (Play, not shown to users):
-2.0.13 (31)
+2.0.14 (32)
 
 What's new — max 500 characters per language.
 Date: 2026-09-23
@@ -10,22 +10,4 @@ After Stop, the finished route fits the map, and the broom clears it. Unexpected
 
 <hu-HU>
 Stop után a kész útvonal a térképre illeszkedik, és a seprűvel le lehet venni. A váratlan hibák kezelése megbízhatóbb az alkalmazás szintű hibakezelésnek köszönhetően. A vezetési nyilatkozat csak a telepítés utáni első indításkor jelenik meg. A Névjegy egyszerre egy témát nyit, ugyanúgy, mint a Súgó.
-</hu-HU>
-
-Date: 2026-09-22
-
-<en-US>
-Tap for distance or GPS; search the offline map.
-
-• Tap Google, OSM, or Turistautak: Distance (live HUD line, D2.7km) or GPS coordinate to copy
-• Search on OSM and Turistautak: 3+ characters, up to 5 nearby names
-• Yes jumps there and shows the line; No leaves the map
-</en-US>
-
-<hu-HU>
-Koppintás: légvonal vagy GPS; keresés a letöltött térképen.
-
-• Google, OSM, Turistautak: Távolság (élő HUD, T2.7km) vagy GPS koordináta másoláshoz
-• Keresés OSM és Turistautak térképen: 3+ karakter, legfeljebb 5 közeli név
-• Az Igen odaugrik és légvonalat mutat; a Nem nem mozdít
 </hu-HU>
