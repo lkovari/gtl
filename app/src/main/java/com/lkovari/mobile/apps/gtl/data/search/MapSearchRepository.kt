@@ -7,6 +7,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.engine.IndexProgress
 import com.lkovari.mobile.apps.gtl.engine.IndexResume
 import com.lkovari.mobile.apps.gtl.engine.IndexResumeAction
@@ -177,7 +178,8 @@ class MapSearchRepository(context: Context) {
             androidx.work.ListenableWorker.Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            AppErrorLog.record("map.search", error)
             if (stillCurrent(path, key, expectedGeneration)) {
                 rememberFailure(file, key)
                 statusFlow.value = MapIndexStatus(failed = true)

@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl.tuhu
 
 import android.content.res.AssetManager
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderCategories
 import org.mapsforge.map.android.rendertheme.AssetsRenderTheme
 import org.mapsforge.map.rendertheme.XmlRenderTheme
@@ -27,7 +28,8 @@ object TuhuRenderTheme {
                 theme.renderThemeAsStream.close()
                 theme
             }
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            AppErrorLog.record("tuhu.theme", error)
             MapsforgeThemes.DEFAULT
         }
     }

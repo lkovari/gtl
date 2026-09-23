@@ -1,6 +1,8 @@
 package com.lkovari.mobile.apps.gtl.data.search
 
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.engine.MapSearch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -200,7 +202,10 @@ class MapSearchIndexer(
         val result = try {
             val tile = Tile(tileX.toInt(), tileY.toInt(), sub.baseZoomLevel, tileSize)
             mapFile.readNamedItems(tile)
-        } catch (_: RuntimeException) {
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: RuntimeException) {
+            AppErrorLog.record("map.search.index", error)
             null
         } ?: return 0
         var inserted = 0

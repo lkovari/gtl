@@ -3012,6 +3012,13 @@ class MapCameraModeTest {
     }
 
     @Test
+    fun finishedTrackIsOnMapAfterLoggingStops() {
+        assertTrue(MapCameraMode.finishedTrackOnMap(logging = false, pointCount = 119))
+        assertFalse(MapCameraMode.finishedTrackOnMap(logging = true, pointCount = 119))
+        assertFalse(MapCameraMode.finishedTrackOnMap(logging = false, pointCount = 1))
+    }
+
+    @Test
     fun keepWholeTrackFitsEvenWhileLogging() {
         assertEquals(
             MapCameraMode.FitTrack,

@@ -9,6 +9,26 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Added
+
+- Unexpected failures are written on the phone: UTC timestamp, the action, and the full stack, including the cause. The file is private (`files/diagnostics/errors.log`, about 256 KB, then `errors.log.1`). An uncaught crash is written before the previous handler. Caught failures from map render, track insert, map download, and place search are written too. A missing location permission is not. Seven taps on the About version line open the text. **Clear** deletes both files.
+
+### Fixed
+
+- After Stop, with **Show last logged route on map** on and the line not cleared, the map frames the finished route when it has at least two points. The fit is the same as **Show on map**. The broom appears, so that line can be cleared without opening it from Saved tracks. **Keep whole track on the screen** is not required. If the switch is off and no saved track is selected, the camera stays put.
+- The safe-driving disclaimer no longer flashes before GPS on later launches. It shows only on the first launch after install. Accept stores the choice in DataStore; refuse still closes the app without storing acceptance. Uninstall clears app data, so the next install asks again. The splash stays until that stored choice is known.
+
+### Changed
+
+- About uses the same accordion as Help: one topic open at a time. Topics are App info (version, package, and this device), Local GPS track logger, OSM, Turistautak, original repository, and Copyright. The original source is https://bitbucket.org/laszlokovary/gtl-e/src/master/.
+
+### Magyar
+
+- A váratlan hibák a telefonra íródnak: UTC időbélyeg, a művelet és a teljes hívási verem, az okkal együtt. A fájl privát (`files/diagnostics/errors.log`, kb. 256 KB, utána `errors.log.1`). A kezeletlen összeomlás a korábbi kezelő előtt íródik. A térképrajzolás, a track beszúrása, a térképletöltés és a helykeresés elkapott hibája is bekerül. A hiányzó helyengedély nem. A Névjegy verziószámának hétszeri érintése megnyitja a szöveget. A **Törlés** mindkét fájlt törli.
+- Stop után, ha az **Utolsó naplózott útvonal a térképen** be van kapcsolva és a vonal nincs lesöpörve, a térkép a kész útvonalra illeszkedik, ha legalább két pontja van. Ugyanaz az illesztés, mint a **Mutasd a térképen**. A seprű megjelenik, a vonal a Mentett trackek megnyitása nélkül levehető. A **Teljes útvonal a képernyőn** ehhez nem kell. Ha a kapcsoló ki van és nincs kiválasztott mentett menet, a kamera a helyén marad.
+- A biztonságos vezetés nyilatkozat a későbbi indításokon nem villan fel a GPS előtt. Csak a telepítés utáni első indításkor jelenik meg. Az elfogadás a DataStore-ba kerül; az elutasítás továbbra is bezárja az appot, elfogadás mentése nélkül. Az eltávolítás törli az app adatait, ezért az új telepítés megint kérdez. A splash addig marad, amíg ez a mentett választás ismert.
+- A Névjegy ugyanazt a harmonikát használja, mint a Súgó: egyszerre egy téma nyitva. Témák: Alkalmazás adatai (verzió, csomag és ez a készülék), Helyi GPS útvonalnapló, OSM, Turistautak, eredeti tároló és Szerzői jog. Az eredeti forrás: https://bitbucket.org/laszlokovary/gtl-e/src/master/.
+
 ## [2.0.13] — 2026-09-22
 
 Play production track **31 (2.0.13)** (signed AAB). Map tap distance / GPS; offline place search.

@@ -73,6 +73,7 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.data.prefs.GoogleMapLayer
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
@@ -194,7 +195,7 @@ fun MapPane(
                 onClearSearch()
             }
         }
-        val viewingSaved = state.selectedSessionId != null && !state.live.logging
+        val viewingSaved = MapCameraMode.finishedTrackOnMap(state.live.logging, points.size)
         val onMapTap = { point: GeoPoint ->
             tapPoint = point
             menuOpen = true
@@ -651,7 +652,7 @@ private fun GoogleMapContent(
     }
     var centeredOnce by remember { mutableStateOf(false) }
     val keepWhole = state.settings.keepWholeTrackOnScreen
-    val viewingSaved = state.selectedSessionId != null && !state.live.logging
+    val viewingSaved = MapCameraMode.finishedTrackOnMap(state.live.logging, points.size)
     val fitTrack = keepWhole || viewingSaved
     val liveLat = if (fitTrack && !state.live.logging) null else live?.latitude
     val liveLon = if (fitTrack && !state.live.logging) null else live?.longitude
@@ -1154,7 +1155,8 @@ private fun OsmMapView(
                     applyOsmMapCamera(mapView, overlays, location, points)
                     overlays.didInitialCenter = true
                     mapView.post { mapView.requestVisibleTiles() }
-                } catch (_: Throwable) {
+                } catch (error: Throwable) {
+                    AppErrorLog.record("map.render", error)
                     Handler(Looper.getMainLooper()).post { onOsmFailed() }
                 }
                 mapView
@@ -1239,7 +1241,8 @@ private fun OsmMapView(
                 overlays.lastFocusToken = 0
                 try {
                     view.destroyAll()
-                } catch (_: Throwable) {
+                } catch (error: Throwable) {
+                    AppErrorLog.record("map.destroy", error)
                 }
             }
         )
@@ -1317,7 +1320,8 @@ private fun applyOsmXmlTheme(
             OsmRenderTheme.create(mapView.context.assets, options)
         }
         renderer.setXmlRenderTheme(theme)
-    } catch (_: Throwable) {
+    } catch (error: Throwable) {
+        AppErrorLog.record("map.theme", error)
         renderer.setXmlRenderTheme(MapsforgeThemes.DEFAULT)
     }
 }

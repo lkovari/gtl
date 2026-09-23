@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl
 
 import android.app.Application
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.data.db.GtlDatabase
 import com.lkovari.mobile.apps.gtl.data.db.TrackRepository
 import com.lkovari.mobile.apps.gtl.data.gnss.GnssStatusSource
@@ -50,6 +51,7 @@ class GtlApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppErrorLog.install(this)
         AndroidGraphicFactory.createInstance(this)
         database = GtlDatabase.create(this)
         trackRepository = TrackRepository(database, NoOpRemoteTrackSync())

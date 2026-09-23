@@ -267,9 +267,17 @@
     <string name="snr_waiting">Waiting for a GNSS fix. In a tunnel this drops to Poor.</string>
     <string name="snr_detail">%1$s dB-Hz · %2$d used / %3$d in view</string>
     <string name="about_title">About</string>
+    <string name="error_log_title">Error log</string>
+    <string name="error_log_empty">No errors.</string>
+    <string name="error_log_clear">Clear</string>
+    <string name="about_app_info">App info</string>
     <string name="about_device">Device</string>
+    <string name="about_logger">Local GPS track logger</string>
+    <string name="about_logger_body">No account, no ads, no IMEI, no remote tracking.</string>
+    <string name="about_repo">Original repository</string>
+    <string name="about_repo_url" translatable="false">https://bitbucket.org/laszlokovary/gtl-e/src/master/</string>
+    <string name="about_copyright">Copyright</string>
     <string name="about_author">Copyright © 2014 - 2026 by László Kővári</string>
-    <string name="about_body">Local GPS track logger. No account, no ads, no IMEI, no remote tracking.</string>
     <string name="about_osm_title">OSM. OpenStreetMap</string>
     <string name="about_osm_body">The Map tab can optionally show OpenStreetMap data from a file you download on the phone. Map data © OpenStreetMap contributors, licensed under the Open Database License (ODbL).</string>
     <string name="about_osm_copyright">OpenStreetMap copyright</string>

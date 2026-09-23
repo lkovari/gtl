@@ -1,6 +1,7 @@
 package com.lkovari.mobile.apps.gtl.data.maps
 
 import android.content.res.AssetManager
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderCategories
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderThemePath
@@ -22,7 +23,8 @@ object OsmRenderTheme {
             )
             theme.renderThemeAsStream.close()
             theme
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
+            AppErrorLog.record("osm.theme", error)
             MapsforgeThemes.DEFAULT
         }
     }

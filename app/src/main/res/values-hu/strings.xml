@@ -248,9 +248,16 @@
     <string name="snr_waiting">Várakozás GNSS fixre. Alagútban ez Gyengére esik.</string>
     <string name="snr_detail">%1$s dB-Hz · %2$d használt / %3$d látható</string>
     <string name="about_title">Névjegy</string>
+    <string name="error_log_title">Hibanapló</string>
+    <string name="error_log_empty">Nincs hiba.</string>
+    <string name="error_log_clear">Törlés</string>
+    <string name="about_app_info">Alkalmazás adatai</string>
     <string name="about_device">Készülék</string>
+    <string name="about_logger">Helyi GPS útvonalnapló</string>
+    <string name="about_logger_body">Nincs fiók, reklám, IMEI vagy távoli követés.</string>
+    <string name="about_repo">Eredeti tároló</string>
+    <string name="about_copyright">Szerzői jog</string>
     <string name="about_author">Copyright © 2014 - 2026 by László Kővári</string>
-    <string name="about_body">Helyi GPS útvonalnapló. Nincs fiók, reklám, IMEI vagy távoli követés.</string>
     <string name="about_osm_title">OSM. OpenStreetMap</string>
     <string name="about_osm_body">A Térkép fül opcionálisan OpenStreetMap adatot mutathat egy telefonra letöltött fájlból. Térképadat © OpenStreetMap közreműködők, Open Database License (ODbL) alatt.</string>
     <string name="about_osm_copyright">OpenStreetMap szerzői jog</string>

@@ -13,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.lkovari.mobile.apps.gtl.GtlApplication
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.MainActivity
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
@@ -299,7 +300,8 @@ class TrackingForegroundService : LifecycleService() {
                             pressureHpa = live.pressureHpa
                         )
                     )
-                } catch (_: SQLException) {
+                } catch (error: SQLException) {
+                    AppErrorLog.record("track.insert", error)
                     app.trackingState.update { it.copy(loggingError = true) }
                     stopRecording()
                     return@collect
@@ -413,7 +415,8 @@ class TrackingForegroundService : LifecycleService() {
                                     pressureHpa = live.pressureHpa
                                 )
                             )
-                        } catch (_: SQLException) {
+                        } catch (error: SQLException) {
+                            AppErrorLog.record("track.stop", error)
                         }
                     }
                     app.trackRepository.stopSession(sessionId)

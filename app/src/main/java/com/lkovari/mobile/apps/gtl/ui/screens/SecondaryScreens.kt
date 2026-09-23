@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +64,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -87,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.ui.errorLogTap
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
@@ -1126,7 +1130,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.settings_usage),
                     expanded = expandedId == HelpSectionUsage,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionUsage) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionUsage) }
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.help_body), style = MaterialTheme.typography.bodyLarge)
@@ -1138,7 +1142,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.settings_title),
                     expanded = expandedId == HelpSectionSettings,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionSettings) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionSettings) }
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.help_settings_presets), style = MaterialTheme.typography.bodyLarge)
@@ -1150,7 +1154,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_logging_title),
                     expanded = expandedId == HelpSectionLogging,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionLogging) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionLogging) }
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(stringResource(R.string.help_usage_simplify), style = MaterialTheme.typography.bodyLarge)
@@ -1162,7 +1166,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_gps_title),
                     expanded = expandedId == HelpSectionGps,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionGps) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionGps) }
                 ) {
                     Text(stringResource(R.string.help_gps_body), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -1171,7 +1175,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_route_title),
                     expanded = expandedId == HelpSectionRoute,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionRoute) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionRoute) }
                 ) {
                     Text(stringResource(R.string.help_route_body), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -1180,7 +1184,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_map_title),
                     expanded = expandedId == HelpSectionMap,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionMap) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionMap) }
                 ) {
                     Text(stringResource(R.string.help_map_body), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -1189,7 +1193,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_osm_title),
                     expanded = expandedId == HelpSectionOsm,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionOsm) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionOsm) }
                 ) {
                     OsmHelpSection()
                 }
@@ -1199,7 +1203,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                     AccordionSection(
                         title = stringResource(R.string.tuhu_help_title),
                         expanded = expandedId == HelpSectionTuhu,
-                        onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionTuhu) }
+                        onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionTuhu) }
                     ) {
                         TuhuHelpSection()
                     }
@@ -1209,7 +1213,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_compass_title),
                     expanded = expandedId == HelpSectionCompass,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionCompass) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionCompass) }
                 ) {
                     Text(stringResource(R.string.help_compass_body), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -1218,7 +1222,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_kml_title),
                     expanded = expandedId == HelpSectionKmz,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionKmz) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionKmz) }
                 ) {
                     Text(stringResource(R.string.help_kml_body), style = MaterialTheme.typography.bodyLarge)
                 }
@@ -1227,7 +1231,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_privacy_policy),
                     expanded = expandedId == HelpSectionPrivacy,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionPrivacy) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionPrivacy) }
                 ) {
                     Text(
                         text = privacyUrl,
@@ -1243,7 +1247,7 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
                 AccordionSection(
                     title = stringResource(R.string.help_trackpoint_title),
                     expanded = expandedId == HelpSectionTrackpoint,
-                    onToggle = { expandedId = toggleHelpSection(expandedId, HelpSectionTrackpoint) }
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionTrackpoint) }
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
@@ -1272,7 +1276,7 @@ private const val HelpSectionKmz = "kmz"
 private const val HelpSectionPrivacy = "privacy"
 private const val HelpSectionTrackpoint = "trackpoint"
 
-private fun toggleHelpSection(expandedId: String, sectionId: String): String {
+private fun toggleExclusiveSection(expandedId: String, sectionId: String): String {
     return if (expandedId == sectionId) "" else sectionId
 }
 
@@ -1366,32 +1370,120 @@ private fun StoredTrackpointTable() {
     }
 }
 
+private const val AboutSectionApp = "app"
+private const val AboutSectionLogger = "logger"
+private const val AboutSectionOsm = "osm"
+private const val AboutSectionTuhu = "tuhu"
+private const val AboutSectionRepo = "repo"
+private const val AboutSectionCopyright = "copyright"
+
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onOpenErrorLog: () -> Unit) {
     val context = LocalContext.current
     val deviceName = remember { DeviceIdentity.displayName(context) }
+    var errorLogTaps by remember { mutableIntStateOf(0) }
+    var errorLogTapAt by remember { mutableLongStateOf(0L) }
     val copyrightUrl = stringResource(R.string.about_osm_copyright_url)
     val websiteUrl = stringResource(R.string.about_osm_website_url)
+    val repoUrl = stringResource(R.string.about_repo_url)
+    var expandedId by rememberSaveable { mutableStateOf(AboutSectionApp) }
     SecondaryScaffold(stringResource(R.string.about_title), onBack) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("${com.lkovari.mobile.apps.gtl.BuildConfig.VERSION_NAME}  ·  com.lkovari.mobile.apps.gtl")
-            Text("${stringResource(R.string.about_device)}: $deviceName")
-            Text(stringResource(R.string.about_author))
-            Text(stringResource(R.string.about_body))
-            Text(
-                text = stringResource(R.string.about_osm_title),
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(stringResource(R.string.about_osm_body))
-            AboutLink(stringResource(R.string.about_osm_website), websiteUrl)
-            AboutLink(stringResource(R.string.about_osm_copyright), copyrightUrl)
-            TuhuAboutSection()
+            item {
+                AccordionSection(
+                    title = stringResource(R.string.about_app_info),
+                    expanded = expandedId == AboutSectionApp,
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, AboutSectionApp) }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "${com.lkovari.mobile.apps.gtl.BuildConfig.VERSION_NAME}  ·  com.lkovari.mobile.apps.gtl",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                val now = SystemClock.elapsedRealtime()
+                                val tap = errorLogTap(errorLogTaps, errorLogTapAt, now)
+                                errorLogTaps = tap.count
+                                errorLogTapAt = now
+                                if (tap.opened) {
+                                    onOpenErrorLog()
+                                }
+                            }
+                        )
+                        Text(
+                            text = "${stringResource(R.string.about_device)}: $deviceName",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+            item {
+                AccordionSection(
+                    title = stringResource(R.string.about_logger),
+                    expanded = expandedId == AboutSectionLogger,
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, AboutSectionLogger) }
+                ) {
+                    Text(
+                        text = stringResource(R.string.about_logger_body),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+            item {
+                AccordionSection(
+                    title = stringResource(R.string.about_osm_title),
+                    expanded = expandedId == AboutSectionOsm,
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, AboutSectionOsm) }
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(R.string.about_osm_body),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        AboutLink(stringResource(R.string.about_osm_website), websiteUrl)
+                        AboutLink(stringResource(R.string.about_osm_copyright), copyrightUrl)
+                    }
+                }
+            }
+            if (TuhuFeature.showAbout()) {
+                item {
+                    AccordionSection(
+                        title = stringResource(R.string.tuhu_about_title),
+                        expanded = expandedId == AboutSectionTuhu,
+                        onToggle = { expandedId = toggleExclusiveSection(expandedId, AboutSectionTuhu) }
+                    ) {
+                        TuhuAboutSection()
+                    }
+                }
+            }
+            item {
+                AccordionSection(
+                    title = stringResource(R.string.about_repo),
+                    expanded = expandedId == AboutSectionRepo,
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, AboutSectionRepo) }
+                ) {
+                    AboutLink(repoUrl, repoUrl)
+                }
+            }
+            item {
+                AccordionSection(
+                    title = stringResource(R.string.about_copyright),
+                    expanded = expandedId == AboutSectionCopyright,
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, AboutSectionCopyright) }
+                ) {
+                    Text(
+                        text = stringResource(R.string.about_author),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
         }
     }
 }

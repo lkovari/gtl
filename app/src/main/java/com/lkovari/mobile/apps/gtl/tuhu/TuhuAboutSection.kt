@@ -23,10 +23,9 @@ fun TuhuAboutSection() {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = stringResource(R.string.tuhu_about_title),
-            style = MaterialTheme.typography.titleLarge
+            text = stringResource(R.string.tuhu_about_body),
+            style = MaterialTheme.typography.bodyLarge
         )
-        Text(stringResource(R.string.tuhu_about_body))
         Text(
             text = stringResource(R.string.tuhu_about_website),
             color = TitleMagenta,

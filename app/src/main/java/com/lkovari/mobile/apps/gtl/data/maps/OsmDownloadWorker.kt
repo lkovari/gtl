@@ -5,7 +5,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.lkovari.mobile.apps.gtl.GtlApplication
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -36,7 +38,10 @@ class OsmDownloadWorker(
             }
             (applicationContext as? GtlApplication)?.osmMapStore?.notifyMapsChanged()
             Result.success(workDataOf(KEY_FILE to target.absolutePath))
-        } catch (_: Exception) {
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            AppErrorLog.record("osm.download", error)
             temp.delete()
             Result.failure()
         }

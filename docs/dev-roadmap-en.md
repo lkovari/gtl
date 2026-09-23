@@ -60,8 +60,9 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 ### What is weak for listing and for use
 
 - **Map at night:** HUD is there, tiles stay daylight. Listing shots in `docs/screenshots/` show GPS skyplot, Route elevation, Compass MAG rose, Settings QNH, Saved-track elevation, and Map with idle HUD + S/E (`map.png` / `settings.png` recaptured 2026-09-13). Logging HUD Map and the feature graphic still wait.
+- **Standing speed:** the map HUD rounds the chip’s raw Doppler to a whole km/h. Indoors, with the pin not moving, it still shows ~5 km/h. The Route tab already shows 0 while idle (`RouteTabSpeeds`). `pauseSpeedMps()` belongs to the stored pause, and this noise sits above it. Speed accuracy is never read.
 - **Route tab:** 2×4 `HudMetric` cards plus an elevation profile. Speed is not *the* number.
-- **Saved tracks:** date + raw `usageType` enum + `METRIC`. Elevation, delete confirm, and KMZ/GPX share exist. No name, distance, or mini-map.
+- **Saved tracks:** a plain row, date + raw `usageType` enum (`TWO_WHEELERS`) + `METRIC`. Elevation, delete confirm, and KMZ/GPX share exist. No card, no optional file name, and the session row has no average or max speed.
 - **Theme:** cockpit colours exist, but the **map stays daylight**, there is no in-app System / Light / Dark control, and `themes.xml` keeps a light status bar.
 - **Notification:** static title + text + Stop (`TrackingForegroundService.buildNotification`). No live speed / distance.
 - **Play feature graphic** (`docs/play-console/feature-graphic.png`): dark dash, glowing track, skyplot. HUD and skyplot exist; dark tiles and speed colour do not.
@@ -133,7 +134,33 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ---
 
-### 2. Live foreground notification
+### 2. Standing speed on the HUD
+
+**Value:** high — the instrument shows motion while you are still  
+**Effort:** ~1 day  
+**Wave:** 1
+
+**Why.** Indoors, with the pin not moving, the map HUD still reads ~5 km/h. The number is raw fused or GPS Doppler, rounded to a whole km/h (`Units.hudSpeedNumber`). Latitude and speed are two fields on the same fix: indoor Doppler noise is 1–2 m/s, and at ~6 m accuracy on a 500 m scale the pin looks still. The Route tab already shows 0 while idle (`RouteTabSpeeds`). `pauseSpeedMps()` (0.25 m/s on foot, 0.4 m/s for a vehicle) is the stored pause, and 5 km/h (1.4 m/s) sits above it. A fixed km/h cutoff would hide slow walking and still let a larger indoor spike through.
+
+**Today.** `MapPane` passes `location.speed` to the HUD whenever `hasSpeed()` is true. Preview: `listenLocation`, 1 s, 0 m. Speed accuracy is never read. The Kalman stationary lock runs only while logging, on the stored point.
+
+**Build.** One pure engine function. The map HUD and the Route instant speed while logging call it; notification 3 copies the same number.
+
+- No speed field: “—”.
+- Speed accuracy present (`getSpeedAccuracyMetersPerSecond`, 1σ, 68%; API 26+, `LocationCompat` on minSdk 24): when speed is less than or equal to its accuracy, the display is **0** — zero lies inside the error band. In the open the same 1.4 m/s typically arrives with 0.2–0.5 m/s accuracy, and the number stays.
+- No speed accuracy (API 24–25, or the provider omitted it): when displacement since the previous fix is at most the horizontal accuracy, the display is **0**.
+- Hysteresis: two consecutive significant samples to leave 0, and two to return, otherwise the digit flickers between 0 and 5.
+- The stored track stays Kalman + `pauseSpeedMps()`. This is a display rule; the [GPSDATAFLOW](GPSDATAFLOW-en.md) write chain does not change.
+
+**Do not.** A fixed km/h cutoff. Speed from the coordinate delta (6 m / 1 s is noisier than Doppler). Kalman on the idle preview just so the HUD can show zero.
+
+**Depends on.** Nothing.
+
+**Test.** Standing indoor fix: HUD 0, pin stays. Walking in the open: the number appears and does not stick at 0. No speed field: “—”. No speed accuracy, displacement inside the accuracy: 0. Hysteresis: no 0/5 flicker. Stored-point speed stays on the filter chain.
+
+---
+
+### 3. Live foreground notification
 
 **Value:** medium–high — second HUD, phone in a pocket  
 **Effort:** 1–2 days  
@@ -145,11 +172,11 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 **Build.** Periodic `notify()` updates: speed, distance, accuracy (short `contentText` or `BigText`). Keep Stop. No sound/vibration (stay LOW). `FLAG_UPDATE_CURRENT`.
 
-**Depends on.** Same formatters as the HUD (`Units`). The HUD already exists, so rounding must not fork.
+**Depends on.** The same displayed speed as the HUD (2), and the same `Units` rounding. The shade gets the gated number; raw Doppler stays on the chip.
 
 ---
 
-### 3. Speed-coloured track + Route cockpit
+### 4. Speed-coloured track + Route cockpit
 
 **Value:** high — second eye-catcher, instead of equal cards  
 **Effort:** 4–6 days  
@@ -172,28 +199,28 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ---
 
-### 4. Saved tracks: cards, name, stats
+### 5. Saved tracks: cards, file name, speed
 
 **Value:** medium–high — the private archive becomes usable  
 **Effort:** 3–4 days  
 **Wave:** 2
 
-**Why.** After Stop, the list is a date. Two Saturday rides are indistinguishable. No distance, no usage icon, raw `TWO_WHEELERS` on screen. Share filenames are timestamps.
+**Why.** After Stop, the list is a date. Two Saturday rides are indistinguishable. Settings already says “Motorbike”; Saved tracks prints `TWO_WHEELERS`. The shared file is a timestamp, and the user cannot name it. Average and max speed are not on the session row: the list could show them only by rescanning every point.
 
-**Today.** `track_sessions`: `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. No `displayName`. `TracksScreen`: checkbox, Show on map, Elevation, Delete with confirm, share selected as KMZ or GPX.
+**Today.** `track_sessions` (schema 6): `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. No `displayName`, no `avgSpeed` / `maxSpeed`. `TracksScreen`: a plain row, checkbox, raw enum + unit system, Show on map, Elevation, Delete with confirm, share selected as KMZ or GPX.
 
 **Build.**
 
-- Optional `displayName` (Room migrate 4→5). Empty = date, as now
-- List card: usage icon, name/date, distance, duration, max/avg (from `TrackStatsCalculator` per session — cache for the list, do not scan all `gps_events` on every scroll)
-- Mini-polyline optional (costlier; stats + icon already help)
-- `<name>` / KMZ folder = displayName (the KMZ/GPX chooser already exists)
+- Saved tracks uses a **card**: usage icon, name or date, distance, duration, average and max speed. Checkbox, Show on map, Elevation, and Delete stay on the card.
+- Optional name for the saved file: `displayName` on the session. Empty = date, as now. The KMZ/GPX filename and the `<name>` / KMZ folder use it (the format chooser already exists); replace characters that are illegal in a filename.
+- Extend `track_sessions` (Room migrate 6→7): `avgSpeed` and `maxSpeed` in m/s, written at Stop from `TrackStatsCalculator`. The list reads those columns and does not scan all `gps_events` on every scroll. Display uses the session `measurementSystem`.
+- Usage on the card is a **display name** (the same string as Settings: Motorbike, Car, Run/Hike), not the enum. Room keeps storing the enum name (`TWO_WHEELERS`).
 
-**Depends on.** Coloured track (3) beautifies Show on map; it does not block the list.
+**Depends on.** Coloured track (4) beautifies Show on map; it does not block the list.
 
 ---
 
-### 5. Manual pause and lap / split
+### 6. Manual pause and lap / split
 
 **Value:** medium  
 **Effort:** 2–3 days  
@@ -211,7 +238,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ---
 
-### 6. Landscape / tank HUD mode
+### 7. Landscape / tank HUD mode
 
 **Value:** medium for default motorbike, high effort  
 **Effort:** 5–8 days  
@@ -225,7 +252,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ---
 
-### 7. Track image / postcard share
+### 8. Track image / postcard share
 
 **Value:** medium — social eye-catcher with no server  
 **Effort:** 4–6 days  
@@ -235,11 +262,11 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 **Expensive because:** a static map snapshot (Google Static / OSM render / own polyline on a dark canvas). The last is simplest and offline: no tiles, just line + stats. Start there, not with the Static Maps API.
 
-**Depends on.** 3 (colour) and 4 (name/stats) fill the postcard.
+**Depends on.** 4 (colour) and 5 (name/stats) fill the postcard.
 
 ---
 
-### 8. Quick Settings tile (Start / Stop)
+### 9. Quick Settings tile (Start / Stop)
 
 **Value:** low–medium  
 **Effort:** ~1 day  
@@ -255,39 +282,40 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 Version numbers are **suggestions**. 2.0.13 can stay a hotfix line; the next minor is the rest of wave 1.
 
-### Wave 1 — “you can see it at night” (about 3.5–5.5 days)
+### Wave 1 — “you can see it at night” (about 4.5–6.5 days)
 
-Goal: night does not glare, the notification shows the same numbers, listing is the real HUD map.
+Goal: night does not glare, a standing fix shows 0 on the HUD, the notification shows that same number, listing is the real HUD map.
 
 | # | Item | Effort |
 | - | ---- | ------ |
 | 1 | Dark map + System/Light/Dark | 2–3 days |
-| 2 | Notification with live numbers | 1–2 days |
+| 2 | Standing speed on the HUD | ~1 day |
+| 3 | Notification with live numbers | 1–2 days |
 | — | Play screenshots + feature graphic from the **real** HUD map | 0.5 day |
 
 GPS / Route / Compass / Settings / Saved tracks listing shots recaptured 2026-09-12 (1080×1920). Map HUD + Settings full-frame recaptured 2026-09-13 (1080×2160, Play 2:1, no UI cropped). Remaining: HUD Map while logging, and the feature graphic.
 
-**Done when:** dark mode uses dark tiles; the notification shows km/h and km; the new 9:16 listing shot is the HUD Map, not the idle S/E track.
+**Done when:** dark mode uses dark tiles; a standing indoor fix shows 0 km/h and walking in the open comes through; the notification shows km/h and km, the same number as the HUD; the new 9:16 listing shot is the HUD Map, not the idle S/E track.
 
 ### Wave 2 — “archive and the line tell a story” (about 7–10 days)
 
 | # | Item | Effort |
 | - | ---- | ------ |
-| 3 | Coloured polyline + Route large speed / sparkline | 4–6 days |
-| 4 | Saved-track cards + displayName | 3–4 days |
+| 4 | Coloured polyline + Route large speed / sparkline | 4–6 days |
+| 5 | Saved-track cards, file name, avg/max speed, usage display name | 3–4 days |
 
-**Done when:** a highway stretch is not the same colour as city crawling; two sessions are distinguishable by name; Show on map uses that session’s speed bands.
+**Done when:** a highway stretch is not the same colour as city crawling; two sessions are distinguishable by name on the card, usage reads “Motorbike” rather than `TWO_WHEELERS`, and average and max come from the session row; the shared file uses the optional name; Show on map uses that session’s speed bands.
 
 ### Wave 3 — deepen (later, sliced)
 
 | # | Item | Effort |
 | - | ---- | ------ |
-| 5 | Manual pause | 2–3 days |
-| 6 | Landscape HUD | 5–8 days |
-| 7 | Postcard PNG | 4–6 days |
-| 8 | Quick Settings tile | ~1 day |
+| 6 | Manual pause | 2–3 days |
+| 7 | Landscape HUD | 5–8 days |
+| 8 | Postcard PNG | 4–6 days |
+| 9 | Quick Settings tile | ~1 day |
 
-6 and 7 are the expensive ones: only if after waves 1–2 the remaining complaint is still “I’d mount it on the tank” / “I’d share a picture”.
+7 and 8 are the expensive ones: only if after waves 1–2 the remaining complaint is still “I’d mount it on the tank” / “I’d share a picture”.
 
 ---
 
@@ -296,15 +324,16 @@ GPS / Route / Compass / Settings / Saved tracks listing shots recaptured 2026-09
 | Rank | Feature | Value | Effort | Wave |
 | ---- | ------- | ----- | ------ | ---- |
 | 1 | Dark map + theme control | high | 2–3 days | 1 |
-| 2 | Live notification | medium–high | 1–2 days | 1 |
-| 3 | Coloured track + Route cockpit | high | 4–6 days | 2 |
-| 4 | Saved-track cards + name | medium–high | 3–4 days | 2 |
-| 5 | Manual pause / lap | medium | 2–3 days | 3 |
-| 6 | Landscape tank HUD | medium | 5–8 days | 3+ |
-| 7 | Postcard share | medium | 4–6 days | 3+ |
-| 8 | Quick Settings tile | low–medium | ~1 day | any |
+| 2 | Standing speed on the HUD | high | ~1 day | 1 |
+| 3 | Live notification | medium–high | 1–2 days | 1 |
+| 4 | Coloured track + Route cockpit | high | 4–6 days | 2 |
+| 5 | Saved-track cards, file name, speed, usage display name | medium–high | 3–4 days | 2 |
+| 6 | Manual pause / lap | medium | 2–3 days | 3 |
+| 7 | Landscape tank HUD | medium | 5–8 days | 3+ |
+| 8 | Postcard share | medium | 4–6 days | 3+ |
+| 9 | Quick Settings tile | low–medium | ~1 day | any |
 
-Wave 1 remaining: **about 3.5–5.5 days** plus listing assets.  
+Wave 1 remaining: **about 4.5–6.5 days** plus listing assets.  
 Wave 2: **about 7–10 days**.  
 If you can only ship **two** items: **dark map + coloured track**. That closes “it glares at night” and “a red scribble on the listing”.
 
@@ -320,7 +349,7 @@ Not optional wrap-up:
 - README feature list if the user can see it
 - Screenshots 24-bit PNG, no alpha; GPS skyplot, Route elevation, Compass, Saved tracks 1080×1920 (2026-09-12); Map idle HUD + S/E and Settings full frame 1080×2160 (2026-09-13). Recapture HUD Map (logging) and the feature graphic after dark tiles.
 
-[GPSDATAFLOW](GPSDATAFLOW-en.md) only changes if the write chain changes. Session name: [DBSTRUCT](DBSTRUCT-en.md) migration 4→5.
+[GPSDATAFLOW](GPSDATAFLOW-en.md) only changes if the write chain changes. Session name, average and max speed: [DBSTRUCT](DBSTRUCT-en.md) migration 6→7. Usage on screen is a display name; the column stays the enum.
 
 ---
 

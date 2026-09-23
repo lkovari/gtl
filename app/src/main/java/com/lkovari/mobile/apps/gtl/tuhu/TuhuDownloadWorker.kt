@@ -6,10 +6,12 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.lkovari.mobile.apps.gtl.GtlApplication
 import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadWorker
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.CancellationException
 
 class TuhuDownloadWorker(
     context: Context,
@@ -50,7 +52,10 @@ class TuhuDownloadWorker(
             extractDir.deleteRecursively()
             (applicationContext as? GtlApplication)?.osmMapStore?.notifyMapsChanged()
             Result.success(workDataOf(OsmDownloadWorker.KEY_FILE to target.absolutePath))
-        } catch (_: Exception) {
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            AppErrorLog.record("tuhu.download", error)
             TuhuDownloadCleanup.purgeFailedAttempt(mapsDir, applicationContext.cacheDir)
             Result.failure()
         }

@@ -7,6 +7,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lkovari.mobile.apps.gtl.GtlApplication
+import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
 import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmCatalog
@@ -78,6 +79,11 @@ private data class OsmTuhuBits(
     val tuhuMapDownloaded: Boolean
 )
 
+private data class StartupSettings(
+    val settings: GtlSettings,
+    val loaded: Boolean
+)
+
 private data class MapUiBits(
     val requestedTab: Int?,
     val selectedSessionId: Long?,
@@ -100,6 +106,7 @@ data class MapSearchUi(
 
 data class GtlUiState(
     val settings: GtlSettings,
+    val settingsLoaded: Boolean,
     val live: LiveTrackingState,
     val events: List<GpsEventEntity>,
     val stats: TrackStats,
@@ -156,11 +163,21 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     val mapSearch: StateFlow<MapSearchUi> = mapSearchUi.asStateFlow()
     private var searchJob: Job? = null
 
-    val settings: StateFlow<GtlSettings> = app.preferences.settings.stateIn(
-        viewModelScope,
-        SharingStarted.Eagerly,
-        GtlSettings.placeholder()
-    )
+    private val startupSettings: StateFlow<StartupSettings> = app.preferences.settings
+        .map { StartupSettings(settings = it, loaded = true) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            StartupSettings(settings = GtlSettings.placeholder(), loaded = false)
+        )
+
+    val settings: StateFlow<GtlSettings> = startupSettings
+        .map { it.settings }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            GtlSettings.placeholder()
+        )
 
     val live: StateFlow<LiveTrackingState> = app.trackingState.state
 
@@ -391,7 +408,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     val uiState: StateFlow<GtlUiState> = combine(
-        settings,
+        startupSettings,
         live,
         activeEvents,
         sessions,
@@ -427,7 +444,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                 tuhuMapDownloaded = osmTuhu.tuhuMapDownloaded
             )
         }
-    ) { prefs, liveState, events, sessionList, mapBits ->
+    ) { startup, liveState, events, sessionList, mapBits ->
+        val prefs = startup.settings
         val tab = mapBits.requestedTab
         val selected = mapBits.selectedSessionId
         val cloud = mapBits.fixCloud
@@ -472,6 +490,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         val tuhuFile = app.tuhuMapStore.downloadedFile()
         GtlUiState(
             settings = prefs,
+            settingsLoaded = startup.loaded,
             live = liveState,
             events = events,
             stats = routeStats,
@@ -494,6 +513,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.WhileSubscribed(5_000),
         GtlUiState(
             settings = settings.value,
+            settingsLoaded = false,
             live = live.value,
             events = emptyList(),
             stats = TrackStatsCalculator.compute(emptyList()),
@@ -888,7 +908,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                 published = true
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                AppErrorLog.record("place.search", error)
                 if (isActive) {
                     mapSearchUi.update { it.copy(hits = emptyList(), searching = false) }
                     published = true

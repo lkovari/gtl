@@ -40,6 +40,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
   - [Engedélyek](#engedélyek)
 - [Beüzemelés](#beüzemelés)
   - [Fordítás](#fordítás)
+  - [Tesztek](#tesztek)
   - [Stack](#stack)
 - [Technikai dokumentumok](#technikai-dokumentumok)
 - [Play listing képernyőképek](#play-listing-képernyőképek)
@@ -167,12 +168,12 @@ A meglévő telepítések, amelyeknél még a régi **19,5 m** egyszerűsítési
 
 ### További képernyők
 
-- Első indításkori biztonságos vezetés nyilatkozat.
+- Biztonságos vezetés nyilatkozat a telepítés utáni első indításkor. Az **Elfogadom** a választ a telefon DataStore-jába írja; a későbbi indítások a GPS-re mennek, a nyilatkozat rejtve marad. Az **Elutasítom** bezárja az appot, és nem ment elfogadást, ezért a következő indítás megint kérdez. Az eltávolítás törli az app adatait (a mentés ki van kapcsolva), ezért az új telepítés megint kérdez. A splash addig marad, amíg ez a mentett választás be nem olvasható, így az elfogadott nyilatkozat nem villan fel a GPS előtt.
 - Offline térkép letöltése (először Turistautak.hu, aztán Mapsforge v5 OSM-régiók). A letöltött térkép **Használható** vagy **Használatban**; egyszerre csak egy lehet Használatban. A Használatban gomb Google Térképre vált. A letöltött régiót onnan törölheted. Opcionális túratérkép kódban kapuzva (`TuhuFeature.enabled`, alapból be); részletek: `docs/tuhu-hu.md`.
 - Helymeghatározás beállításai (megnyitja a rendszer GPS-panelét).
 - Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH, OSM térképrétegek és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal (Idle-ben sebesség és átlagsebesség 0), Térkép (OSM fájl, S/E), **OSM térkép opciók**, Turistautak opciók ha az a térkép le van töltve, Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
 - Adatvédelmi tájékoztató hivatkozás.
-- Névjegy: opcionális OpenStreetMap-használat, ODbL és Mapsforge-letöltő linkek. Az OSM Térkép fülön **© OpenStreetMap**.
+- Névjegy: harmonika (egyszerre egy téma nyitva). Alkalmazás adatai (verzió, csomag, ez a készülék), helyi GPS útvonalnapló, OSM (ODbL és weboldal), Turistautak, eredeti tároló, szerzői jog. Az OSM Térkép fülön **© OpenStreetMap**. A verziószám hétszeri érintése, két másodpercen belül, megnyitja a telefonon lévő hibanaplót: UTC időbélyeg, a sikertelen művelet, és a teljes hívási verem az okkal együtt. A **Törlés** törli az `errors.log` és az `errors.log.1` fájlt.
 
 ---
 
@@ -201,7 +202,7 @@ docs/    Adatvédelmi tájékoztató, Play-anyagok
 
 - **Room:** `track_sessions` + `gps_events` (kaszkád törlés). A Map polyline mindig a Room-ból olvasódik, nem memóriabeli vázlatból. Ezért a látott vonal az a log, amit eltároltál.
 - **DataStore:** nyilatkozat, használat, mértékegység, QNH, baro nyomás-offset, szűrők, OSM-fájlútvonal, OSM rétegkapcsolók, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
-- **Fájlok:** OSM `.map` letöltések; KMZ a `files/gtltracklogs/` alatt (FileProvider).
+- **Fájlok:** OSM `.map` letöltések; KMZ a `files/gtltracklogs/` alatt (FileProvider). Hibanapló a `files/diagnostics/` alatt (`errors.log`, az előző fájl `errors.log.1`, ha az aktuális átlépi a kb. 256 KB-ot).
 - **RemoteTrackSync:** no-op csonk egy későbbi backendhez. Nincs élő helyfeltöltés.
 
 
@@ -454,6 +455,14 @@ A kulcsot korlátozd a `com.lkovari.mobile.apps.gtl` csomagra és az EKL keystor
 
 Release APK: `app/build/outputs/apk/release/app-release.apk`  
 Release AAB: `app/build/outputs/bundle/release/app-release.aab` (Play App Signing; upload key = EKL release keystore)
+
+### Tesztek
+
+Az eszközön tárolt hibanapló alkalmazástesztjei (`./gradlew :app:testDebugUnitTest`):
+
+- `ErrorLogStoreTest` — egy bejegyzésben megvan az UTC időbélyeg, a művelet, egy veremkeret és a `Caused by` sor. A plafon fölötti írás `errors.log.1` névre nevezi a fájlt, és újat kezd; az olvasás előbb a régebbi fájlt adja. A **Törlés** mindkét fájlt törli. A sikertelen írás nem dob kivételt.
+- `ErrorLogExceptionsTest` — az `IOException`, az `SQLException`, az üzenet nélküli `IllegalArgumentException`, az `IllegalStateException` okozati lánca (`IOException`, alatta `IllegalArgumentException`) és az `OutOfMemoryError` megtartja az üzenetet és a teljes vermet. Több bejegyzés az írási sorrendben marad. Az aszinkron `record` út kiírja az `IOException`t.
+- `ErrorLogTapTest` — a hetedik érintés két másodpercen belül megnyitja a naplót; a hosszabb szünet nullázza a számlálót.
 
 ### Stack
 

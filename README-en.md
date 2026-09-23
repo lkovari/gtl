@@ -40,6 +40,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
   - [Permissions](#permissions)
 - [Setup](#setup)
   - [Build](#build)
+  - [Tests](#tests)
   - [Stack](#stack)
 - [Technical documents](#technical-documents)
 - [Play listing screenshots](#play-listing-screenshots)
@@ -167,12 +168,12 @@ Existing installs that still have the old **19.5 m** simplify default migrate to
 
 ### Other screens
 
-- First-run safe-driving disclaimer.
+- Safe-driving disclaimer on the first launch after install. **Accept** stores the choice in DataStore on this phone; later launches open GPS and the disclaimer stays hidden. **Refuse** closes the app and does not store acceptance, so the next launch asks again. Uninstall deletes app data (backup is off), so a new install asks again. The splash stays up until that stored choice is read, so an already accepted disclaimer does not flash before GPS.
 - Download Offline map (Turistautak.hu first, then Mapsforge v5 OSM regions). A downloaded map shows **Can Use** or **In Use**; only one map can be In Use. Tapping In Use goes back to Google Maps. Delete a downloaded region from that screen. Optional hiking map is gated in code (`TuhuFeature.enabled`, default on); see `docs/tuhu-hu.md`.
 - Location settings (opens the system GPS panel).
 - Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, OSM map layers, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route (Idle speed and avg. speed are 0), Map (OSM file, S/E), **OSM map options**, Turistautak options when that map is downloaded, Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
 - Privacy-policy link.
-- About: optional OpenStreetMap use, ODbL, and Mapsforge download links. The OSM Map tab shows **© OpenStreetMap**.
+- About: accordion (one topic open at a time). App info (version, package, this device), local GPS track logger, OSM (ODbL and website), Turistautak, original repository, copyright. The OSM Map tab shows **© OpenStreetMap**. Seven taps on the version line, each within two seconds of the last, open the on-device error log: UTC timestamp, the action that failed, and the full stack including the cause. **Clear** deletes `errors.log` and `errors.log.1`.
 
 ---
 
@@ -201,7 +202,7 @@ docs/    Privacy policy, Play assets
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
 - **DataStore:** disclaimer, usage, units, QNH, baro pressure offset, filters, OSM file path, OSM layer switches, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
-- **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider).
+- **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider). Error log under `files/diagnostics/` (`errors.log`, previous file `errors.log.1` once the current file passes about 256 KB).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
 
 
@@ -454,6 +455,14 @@ Restrict the key to `com.lkovari.mobile.apps.gtl` and the EKL keystore SHA-1. Un
 
 Release APK: `app/build/outputs/apk/release/app-release.apk`  
 Release AAB: `app/build/outputs/bundle/release/app-release.aab` (Play App Signing; upload key = EKL release keystore)
+
+### Tests
+
+App unit tests for the on-device error log (`./gradlew :app:testDebugUnitTest`):
+
+- `ErrorLogStoreTest` — one record has the UTC timestamp, the action, a stack frame, and the `Caused by` line. A write past the cap renames the file to `errors.log.1` and starts a new one; reading returns the older file first. **Clear** deletes both files. A failed write does not throw.
+- `ErrorLogExceptionsTest` — `IOException`, `SQLException`, an `IllegalArgumentException` with no message, an `IllegalStateException` cause chain (`IOException`, then `IllegalArgumentException`), and `OutOfMemoryError` each keep their message and full stack. Several records stay in write order. The async `record` path writes the `IOException`.
+- `ErrorLogTapTest` — the seventh tap within two seconds opens the log; a later gap resets the counter.
 
 ### Stack
 

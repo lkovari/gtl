@@ -15,5 +15,9 @@ enum class MapCameraMode {
             }
             return Free
         }
+
+        fun finishedTrackOnMap(logging: Boolean, pointCount: Int): Boolean {
+            return !logging && pointCount >= 2
+        }
     }
 }
