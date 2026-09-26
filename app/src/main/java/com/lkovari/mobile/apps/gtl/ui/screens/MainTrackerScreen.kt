@@ -2,7 +2,6 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.hardware.GeomagneticField
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -56,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.CompassHeading
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
+import com.lkovari.mobile.apps.gtl.data.sensor.GeomagneticDeclination
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
 import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
 import com.lkovari.mobile.apps.gtl.engine.RouteTabSpeeds
@@ -567,15 +567,7 @@ private fun CompassPane(state: GtlUiState, onTrueNorth: (Boolean) -> Unit) {
         location?.altitude,
         location?.time
     ) {
-        location?.let { loc ->
-            val time = if (loc.time > 0L) loc.time else System.currentTimeMillis()
-            GeomagneticField(
-                loc.latitude.toFloat(),
-                loc.longitude.toFloat(),
-                if (loc.hasAltitude()) loc.altitude.toFloat() else 0f,
-                time
-            ).declination
-        }
+        location?.let { GeomagneticDeclination.degrees(it) }
     }
     val shown = CompassHeading.display(
         magneticDegrees = state.live.azimuthDegrees ?: 0f,

@@ -6,13 +6,17 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -23,8 +27,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.MapHudMode
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.TargetPointer
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.ui.theme.CarmineTrack
 import com.lkovari.mobile.apps.gtl.ui.theme.Cockpit
@@ -39,6 +51,7 @@ import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.NightInk
 import com.lkovari.mobile.apps.gtl.ui.theme.NightMuted
 import com.lkovari.mobile.apps.gtl.ui.theme.PaperGrid
+import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import java.util.Locale
 
 @Composable
@@ -52,6 +65,7 @@ fun MapHud(
     satellitesInFix: Int,
     satellitesInView: Int,
     distanceText: String? = null,
+    targetPointer: TargetPointer? = null,
     onClearDistance: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -136,17 +150,90 @@ fun MapHud(
         }
         if (distanceText != null) {
             val clearLabel = stringResource(R.string.map_distance_clear)
-            Text(
-                text = distanceText,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp,
-                color = number,
+            Row(
                 modifier = Modifier
                     .padding(top = if (showSpeed) 6.dp else 0.dp)
                     .heightIn(min = 48.dp)
-                    .clickable(onClickLabel = clearLabel, onClick = onClearDistance)
-            )
+                    .semantics(mergeDescendants = true) { }
+                    .clickable(onClickLabel = clearLabel, onClick = onClearDistance),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = distanceText,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp,
+                    color = number
+                )
+                if (targetPointer != null) {
+                    TargetDial(pointer = targetPointer, color = number)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TargetDial(pointer: TargetPointer, color: Color) {
+    val description = stringResource(R.string.map_target_pointer)
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 2.dp.toPx()
+            val radius = size.minDimension / 2f - stroke
+            drawCircle(color = color, radius = radius, style = Stroke(width = stroke))
+        }
+        if (pointer is TargetPointer.Aim) {
+            val rotation = pointer.relativeDegrees
+            val needleAlpha = if (pointer.dimmed) 0.4f else 1f
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        rotationZ = rotation
+                        alpha = needleAlpha
+                    }
+            ) {
+                val centerX = size.width / 2f
+                val tipY = size.height * 0.16f
+                val tailY = size.height * 0.78f
+                val headY = size.height * 0.40f
+                val half = size.width * 0.14f
+                val width = 2.5.dp.toPx()
+                drawLine(
+                    color = color,
+                    start = Offset(centerX, headY),
+                    end = Offset(centerX, tailY),
+                    strokeWidth = width,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = TitleMagenta,
+                    start = Offset(centerX, tipY),
+                    end = Offset(centerX, headY),
+                    strokeWidth = width,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = TitleMagenta,
+                    start = Offset(centerX, tipY),
+                    end = Offset(centerX - half, headY),
+                    strokeWidth = width,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = TitleMagenta,
+                    start = Offset(centerX, tipY),
+                    end = Offset(centerX + half, headY),
+                    strokeWidth = width,
+                    cap = StrokeCap.Round
+                )
+            }
         }
     }
 }

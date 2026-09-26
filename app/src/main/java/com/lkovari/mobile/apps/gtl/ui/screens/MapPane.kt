@@ -75,6 +75,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.data.prefs.GoogleMapLayer
+import com.lkovari.mobile.apps.gtl.data.sensor.GeomagneticDeclination
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
@@ -88,6 +89,7 @@ import com.lkovari.mobile.apps.gtl.engine.OsmMapCamera
 import com.lkovari.mobile.apps.gtl.engine.OsmMapViewRedraw
 import com.lkovari.mobile.apps.gtl.engine.TrackCameraBounds
 import com.lkovari.mobile.apps.gtl.engine.TapReadout
+import com.lkovari.mobile.apps.gtl.engine.TargetPointer
 import com.lkovari.mobile.apps.gtl.engine.TrackEndpoints
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.engine.MapAddressLookup
@@ -359,22 +361,57 @@ fun MapPane(
         )
         val showCloudPaused = state.settings.showFixCloud && !state.fixCloud.stats.active
         val distancePrefix = stringResource(R.string.map_tap_distance_prefix)
+        val noFixText = stringResource(R.string.map_tap_no_fix)
         val liveFix = state.live.lastLocation
-        val distanceText = distanceTarget?.let { target ->
-            if (liveFix == null) {
-                stringResource(R.string.map_tap_no_fix)
+        val target = distanceTarget
+        val declinationDegrees = remember(
+            liveFix?.latitude,
+            liveFix?.longitude,
+            liveFix?.altitude,
+            liveFix?.time
+        ) {
+            val fix = liveFix
+            if (fix == null) {
+                null
             } else {
-                TapReadout.formatStraightLine(
-                    FixAcceptance.haversineMeters(
-                        liveFix.latitude,
-                        liveFix.longitude,
-                        target.latitude,
-                        target.longitude
-                    ),
-                    state.settings.measurementSystem,
-                    distancePrefix
-                )
+                GeomagneticDeclination.degrees(fix)
             }
+        }
+        val distanceMeters = if (target != null && liveFix != null) {
+            FixAcceptance.haversineMeters(
+                liveFix.latitude,
+                liveFix.longitude,
+                target.latitude,
+                target.longitude
+            )
+        } else {
+            null
+        }
+        val distanceText = when {
+            target == null -> null
+            distanceMeters == null -> noFixText
+            else -> TapReadout.formatStraightLine(
+                distanceMeters,
+                state.settings.measurementSystem,
+                distancePrefix
+            )
+        }
+        val targetPointer = if (target != null && liveFix != null && distanceMeters != null) {
+            TargetPointer.resolve(
+                fromLatitude = liveFix.latitude,
+                fromLongitude = liveFix.longitude,
+                toLatitude = target.latitude,
+                toLongitude = target.longitude,
+                distanceMeters = distanceMeters,
+                accuracyMeters = if (liveFix.hasAccuracy()) liveFix.accuracy else null,
+                courseDegrees = if (liveFix.hasBearing()) liveFix.bearing else null,
+                speedMps = if (liveFix.hasSpeed()) liveFix.speed else null,
+                magneticHeading = state.live.azimuthDegrees,
+                declinationDegrees = declinationDegrees,
+                compassAccuracy = state.live.compassAccuracy
+            )
+        } else {
+            null
         }
         if (hudMode != MapHudMode.Hidden || showCloudPaused || distanceText != null) {
             Column(
@@ -406,6 +443,7 @@ fun MapPane(
                     satellitesInFix = state.live.gnss?.satellitesInFix ?: 0,
                     satellitesInView = state.live.gnss?.satellitesInView ?: 0,
                     distanceText = distanceText,
+                    targetPointer = targetPointer,
                     onClearDistance = { distanceTarget = null }
                 )
             }

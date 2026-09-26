@@ -3,11 +3,23 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.14** / `versionCode` **32** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.15** / `versionCode` **33** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.15] — 2026-09-26
+
+Play production track **33 (2.0.15)** (signed AAB). Distance row pointer toward the tapped point.
+
+### Added
+
+- The map distance row includes a pointer toward the tapped point, and toward a place chosen with Search **Yes**. At 1 m/s or faster it follows the GPS course, so going straight at the point the needle points ahead. Standing still, or without a GPS course, it uses the compass (magnetic heading plus declination). The needle hides within 20 m, or inside the GPS accuracy when that is larger. Tap the row to clear the distance and the pointer.
+
+### Magyar
+
+- A térkép távolságsora a koppintott pont, és a keresés **Igen** helye felé mutató iránytűt kap. 1 m/s-tól a GPS haladási irányát követi, ezért ha egyenesen a pont felé mész, a tű előre mutat. Állva, vagy GPS-pálya nélkül, az iránytűt használja (mágneses heading plusz deklináció). 20 m-en belül, vagy a GPS-pontosságon belül, ha az nagyobb, a tű eltűnik. A sor érintése a távolságot és a mutatót is törli.
 
 ## [2.0.14] — 2026-09-23
 

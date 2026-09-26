@@ -3830,6 +3830,274 @@ class UnitsHudTest {
     }
 }
 
+class TargetPointerTest {
+    @Test
+    fun bearingNorthIsZero() {
+        val bearing = TargetPointer.initialBearingDegrees(47.0, 19.0, 48.0, 19.0)
+        assertEquals(0.0, bearing ?: Double.NaN, 0.05)
+    }
+
+    @Test
+    fun bearingEastIsNinety() {
+        val bearing = TargetPointer.initialBearingDegrees(47.0, 19.0, 47.0, 19.01)
+        assertEquals(90.0, bearing ?: Double.NaN, 0.2)
+    }
+
+    @Test
+    fun bearingWrapsJustWestOfNorth() {
+        val bearing = TargetPointer.initialBearingDegrees(0.0, 0.0, 1.0, -0.001) ?: Double.NaN
+        assertTrue(bearing > 359.0)
+        assertTrue(bearing < 360.0)
+    }
+
+    @Test
+    fun invalidCoordinatesHaveNoBearing() {
+        assertNull(TargetPointer.initialBearingDegrees(Double.NaN, 19.0, 48.0, 19.0))
+        assertNull(TargetPointer.initialBearingDegrees(47.0, Double.POSITIVE_INFINITY, 48.0, 19.0))
+    }
+
+    @Test
+    fun relativePointsRightAndSlightlyLeft() {
+        val right = aim(course = 0f, speed = 2f, toLatitude = 47.0, toLongitude = 19.01)
+        assertEquals(90f, right.relativeDegrees, 0.3f)
+        assertFalse(right.dimmed)
+        val left = aim(course = 20f, speed = 2f, toLatitude = 48.0, toLongitude = 19.0)
+        assertEquals(340f, left.relativeDegrees, 0.3f)
+    }
+
+    @Test
+    fun movingCourseBeatsCompass() {
+        val shown = aim(
+            course = 0f,
+            speed = 5f,
+            magnetic = 90f,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertEquals(0f, shown.relativeDegrees, 0.3f)
+        assertFalse(shown.dimmed)
+    }
+
+    @Test
+    fun belowCourseSpeedUsesCompass() {
+        val shown = aim(
+            course = 0f,
+            speed = 0.5f,
+            magnetic = 90f,
+            declination = 0f,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertEquals(270f, shown.relativeDegrees, 0.3f)
+        assertFalse(shown.dimmed)
+    }
+
+    @Test
+    fun missingCourseUsesCompass() {
+        val shown = aim(
+            course = null,
+            speed = 5f,
+            magnetic = 0f,
+            declination = 0f,
+            toLatitude = 47.0,
+            toLongitude = 19.01
+        )
+        assertEquals(90f, shown.relativeDegrees, 0.3f)
+    }
+
+    @Test
+    fun declinationShiftsCompassTowardTrueNorth() {
+        val shown = aim(
+            course = null,
+            speed = 0f,
+            magnetic = 350f,
+            declination = 10f,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertEquals(0f, shown.relativeDegrees, 0.3f)
+        assertFalse(shown.dimmed)
+    }
+
+    @Test
+    fun deadZoneFloorHidesNeedle() {
+        val shown = TargetPointer.resolve(
+            fromLatitude = 47.0,
+            fromLongitude = 19.0,
+            toLatitude = 48.0,
+            toLongitude = 19.0,
+            distanceMeters = 15.0,
+            accuracyMeters = 5f,
+            courseDegrees = 0f,
+            speedMps = 3f,
+            magneticHeading = 0f,
+            declinationDegrees = 0f,
+            compassAccuracy = 3
+        )
+        assertTrue(shown is TargetPointer.Ring)
+    }
+
+    @Test
+    fun deadZoneGrowsWithAccuracy() {
+        val shown = TargetPointer.resolve(
+            fromLatitude = 47.0,
+            fromLongitude = 19.0,
+            toLatitude = 48.0,
+            toLongitude = 19.0,
+            distanceMeters = 30.0,
+            accuracyMeters = 40f,
+            courseDegrees = 0f,
+            speedMps = 3f,
+            magneticHeading = 0f,
+            declinationDegrees = 0f,
+            compassAccuracy = 3
+        )
+        assertTrue(shown is TargetPointer.Ring)
+    }
+
+    @Test
+    fun outsideDeadZoneAims() {
+        val shown = aim(
+            course = 0f,
+            speed = 2f,
+            distanceMeters = 25.0,
+            accuracyMeters = 5f,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertEquals(0f, shown.relativeDegrees, 0.3f)
+    }
+
+    @Test
+    fun lowCompassAccuracyDimsOnlyWhenStill() {
+        val still = aim(
+            course = 0f,
+            speed = 0f,
+            magnetic = 0f,
+            declination = 0f,
+            compassAccuracy = 1,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertTrue(still.dimmed)
+        val moving = aim(
+            course = 0f,
+            speed = 3f,
+            magnetic = 90f,
+            compassAccuracy = 0,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertFalse(moving.dimmed)
+    }
+
+    @Test
+    fun missingDeclinationDimsCompass() {
+        val shown = aim(
+            course = null,
+            speed = 0f,
+            magnetic = 0f,
+            declination = null,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertEquals(0f, shown.relativeDegrees, 0.3f)
+        assertTrue(shown.dimmed)
+    }
+
+    @Test
+    fun nanSpeedFallsBackToCompass() {
+        val shown = aim(
+            course = 0f,
+            speed = Float.NaN,
+            magnetic = 90f,
+            declination = 0f,
+            toLatitude = 48.0,
+            toLongitude = 19.0
+        )
+        assertEquals(270f, shown.relativeDegrees, 0.3f)
+    }
+
+    @Test
+    fun unusableHeadingDrawsNothing() {
+        assertNull(
+            TargetPointer.resolve(
+                fromLatitude = 47.0,
+                fromLongitude = 19.0,
+                toLatitude = 48.0,
+                toLongitude = 19.0,
+                distanceMeters = 1000.0,
+                accuracyMeters = 5f,
+                courseDegrees = null,
+                speedMps = 0f,
+                magneticHeading = Float.NaN,
+                declinationDegrees = 0f,
+                compassAccuracy = 3
+            )
+        )
+        assertNull(
+            TargetPointer.resolve(
+                fromLatitude = Double.NaN,
+                fromLongitude = 19.0,
+                toLatitude = 48.0,
+                toLongitude = 19.0,
+                distanceMeters = 1000.0,
+                accuracyMeters = 5f,
+                courseDegrees = 0f,
+                speedMps = 3f,
+                magneticHeading = 0f,
+                declinationDegrees = 0f,
+                compassAccuracy = 3
+            )
+        )
+        assertNull(
+            TargetPointer.resolve(
+                fromLatitude = 47.0,
+                fromLongitude = 19.0,
+                toLatitude = 48.0,
+                toLongitude = 19.0,
+                distanceMeters = Double.NaN,
+                accuracyMeters = 5f,
+                courseDegrees = 0f,
+                speedMps = 3f,
+                magneticHeading = 0f,
+                declinationDegrees = 0f,
+                compassAccuracy = 3
+            )
+        )
+    }
+
+    private fun aim(
+        course: Float?,
+        speed: Float?,
+        toLatitude: Double,
+        toLongitude: Double,
+        magnetic: Float? = 0f,
+        declination: Float? = 0f,
+        compassAccuracy: Int = 3,
+        distanceMeters: Double = 1_000.0,
+        accuracyMeters: Float? = 5f
+    ): TargetPointer.Aim {
+        val shown = TargetPointer.resolve(
+            fromLatitude = 47.0,
+            fromLongitude = 19.0,
+            toLatitude = toLatitude,
+            toLongitude = toLongitude,
+            distanceMeters = distanceMeters,
+            accuracyMeters = accuracyMeters,
+            courseDegrees = course,
+            speedMps = speed,
+            magneticHeading = magnetic,
+            declinationDegrees = declination,
+            compassAccuracy = compassAccuracy
+        )
+        if (shown is TargetPointer.Aim) {
+            return shown
+        }
+        throw AssertionError("expected Aim, was $shown")
+    }
+}
+
 class TapReadoutTest {
     @Test
     fun coordinateUsesSixDecimals() {
