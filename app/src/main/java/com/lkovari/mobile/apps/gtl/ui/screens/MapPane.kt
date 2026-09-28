@@ -58,8 +58,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.JointType
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.RoundCap
+import com.google.android.gms.maps.model.StyleSpan
 import com.google.maps.android.compose.CameraPositionState
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRenderTheme
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
@@ -88,6 +91,9 @@ import com.lkovari.mobile.apps.gtl.engine.PostalAddress
 import com.lkovari.mobile.apps.gtl.engine.OsmMapCamera
 import com.lkovari.mobile.apps.gtl.engine.OsmMapViewRedraw
 import com.lkovari.mobile.apps.gtl.engine.TrackCameraBounds
+import com.lkovari.mobile.apps.gtl.engine.SpeedBand
+import com.lkovari.mobile.apps.gtl.engine.SpeedBands
+import com.lkovari.mobile.apps.gtl.engine.SpeedRun
 import com.lkovari.mobile.apps.gtl.engine.TapReadout
 import com.lkovari.mobile.apps.gtl.engine.TargetPointer
 import com.lkovari.mobile.apps.gtl.engine.TrackEndpoints
@@ -96,6 +102,7 @@ import com.lkovari.mobile.apps.gtl.engine.MapAddressLookup
 import com.lkovari.mobile.apps.gtl.engine.MapHudMode
 import com.lkovari.mobile.apps.gtl.engine.MapHudVisibility
 import com.lkovari.mobile.apps.gtl.ui.components.MapHud
+import com.lkovari.mobile.apps.gtl.ui.components.SpeedLegend
 import com.lkovari.mobile.apps.gtl.ui.components.MapSearchOverlay
 import com.lkovari.mobile.apps.gtl.ui.components.MapTapOverlay
 import com.lkovari.mobile.apps.gtl.ui.drawLiveFixReticle
@@ -120,6 +127,9 @@ import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.MapSearchUi
 import org.mapsforge.core.graphics.Bitmap as ForgeBitmap
 import org.mapsforge.core.graphics.Canvas
+import org.mapsforge.core.graphics.Cap
+import org.mapsforge.core.graphics.Join
+import org.mapsforge.core.graphics.Paint as ForgePaint
 import org.mapsforge.core.graphics.Style
 import org.mapsforge.core.model.BoundingBox
 import org.mapsforge.core.model.LatLong
@@ -210,6 +220,7 @@ fun MapPane(
                 OsmMapView(
                     filePath = osmFile.absolutePath,
                     points = points,
+                    speedRuns = state.speedRuns,
                     location = state.live.lastLocation,
                     showAccuracyMarker = state.settings.showAccuracyMarker,
                     logging = state.live.logging,
@@ -234,12 +245,21 @@ fun MapPane(
                         }
                     }
                 )
-                NorthIndicator(
-                    mapBearingDegrees = 0f,
+                Column(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                )
+                        .padding(10.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    NorthIndicator(mapBearingDegrees = 0f)
+                    if (state.speedLegendVisible) {
+                        SpeedLegend(
+                            usage = state.speedUsage,
+                            system = state.settings.measurementSystem
+                        )
+                    }
+                }
                 Text(
                     text = stringResource(R.string.map_osm_attribution),
                     modifier = Modifier
@@ -576,8 +596,31 @@ private fun GoogleMapContent(
             onTap(GeoPoint(latLng.latitude, latLng.longitude))
         }
     ) {
-        if (latLngs.size >= 2) {
-            Polyline(points = latLngs, color = CarmineTrack, width = 10f)
+        val speedRuns = state.speedRuns
+        val speedSegments = speedRuns.sumOf { (it.points.size - 1).coerceAtLeast(0) }
+        if (latLngs.size >= 2 && speedSegments == latLngs.size - 1) {
+            Polyline(
+                points = latLngs,
+                color = Color(SpeedBands.CasingArgb),
+                width = SpeedBands.CasingWidthPx,
+                zIndex = 0f,
+                clickable = false,
+                jointType = JointType.ROUND,
+                startCap = RoundCap(),
+                endCap = RoundCap()
+            )
+            Polyline(
+                points = latLngs,
+                spans = speedRuns.map { run ->
+                    StyleSpan(SpeedBands.argb(run.band), (run.points.size - 1).toDouble())
+                },
+                width = SpeedBands.CoreWidthPx,
+                zIndex = 1f,
+                clickable = false,
+                jointType = JointType.ROUND,
+                startCap = RoundCap(),
+                endCap = RoundCap()
+            )
         }
         val startPoint = TrackEndpoints.start(points)
         if (startPoint != null) {
@@ -589,7 +632,7 @@ private fun GoogleMapContent(
                 state = startState,
                 title = stringResource(R.string.map_track_start),
                 anchor = Offset(0.5f, 0.5f),
-                zIndex = 1f
+                zIndex = 2f
             ) {
                 TrackEndDot(start = true)
             }
@@ -604,7 +647,7 @@ private fun GoogleMapContent(
                 state = endState,
                 title = stringResource(R.string.map_track_end),
                 anchor = Offset(0.5f, 0.5f),
-                zIndex = 1f
+                zIndex = 2f
             ) {
                 TrackEndDot(start = false)
             }
@@ -618,7 +661,8 @@ private fun GoogleMapContent(
                 state = markerState,
                 rotation = 0f,
                 flat = false,
-                anchor = Offset(0.5f, 0.5f)
+                anchor = Offset(0.5f, 0.5f),
+                zIndex = 2f
             ) {
                 CurrentPositionMarker(
                     usageType = state.mapUsageType,
@@ -668,12 +712,21 @@ private fun GoogleMapContent(
             }
         }
     }
-    NorthIndicator(
-        mapBearingDegrees = camera.position.bearing,
+    Column(
         modifier = Modifier
             .align(Alignment.TopEnd)
-            .padding(10.dp)
-    )
+            .padding(10.dp),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        NorthIndicator(mapBearingDegrees = camera.position.bearing)
+        if (state.speedLegendVisible) {
+            SpeedLegend(
+                usage = state.speedUsage,
+                system = state.settings.measurementSystem
+            )
+        }
+    }
     MapLayerButton(
         selected = state.settings.googleMapLayer,
         onSelect = onGoogleMapLayer,
@@ -1125,7 +1178,9 @@ private class GtlOsmMapView(context: Context) : MapView(context) {
 }
 
 private class OsmMapOverlays {
-    var polyline: ForgePolyline? = null
+    var casing: ForgePolyline? = null
+    var speedLines: MutableList<ForgePolyline> = ArrayList()
+    var speedSignature: List<Pair<SpeedBand, Int>> = emptyList()
     var accuracy: ForgeCircle? = null
     var cloud: FixCloudLayer? = null
     var usage: UsagePositionLayer? = null
@@ -1157,6 +1212,7 @@ private data class MapSearchFocus(
 private fun OsmMapView(
     filePath: String,
     points: List<GeoPoint>,
+    speedRuns: List<SpeedRun>,
     location: Location?,
     showAccuracyMarker: Boolean,
     logging: Boolean,
@@ -1253,7 +1309,7 @@ private fun OsmMapView(
                 } else if (!cameraHold && cameraMode == MapCameraMode.FollowLive) {
                     followOsmLiveCamera(mapView, overlays, location, points, logging)
                 }
-                updateOsmTrack(overlays, points)
+                updateOsmTrack(mapView, overlays, points, speedRuns)
                 updateOsmTrackEnds(overlays, points, logging)
                 updateOsmAccuracy(mapView, overlays, location, showAccuracyMarker)
                 updateOsmFixCloud(overlays, showFixCloud, fixCloud)
@@ -1265,7 +1321,9 @@ private fun OsmMapView(
                 overlays.usage?.bitmap = null
                 overlays.usageBitmapType = null
                 overlays.usageLiveFix = null
-                overlays.polyline = null
+                overlays.casing = null
+                overlays.speedLines.clear()
+                overlays.speedSignature = emptyList()
                 overlays.accuracy = null
                 overlays.cloud = null
                 overlays.ends = null
@@ -1315,13 +1373,12 @@ private fun attachOsmLayers(
     overlays.lastRenderOptions = options
     overlays.lastTuhuRenderOptions = tuhuOptions
     val graphic = AndroidGraphicFactory.INSTANCE
-    val stroke = graphic.createPaint()
-    stroke.setColor(graphic.createColor(255, 0xC1, 0x3B, 0x2E))
-    stroke.setStyle(Style.STROKE)
-    stroke.strokeWidth = 10f
-    val polyline = ForgePolyline(stroke, graphic)
-    mapView.layerManager.layers.add(polyline)
-    overlays.polyline = polyline
+    val casing = ForgePolyline(
+        trackPaint(SpeedBands.CasingArgb, SpeedBands.CasingWidthPx),
+        graphic
+    )
+    mapView.layerManager.layers.add(casing)
+    overlays.casing = casing
     val cloud = FixCloudLayer()
     mapView.layerManager.layers.add(cloud)
     overlays.cloud = cloud
@@ -1486,10 +1543,62 @@ private fun fitOsmToBounds(mapView: MapView, bounds: LatLonBounds): Boolean {
     }
 }
 
-private fun updateOsmTrack(overlays: OsmMapOverlays, points: List<GeoPoint>) {
-    val latLongs = points.map { LatLong(it.latitude, it.longitude) }
-    overlays.polyline?.setPoints(latLongs)
-    overlays.polyline?.requestRedraw()
+private fun updateOsmTrack(
+    mapView: GtlOsmMapView,
+    overlays: OsmMapOverlays,
+    points: List<GeoPoint>,
+    runs: List<SpeedRun>
+) {
+    val casing = overlays.casing ?: return
+    casing.setPoints(points.map { LatLong(it.latitude, it.longitude) })
+    casing.requestRedraw()
+    val signature = runs.map { it.band to it.points.size }
+    if (signature == overlays.speedSignature && overlays.speedLines.size == runs.size) {
+        runs.forEachIndexed { index, run ->
+            val line = overlays.speedLines[index]
+            line.setPoints(run.points.map { LatLong(it.latitude, it.longitude) })
+            line.requestRedraw()
+        }
+        return
+    }
+    val layers = mapView.layerManager.layers
+    overlays.speedLines.forEach { line -> layers.remove(line) }
+    overlays.speedLines.clear()
+    val graphic = AndroidGraphicFactory.INSTANCE
+    var insertAt = layers.indexOf(casing) + 1
+    if (insertAt <= 0) {
+        insertAt = layers.size()
+    }
+    runs.forEach { run ->
+        val line = ForgePolyline(
+            trackPaint(SpeedBands.argb(run.band), SpeedBands.CoreWidthPx),
+            graphic
+        )
+        line.setPoints(run.points.map { LatLong(it.latitude, it.longitude) })
+        layers.add(insertAt, line)
+        insertAt += 1
+        overlays.speedLines.add(line)
+        line.requestRedraw()
+    }
+    overlays.speedSignature = signature
+}
+
+private fun trackPaint(argb: Int, width: Float): ForgePaint {
+    val graphic = AndroidGraphicFactory.INSTANCE
+    val paint = graphic.createPaint()
+    paint.setColor(
+        graphic.createColor(
+            (argb ushr 24) and 0xFF,
+            (argb ushr 16) and 0xFF,
+            (argb ushr 8) and 0xFF,
+            argb and 0xFF
+        )
+    )
+    paint.setStyle(Style.STROKE)
+    paint.strokeWidth = width
+    paint.setStrokeCap(Cap.ROUND)
+    paint.setStrokeJoin(Join.ROUND)
+    return paint
 }
 
 private fun updateOsmTrackEnds(overlays: OsmMapOverlays, points: List<GeoPoint>, logging: Boolean) {

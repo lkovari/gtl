@@ -6,7 +6,7 @@ Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. 
 
 A 2014-es Eclipse-app (`gtl-e`) Kotlin + Jetpack Compose újraírása. Alkalmazásazonosító: `com.lkovari.mobile.apps.gtl`.
 
-**Verzió:** 2.0.15 (versionCode 33)  
+**Verzió:** 2.0.16 (versionCode 34)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** angol és magyar, Material 3, álló (portrait)
 
@@ -74,12 +74,12 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Útvonal fül
 
-Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). Idle-ben a sebesség és az átlagsebesség 0; Indítás után az élő GPS-sebesség és a session átlaga. A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
+Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A nagy szám naplózáskor az élő sebesség, alatta sebesség-sparkline; mentett vagy utolsó sessionnél az átlag, a kártyán a max. sebesség. Pont nélkül gondolatjel. A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
 
 ### Térkép fül
 
 - A jelenlegi helyre centrál, amikor a fület nyitod. Idle-ben elhúzhatod (Google és OSM). Indítás után a kamera követ. A **Teljes útvonal a képernyőn** minden GPS-frissítés után a teljes nyomvonalat a képernyőre illeszti (a nagyítás és mozgatás a következő fixig megengedett). A **Saját hely** gomb (bal felső: cián GPS-kereszt, ugyanolyan kör, mint a seprő) a GPS-fixre centrál, a zoomot nem változtatja.
-- Piros polyline a Room-ból (élő munkamenet, utoljára mentett track, vagy a Mentett útvonalakban választott track). A térképvonal **maga** a letárolt log; nincs külön vázlat. Lásd [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
+- Sebesség szerint színezett polyline a Room-ból (élő munkamenet, utoljára mentett track, vagy a Mentett útvonalakban választott track). A térképvonal **maga** a letárolt log; nincs külön vázlat. Lásd [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
 - **OSM Mapsforge**, ha letöltöttél egy régiót (vagy Turistautakot) és **Használatban** van az **Offline térkép letöltése** listán (vagy be van a **Letöltött OSM térkép használata**). Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re. Hiányzó vagy nem Mapsforge fájl üzenetet mutat, és kikapcsolja a kapcsolót, hogy a következő indítás ne crash-loop legyen. A letöltés csak `mapsforge binary OSM` mágiájú, egyező header-méretű fájlt tart meg. A kamera a `.map` start/bounds pontját használja, ha a GPS a fájlon kívül van; élő követés csak a fájlon belül. Az OSM `MapView` mérete megmarad, ha elhagyod a Térkép fület.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
@@ -150,6 +150,23 @@ A **használat** választása egy DataStore-szerkesztésben felülírja a kapcso
 | Repülő           | ICAO         | ki        | be                         | Magas   | be                      | Okos       | be                       | 15 m  |
 
 
+**Sebességsávok**
+
+A vonal és a sarok-jelmagyarázat a usage felső élei szerint színez. A sebesség, ami pont az élen van, még az alatta lévő sáv. A Fut/túra, a `WALKING_HIKE` és a `PEDESTRIAN` egy tábla. A mentett track a saját usage-ét használja, nem a Beállítások aktuális usage-ét. A felirat a Beállítások mértékegysége.
+
+
+| Használat | km/h | mph | kt |
+| --------- | ---- | --- | -- |
+| Fut/túra | 4, 7, 10, 13, 16, 20 | 2, 4, 6, 8, 10, 12 | 2, 4, 5, 7, 9, 11 |
+| Kerékpár | 8, 15, 22, 28, 35, 45 | 5, 9, 14, 17, 22, 28 | 4, 8, 12, 15, 19, 24 |
+| Autó | 6, 15, 40, 80, 110, 130 | 4, 9, 25, 50, 70, 80 | 3, 8, 22, 43, 60, 70 |
+| Motor | 20, 50, 90, 130, 160, 200 | 12, 30, 55, 80, 100, 125 | 11, 27, 49, 70, 86, 108 |
+| Hajó | 6, 12, 20, 30, 45, 60 | 4, 8, 12, 19, 28, 37 | 3, 6, 11, 16, 24, 32 |
+| Repülő | 70, 120, 160, 200, 250, 300 | 45, 75, 100, 125, 155, 185 | 40, 65, 85, 110, 135, 160 |
+
+
+Lassútól a usage teteje felé: teal `#0B6B66`, ibolya `#5B2D86`, borostyán `#7A5E00`, carmine `#C13B2E`, narancs `#A84300`, mélyzöld `#1B5E20`, fekete `#2A2118`. Nincs sebesség: szürke `#5C6B73`, jelmagyarázat nélkül.
+
 **Mit csinál az egyes vezérlő**
 
 - **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (Fut/túra és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
@@ -172,7 +189,7 @@ A meglévő telepítések, amelyeknél még a régi **19,5 m** egyszerűsítési
 - Biztonságos vezetés nyilatkozat a telepítés utáni első indításkor. Az **Elfogadom** a választ a telefon DataStore-jába írja; a későbbi indítások a GPS-re mennek, a nyilatkozat rejtve marad. Az **Elutasítom** bezárja az appot, és nem ment elfogadást, ezért a következő indítás megint kérdez. Az eltávolítás törli az app adatait (a mentés ki van kapcsolva), ezért az új telepítés megint kérdez. A splash addig marad, amíg ez a mentett választás be nem olvasható, így az elfogadott nyilatkozat nem villan fel a GPS előtt.
 - Offline térkép letöltése (először Turistautak.hu, aztán Mapsforge v5 OSM-régiók). A letöltött térkép **Használható** vagy **Használatban**; egyszerre csak egy lehet Használatban. A Használatban gomb Google Térképre vált. A letöltött régiót onnan törölheted. Opcionális túratérkép kódban kapuzva (`TuhuFeature.enabled`, alapból be); részletek: `docs/tuhu-hu.md`.
 - Helymeghatározás beállításai (megnyitja a rendszer GPS-panelét).
-- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH, OSM térképrétegek és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal (Idle-ben sebesség és átlagsebesség 0), Térkép (OSM fájl, S/E), **OSM térkép opciók**, Turistautak opciók ha az a térkép le van töltve, Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
+- Súgó: harmonika (egyszerre egy szakasz nyitva). Használat, **Beállítások** (előbeállítások, QNH, OSM térképrétegek és minden vezérlő), Útvonalnaplózás (Kalman vs Douglas–Peucker vs sűrűség), GPS (skyplot, magasságválasztás, baro), Útvonal (nagy sebesség, sparkline, kompakt összesítők), Térkép (OSM fájl, S/E), **OSM térkép opciók**, Turistautak opciók ha az a térkép le van töltve, Iránytű, KMZ/KML megtekintése, adatvédelmi tájékoztató, letárolt trackpont mezőtábla. Angol és magyar.
 - Adatvédelmi tájékoztató hivatkozás.
 - Névjegy: harmonika (egyszerre egy téma nyitva). Alkalmazás adatai (verzió, csomag, ez a készülék), helyi GPS útvonalnapló, OSM (ODbL és weboldal), Turistautak, eredeti tároló, szerzői jog. Az OSM Térkép fülön **© OpenStreetMap**. A verziószám hétszeri érintése, két másodpercen belül, megnyitja a telefonon lévő hibanaplót: UTC időbélyeg, a sikertelen művelet, és a teljes hívási verem az okkal együtt. A **Törlés** törli az `errors.log` és az `errors.log.1` fájlt.
 
@@ -249,7 +266,7 @@ Leállít
 
 **Leállítás.** Mindig ír egy `STOP` sort (`isPlacemark` true), még ha a sűrűség eldobná is a pontot. A koordináta az utolsó **elfogadott** letárolt fix (nem a nyers HUD-fix, ami pár méterre lehet a logtól). A KMZ/GPX a Stop ikont erre az utolsó path-csúcsra teszi.
 
-**Térképrajzolás.** A `GtlViewModel` a Room-sorokat `displayPoints`-re képezi. A `MapTrackVisibility` akkor mutatja a vonalat, ha naplózás megy, ha az **Utolsó naplózott útvonal a térképen** be van, vagy ha Mentett útvonalak-munkamenet van kiválasztva — hacsak a seprő `mapCleared`-et nem állított (csak idle; naplózáskor akkor is rajzol). Ha az **Útvonal egyszerűsítése a térképen** be van, és több mint 4 pont van, a Douglas–Peucker **csak ezeket a megjelenítési csúcsokat** ritkítja az 1–20 m csúszkán. Az SQLite, az Útvonal-odométer és a KMZ soha nem megy DP-n. Egyszerűsítés **ki** (Fut/túra és kerékpár alap) esetén minden letárolt csúcs a térképen van — ezért marad látható egy kis úttest-hurok.
+**Térképrajzolás.** A `GtlViewModel` a Room-sorokat `displayPoints`-re képezi. A `MapTrackVisibility` akkor mutatja a vonalat, ha naplózás megy, ha az **Utolsó naplózott útvonal a térképen** be van, vagy ha Mentett útvonalak-munkamenet van kiválasztva — hacsak a seprő `mapCleared`-et nem állított (csak idle; naplózáskor akkor is rajzol). Ha az **Útvonal egyszerűsítése a térképen** be van, és több mint 4 pont van, a Douglas–Peucker **csak ezeket a megjelenítési csúcsokat** ritkítja az 1–20 m csúszkán. Az SQLite, az Útvonal-odométer és a KMZ soha nem megy DP-n. Egyszerűsítés **ki** (Fut/túra és kerékpár alap) esetén minden letárolt csúcs a térképen van — ezért marad látható egy kis úttest-hurok. A ritkítás után minden húr a helyettesített pontok távolsággal súlyozott sebessége szerint színeződik (a session usage-ének sávjai, krém szegély) Google, OSM és Turistautak térképen.
 
 **Miért néz ki a térkép a logodnak**
 

@@ -14,11 +14,23 @@ object DouglasPeucker {
         if (points.size < 3) {
             return points
         }
+        val keep = keepIndices(points, toleranceMeters)
+        return points.filterIndexed { index, _ -> keep[index] }
+    }
+
+    fun keepIndices(points: List<GeoPoint>, toleranceMeters: Double): BooleanArray {
         val keep = BooleanArray(points.size)
+        if (points.isEmpty()) {
+            return keep
+        }
+        if (points.size < 3) {
+            keep.fill(true)
+            return keep
+        }
         keep[0] = true
         keep[points.lastIndex] = true
         simplifyRange(points, 0, points.lastIndex, toleranceMeters, keep)
-        return points.filterIndexed { index, _ -> keep[index] }
+        return keep
     }
 
     private fun simplifyRange(

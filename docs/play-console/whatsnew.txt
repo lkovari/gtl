@@ -1,13 +1,19 @@
-Release name (Play, not shown to users):
-2.0.15 (33)
+GTL GPS Track Logger — Play Console “What’s new” (v2.0.16)
 
-What's new — max 500 characters per language.
-Date: 2026-09-26
+EN (≤500 characters)
 
-<en-US>
-The distance row on the map now includes a pointer toward that point. While you move, it follows your GPS course, so going straight at the point it points ahead. Standing still, it uses the compass. Close to the point, the pointer hides. Tap the row to clear it.
-</en-US>
+Speed-colored tracks; KMZ follows GPS altitude.
 
-<hu-HU>
-A térkép távolságsora most a pont felé mutató iránytűt is mutat. Mozgás közben a GPS haladási irányát követi: ha egyenesen a pont felé mész, előre mutat. Állva az iránytűt használja. A pont közelében a mutató eltűnik. A sor érintése törli.
-</hu-HU>
+• Map line uses usage speed bands (slow teal to fast black), cream outline, corner legend
+• Saved tracks keep their recorded usage colors
+• Shared KMZ lifts off the terrain at stored GPS altitude in Google Earth
+• A missing altitude keeps the previous height so the line does not drop to sea level
+
+HU (≤500 characters)
+
+Sebesség szerint színezett track; a KMZ a GPS-magasságot követi.
+
+• A térképvonal a usage sávjait használja (lassú teal-től gyors feketéig), krém szegély, sarok-jelmagyarázat
+• A mentett track a felvétel usage-ének színeit tartja
+• A megosztott KMZ a letárolt GPS-magasságon emelkedik a Google Earth terepéről
+• Hiányzó magasságnál az előző magasság marad, a vonal nem esik tengerszintre

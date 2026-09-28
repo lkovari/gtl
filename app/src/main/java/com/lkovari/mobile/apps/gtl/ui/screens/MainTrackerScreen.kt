@@ -51,7 +51,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.CompassHeading
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
@@ -59,6 +62,7 @@ import com.lkovari.mobile.apps.gtl.data.sensor.GeomagneticDeclination
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
 import com.lkovari.mobile.apps.gtl.engine.ElevationSeries
 import com.lkovari.mobile.apps.gtl.engine.RouteTabSpeeds
+import com.lkovari.mobile.apps.gtl.engine.SpeedBands
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.ui.components.CompassDial
 import com.lkovari.mobile.apps.gtl.ui.components.ConstellationStrip
@@ -66,6 +70,7 @@ import com.lkovari.mobile.apps.gtl.ui.components.ElevationProfile
 import com.lkovari.mobile.apps.gtl.ui.components.GnssSkyplot
 import com.lkovari.mobile.apps.gtl.ui.components.HudMetric
 import com.lkovari.mobile.apps.gtl.ui.components.SnrMeter
+import com.lkovari.mobile.apps.gtl.ui.components.SpeedSparkline
 import com.lkovari.mobile.apps.gtl.ui.theme.AmberFix
 import com.lkovari.mobile.apps.gtl.ui.theme.StartBlue
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
@@ -443,6 +448,36 @@ private fun RoutePane(state: GtlUiState) {
     val stats = state.stats
     val units = state.settings.measurementSystem
     val location = state.live.lastLocation
+    val logging = state.live.logging
+    val hasTrack = stats.pointCount > 0
+    val heroMps = when {
+        logging -> RouteTabSpeeds.instantMps(
+            true,
+            location?.takeIf { it.hasSpeed() }?.speed
+        )
+        hasTrack -> stats.averageSpeedMps
+        else -> null
+    }
+    val heroLabel = if (!logging && hasTrack) {
+        stringResource(R.string.route_avg_speed)
+    } else {
+        stringResource(R.string.route_speed)
+    }
+    val heroColor = if (heroMps == null) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        Color(SpeedBands.argb(SpeedBands.of(heroMps, state.speedUsage, units)))
+    }
+    val secondarySpeedLabel = if (logging || !hasTrack) {
+        stringResource(R.string.route_avg_speed)
+    } else {
+        stringResource(R.string.route_max_speed)
+    }
+    val secondarySpeed = if (logging || !hasTrack) {
+        Units.formatSpeed(RouteTabSpeeds.averageMps(logging, stats.averageSpeedMps), units)
+    } else {
+        Units.formatSpeed(stats.maxSpeedMps, units)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -450,34 +485,65 @@ private fun RoutePane(state: GtlUiState) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            HudMetric(stringResource(R.string.route_elapsed), Units.formatDuration(stats.elapsedMillis), Modifier.weight(1f))
-            HudMetric(stringResource(R.string.route_odometer), Units.formatDistance(stats.odometerMeters, units), Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            HudMetric(stringResource(R.string.route_moving), Units.formatDuration(stats.movingMillis), Modifier.weight(1f))
-            HudMetric(stringResource(R.string.route_waiting), Units.formatDuration(stats.waitingMillis), Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            HudMetric(
-                stringResource(R.string.route_speed),
-                RouteTabSpeeds.instantMps(
-                    state.live.logging,
-                    location?.takeIf { it.hasSpeed() }?.speed
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = heroLabel.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = heroMps?.let { Units.hudSpeedNumber(it, units) } ?: "—",
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 48.sp,
+                    lineHeight = 52.sp,
+                    color = heroColor
                 )
-                    ?.let { Units.formatSpeed(it, units) } ?: "—",
-                Modifier.weight(1f)
+                if (heroMps != null) {
+                    Text(
+                        text = Units.hudSpeedUnit(units),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+            }
+        }
+        SpeedSparkline(samples = state.speedSamples, usage = state.speedUsage, system = units)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            HudMetric(
+                stringResource(R.string.route_elapsed),
+                Units.formatDuration(stats.elapsedMillis),
+                Modifier.weight(1f),
+                compact = true
             )
             HudMetric(
-                stringResource(R.string.route_avg_speed),
-                Units.formatSpeed(
-                    RouteTabSpeeds.averageMps(state.live.logging, stats.averageSpeedMps),
-                    units
-                ),
-                Modifier.weight(1f)
+                stringResource(R.string.route_odometer),
+                Units.formatDistance(stats.odometerMeters, units),
+                Modifier.weight(1f),
+                compact = true
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            HudMetric(
+                stringResource(R.string.route_moving),
+                Units.formatDuration(stats.movingMillis),
+                Modifier.weight(1f),
+                compact = true
+            )
+            HudMetric(
+                stringResource(R.string.route_waiting),
+                Units.formatDuration(stats.waitingMillis),
+                Modifier.weight(1f),
+                compact = true
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            HudMetric(secondarySpeedLabel, secondarySpeed, Modifier.weight(1f), compact = true)
             HudMetric(
                 stringResource(R.string.route_altitude),
                 location?.let { loc ->
@@ -487,15 +553,17 @@ private fun RoutePane(state: GtlUiState) {
                         "—"
                     }
                 } ?: "—",
-                Modifier.weight(1f)
-            )
-            HudMetric(
-                stringResource(R.string.route_bearing),
-                location?.let { String.format(Locale.US, "%.0f°", it.bearing) } ?: "—",
-                Modifier.weight(1f)
+                Modifier.weight(1f),
+                compact = true
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            HudMetric(
+                stringResource(R.string.route_bearing),
+                location?.let { String.format(Locale.US, "%.0f°", it.bearing) } ?: "—",
+                Modifier.weight(1f),
+                compact = true
+            )
             HudMetric(
                 stringResource(R.string.gps_status),
                 when {
@@ -507,8 +575,11 @@ private fun RoutePane(state: GtlUiState) {
                     state.live.logging -> stringResource(R.string.status_logging)
                     else -> stringResource(R.string.status_idle)
                 },
-                Modifier.weight(1f)
+                Modifier.weight(1f),
+                compact = true
             )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             HudMetric(
                 stringResource(R.string.gps_temperature),
                 run {
@@ -519,17 +590,21 @@ private fun RoutePane(state: GtlUiState) {
                         "—"
                     }
                 },
-                Modifier.weight(1f)
+                Modifier.weight(1f),
+                compact = true
+            )
+            HudMetric(
+                stringResource(R.string.route_lean),
+                state.live.leanAngle?.let { String.format(Locale.US, "%.0f°", it) } ?: "—",
+                Modifier.weight(1f),
+                compact = true
             )
         }
-        HudMetric(
-            stringResource(R.string.route_lean),
-            state.live.leanAngle?.let { String.format(Locale.US, "%.0f°", it) } ?: "—"
-        )
         stats.temperatureRange?.let { range ->
             HudMetric(
                 stringResource(R.string.route_temp_range),
-                "${Units.formatTemperature(range.minCelsius)} / ${Units.formatTemperature(range.maxCelsius)}"
+                "${Units.formatTemperature(range.minCelsius)} / ${Units.formatTemperature(range.maxCelsius)}",
+                compact = true
             )
         }
         val qnh = state.settings.qnhHpa

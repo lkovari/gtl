@@ -6,7 +6,7 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.15 (versionCode 33)  
+**Version:** 2.0.16 (versionCode 34)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
@@ -74,12 +74,12 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Route tab
 
-Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). Speed and average speed are 0 while Idle; after Start they follow live GPS speed and the session average. Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
+Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). The large figure is live speed while logging, with a speed sparkline under it; a saved or last session shows average speed there and max speed in the cards. With no points the figure is a dash. Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 ### Map tab
 
 - Centers on current location when you open the tab. Idle, you can pan away (Google and OSM). After Start the camera follows. **Keep whole track on the screen** fits the whole route after each GPS refresh (pan and zoom stay allowed until the next fix). A **My location** button (top left: cyan GPS crosshair, same circle as the broom) recenters on the GPS fix without changing zoom.
-- Red polyline from Room (live session, last saved track, or a track chosen in Saved tracks). The Map line **is** the stored log; there is no separate sketch. See [How logging works](#how-logging-works).
+- Speed-coloured polyline from Room (live session, last saved track, or a track chosen in Saved tracks). The Map line **is** the stored log; there is no separate sketch. See [How logging works](#how-logging-works).
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region (or Turistautak) and put it **In Use** on **Download Offline map** (or turn on **Use downloaded OSM map**). The same polyline and accuracy ring draw on OSM. A missing or non-Mapsforge file shows an on-device message and turns that switch off so the next launch is not a crash loop. Download keeps only files with magic `mapsforge binary OSM` and a matching header size. Camera starts on the `.map` start/bounds when the GPS fix is outside that file; live follow only inside the file. The OSM `MapView` stays laid out when you leave the Map tab.
 - Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
@@ -150,6 +150,23 @@ Choosing a **usage** overwrites the linked defaults in one DataStore edit. You c
 | Aircraft            | ICAO   | off       | on                    | High     | on         | Smart      | on              | 15 m      |
 
 
+**Speed bands**
+
+The line and the corner legend use the usage’s upper edges. A speed that lands on an edge stays in the band below it. Run/Hike, `WALKING_HIKE`, and `PEDESTRIAN` share one table. A saved track uses its own usage, not the usage currently selected in Settings. The labels use the units from Settings.
+
+
+| Usage | km/h | mph | kt |
+| ----- | ---- | --- | -- |
+| Run/Hike | 4, 7, 10, 13, 16, 20 | 2, 4, 6, 8, 10, 12 | 2, 4, 5, 7, 9, 11 |
+| Bicycle | 8, 15, 22, 28, 35, 45 | 5, 9, 14, 17, 22, 28 | 4, 8, 12, 15, 19, 24 |
+| Car | 6, 15, 40, 80, 110, 130 | 4, 9, 25, 50, 70, 80 | 3, 8, 22, 43, 60, 70 |
+| Motorbike | 20, 50, 90, 130, 160, 200 | 12, 30, 55, 80, 100, 125 | 11, 27, 49, 70, 86, 108 |
+| Watercraft | 6, 12, 20, 30, 45, 60 | 4, 8, 12, 19, 28, 37 | 3, 6, 11, 16, 24, 32 |
+| Aircraft | 70, 120, 160, 200, 250, 300 | 45, 75, 100, 125, 155, 185 | 40, 65, 85, 110, 135, 160 |
+
+
+From slow to the top of the usage: teal `#0B6B66`, violet `#5B2D86`, amber `#7A5E00`, carmine `#C13B2E`, orange `#A84300`, deep green `#1B5E20`, black `#2A2118`. No speed: grey `#5C6B73`, not in the legend.
+
 **What each control does**
 
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (Run/Hike and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
@@ -172,7 +189,7 @@ Existing installs that still have the old **19.5 m** simplify default migrate to
 - Safe-driving disclaimer on the first launch after install. **Accept** stores the choice in DataStore on this phone; later launches open GPS and the disclaimer stays hidden. **Refuse** closes the app and does not store acceptance, so the next launch asks again. Uninstall deletes app data (backup is off), so a new install asks again. The splash stays up until that stored choice is read, so an already accepted disclaimer does not flash before GPS.
 - Download Offline map (Turistautak.hu first, then Mapsforge v5 OSM regions). A downloaded map shows **Can Use** or **In Use**; only one map can be In Use. Tapping In Use goes back to Google Maps. Delete a downloaded region from that screen. Optional hiking map is gated in code (`TuhuFeature.enabled`, default on); see `docs/tuhu-hu.md`.
 - Location settings (opens the system GPS panel).
-- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, OSM map layers, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route (Idle speed and avg. speed are 0), Map (OSM file, S/E), **OSM map options**, Turistautak options when that map is downloaded, Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
+- Help: accordion (one section open at a time). Usage, **Settings** (usage presets, QNH, OSM map layers, and each control), Track logging (Kalman vs Douglas–Peucker vs density), GPS (skyplot, altitude pick, baro), Route (large speed, sparkline, compact totals), Map (OSM file, S/E), **OSM map options**, Turistautak options when that map is downloaded, Compass, Viewing KMZ/KML, privacy policy, stored-trackpoint field table. English and Hungarian.
 - Privacy-policy link.
 - About: accordion (one topic open at a time). App info (version, package, this device), local GPS track logger, OSM (ODbL and website), Turistautak, original repository, copyright. The OSM Map tab shows **© OpenStreetMap**. Seven taps on the version line, each within two seconds of the last, open the on-device error log: UTC timestamp, the action that failed, and the full stack including the cause. **Clear** deletes `errors.log` and `errors.log.1`.
 
@@ -249,7 +266,7 @@ Stop
 
 **Stop.** Always writes a `STOP` row (`isPlacemark` true) even if density would have dropped the point. Coordinates are the last **accepted** stored fix (not the raw HUD fix, which can sit a few metres off the log). KMZ/GPX then place the Stop icon on that last path vertex.
 
-**Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected — unless the Map broom set `mapCleared` (idle only; logging still draws). If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (Run/Hike and bicycle default), every stored vertex is on the map — that is why a small on-road loop stays visible.
+**Map draw.** `GtlViewModel` maps Room rows to `displayPoints`. `MapTrackVisibility` shows the line while logging, when **Show last logged route on map** is on, or when a Saved-tracks session is selected — unless the Map broom set `mapCleared` (idle only; logging still draws). If **Simplify track on map** is on and there are more than 4 points, Douglas–Peucker thins **only those display vertices** at the 1–20 m slider. SQLite, Route odometer, and KMZ never run through DP. With simplify **off** (Run/Hike and bicycle default), every stored vertex is on the map — that is why a small on-road loop stays visible. After that thinning, each chord is coloured by the distance-weighted speed of the points it replaced (the session usage’s bands, cream casing) on Google, OSM, and Turistautak.
 
 **Why the map looks like your log**
 

@@ -4476,3 +4476,119 @@ class IndexResumeTest {
         )
     }
 }
+
+class SpeedTrackTest {
+    @Test
+    fun metricBoundaryStaysSlowUntilTheEdge() {
+        assertEquals(SpeedBand.Slow, SpeedBands.of(kmh(6f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Brisk, SpeedBands.of(kmh(6.01f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+    }
+
+    @Test
+    fun metricHighwaySplitsAboveEighty() {
+        assertEquals(SpeedBand.Fast, SpeedBands.of(kmh(80f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Rapid, SpeedBands.of(kmh(80.01f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Rapid, SpeedBands.of(kmh(110f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.High, SpeedBands.of(kmh(110.01f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.High, SpeedBands.of(kmh(130f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Max, SpeedBands.of(kmh(130.01f), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+    }
+
+    @Test
+    fun imperialAndIcaoUseTheirOwnRoundEdges() {
+        assertEquals(SpeedBand.Slow, SpeedBands.of(mph(4f), UsageType.FOUR_WHEELERS, MeasurementSystem.IMPERIAL))
+        assertEquals(SpeedBand.Brisk, SpeedBands.of(mph(4.01f), UsageType.FOUR_WHEELERS, MeasurementSystem.IMPERIAL))
+        assertEquals(SpeedBand.Slow, SpeedBands.of(kt(3f), UsageType.FOUR_WHEELERS, MeasurementSystem.ICAO))
+        assertEquals(SpeedBand.Brisk, SpeedBands.of(kt(3.01f), UsageType.FOUR_WHEELERS, MeasurementSystem.ICAO))
+    }
+
+    @Test
+    fun sameSpeedIsTheTopBandOnFootAndAmberInACar() {
+        val speed = kmh(25f)
+        assertEquals(SpeedBand.Max, SpeedBands.of(speed, UsageType.RUNNER, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Max, SpeedBands.of(speed, UsageType.WALKING_HIKE, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Max, SpeedBands.of(speed, UsageType.PEDESTRIAN, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Mid, SpeedBands.of(speed, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+    }
+
+    @Test
+    fun aircraftCruiseKnotsStayBelowTheTopBand() {
+        assertEquals(SpeedBand.Fast, SpeedBands.of(kt(100f), UsageType.AIRCRAFT, MeasurementSystem.ICAO))
+        assertEquals(SpeedBand.Max, SpeedBands.of(kt(160.01f), UsageType.AIRCRAFT, MeasurementSystem.ICAO))
+    }
+
+    @Test
+    fun missingSpeedIsNotTheSlowBand() {
+        assertEquals(SpeedBand.Unknown, SpeedBands.of(null, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Unknown, SpeedBands.of(Float.NaN, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Slow, SpeedBands.of(0f, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(SpeedBand.Slow, SpeedBands.of(-1f, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
+        assertEquals(0xFF0B6B66.toInt(), SpeedBands.argb(SpeedBand.Slow))
+        assertEquals(0xFF5C6B73.toInt(), SpeedBands.argb(SpeedBand.Unknown))
+    }
+
+    @Test
+    fun droppedFastMiddleColorsTheChord() {
+        val vertices = listOf(
+            vertex(47.0, 1f),
+            vertex(47.0009, 30f),
+            vertex(47.0018, 1f)
+        )
+        val keep = DouglasPeucker.keepIndices(vertices.map { it.point() }, 20.0)
+        assertFalse(keep[1])
+        val runs = SpeedTrack.runs(vertices, keep, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC)
+        assertEquals(1, runs.size)
+        assertEquals(SpeedBand.Fast, runs.first().band)
+    }
+
+    @Test
+    fun missingInteriorSpeedIsLeftOutOfTheAverage() {
+        val vertices = listOf(
+            vertex(47.0, 1f),
+            vertex(47.0009, null),
+            vertex(47.0018, 2f)
+        )
+        val keep = booleanArrayOf(true, false, true)
+        val runs = SpeedTrack.runs(vertices, keep, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC)
+        assertEquals(SpeedBand.Brisk, runs.single().band)
+    }
+
+    @Test
+    fun sameBandsMergeAndShareTheJunction() {
+        val vertices = listOf(
+            vertex(47.0, 1f),
+            vertex(47.001, 1f),
+            vertex(47.002, 1f),
+            vertex(47.003, 40f)
+        )
+        val keep = BooleanArray(vertices.size) { true }
+        val runs = SpeedTrack.runs(vertices, keep, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC)
+        assertEquals(2, runs.size)
+        assertEquals(SpeedBand.Slow, runs[0].band)
+        assertEquals(SpeedBand.Max, runs[1].band)
+        assertEquals(3, runs[0].points.size)
+        assertEquals(2, runs[1].points.size)
+        assertEquals(runs[0].points.last(), runs[1].points.first())
+    }
+
+    @Test
+    fun emptyAndSinglePointHaveNoRuns() {
+        assertTrue(SpeedTrack.runs(emptyList(), BooleanArray(0), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC).isEmpty())
+        val one = listOf(vertex(47.0, 5f))
+        assertTrue(SpeedTrack.runs(one, booleanArrayOf(true), UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC).isEmpty())
+    }
+
+    private fun vertex(latitude: Double, speedMps: Float?): TrackVertex {
+        return TrackVertex(latitude, 19.0, null, speedMps)
+    }
+
+    private fun TrackVertex.point(): GeoPoint {
+        return GeoPoint(latitude, longitude, altitude)
+    }
+
+    private fun kmh(value: Float): Float = value / 3.6f
+
+    private fun mph(value: Float): Float = value / 2.2369363f
+
+    private fun kt(value: Float): Float = value / 1.9438445f
+}

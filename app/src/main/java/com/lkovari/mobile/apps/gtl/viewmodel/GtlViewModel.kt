@@ -36,6 +36,11 @@ import com.lkovari.mobile.apps.gtl.engine.MapSearchHit
 import com.lkovari.mobile.apps.gtl.engine.MapTrackVisibility
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmHillshading
+import com.lkovari.mobile.apps.gtl.engine.SpeedRun
+import com.lkovari.mobile.apps.gtl.engine.SpeedSample
+import com.lkovari.mobile.apps.gtl.engine.SpeedSeries
+import com.lkovari.mobile.apps.gtl.engine.SpeedTrack
+import com.lkovari.mobile.apps.gtl.engine.TrackVertex
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import com.lkovari.mobile.apps.gtl.engine.OsmMapLocale
 import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
@@ -122,7 +127,11 @@ data class GtlUiState(
     val mainTab: Int,
     val tuhuRenderOptions: TuhuRenderOptions = TuhuRenderOptions.defaults(),
     val tuhuMapDownloaded: Boolean = false,
-    val tuhuHillshadingAvailable: Boolean = false
+    val tuhuHillshadingAvailable: Boolean = false,
+    val speedUsage: UsageType = UsageType.TWO_WHEELERS,
+    val speedLegendVisible: Boolean = false,
+    val speedRuns: List<SpeedRun> = emptyList(),
+    val speedSamples: List<SpeedSample> = emptyList()
 ) {
     val showingOsmMap: Boolean
         get() = OsmOfflineAvailability.effectiveUseOffline(settings.useOfflineMap, hasDownloadedOsmMap) &&
@@ -471,17 +480,41 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             settingsActive = prefs.optimizationActive,
             settingsTolerance = prefs.optimizationTolerance
         )
-        val points = events.map { GeoPoint(it.latitude, it.longitude, it.altitude) }
-        val display = if (simplify.first && points.size > 4) {
-            DouglasPeucker.simplify(points, DouglasPeucker.clampTolerance(simplify.second))
-        } else {
-            points
+        val vertices = events.map { event ->
+            TrackVertex(event.latitude, event.longitude, event.altitude, event.speed)
         }
-        val mapPoints = if (MapTrackVisibility.visible(liveState.logging, prefs.showLastTrackOnMap, selected, cleared)) {
-            display
+        val simplifyOn = simplify.first && vertices.size > 4
+        val keep = if (simplifyOn) {
+            DouglasPeucker.keepIndices(
+                vertices.map { GeoPoint(it.latitude, it.longitude, it.altitude) },
+                DouglasPeucker.clampTolerance(simplify.second)
+            )
+        } else {
+            BooleanArray(vertices.size) { true }
+        }
+        val display = vertices.mapIndexedNotNull { index, vertex ->
+            if (keep.getOrElse(index) { false }) {
+                GeoPoint(vertex.latitude, vertex.longitude, vertex.altitude)
+            } else {
+                null
+            }
+        }
+        val trackVisible = MapTrackVisibility.visible(
+            liveState.logging,
+            prefs.showLastTrackOnMap,
+            selected,
+            cleared
+        )
+        val mapPoints = if (trackVisible) display else emptyList()
+        val speedUsage = viewed?.usageType
+            ?.let { runCatching { UsageType.valueOf(it) }.getOrNull() }
+            ?: prefs.usageType
+        val speedRuns = if (trackVisible) {
+            SpeedTrack.runs(vertices, keep, speedUsage, prefs.measurementSystem)
         } else {
             emptyList()
         }
+        val speedSamples = SpeedSeries.downsample(SpeedSeries.fromVertices(vertices))
         val osm = if (prefs.selectedMapFile.isNotBlank()) {
             File(prefs.selectedMapFile).takeIf { OsmMapFile.isReadable(it) }
         } else {
@@ -506,7 +539,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             mainTab = persistedTab,
             tuhuRenderOptions = mapBits.tuhuRenderOptions,
             tuhuMapDownloaded = mapBits.tuhuMapDownloaded,
-            tuhuHillshadingAvailable = tuhuFile != null && OsmHillshading.available(tuhuFile)
+            tuhuHillshadingAvailable = tuhuFile != null && OsmHillshading.available(tuhuFile),
+            speedUsage = speedUsage,
+            speedLegendVisible = trackVisible,
+            speedRuns = speedRuns,
+            speedSamples = speedSamples
         )
     }.stateIn(
         viewModelScope,
@@ -526,7 +563,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             selectedSessionId = null,
             fixCloud = FixCloudSnapshot.Empty,
             mapUsageType = settings.value.usageType,
-            mainTab = 0
+            mainTab = 0,
+            speedUsage = settings.value.usageType
         )
     )
 

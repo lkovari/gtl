@@ -3,11 +3,28 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.15** / `versionCode` **33** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.16** / `versionCode` **34** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.16] — 2026-09-28
+
+Play production track **34 (2.0.16)** (signed AAB). Speed-colored map track and KMZ GPS altitude.
+
+### Added
+
+- Map polyline uses usage speed bands after Douglas–Peucker (teal → violet → amber → carmine → orange → deep green → black), cream outline, and a corner legend. Saved tracks keep the usage recorded with the session. Segments without speed stay grey.
+
+### Fixed
+
+- Shared KMZ visible `LineString` is now `absolute` at stored GPS altitude so Google Earth lifts the track off the terrain. A missing sample keeps the previous altitude so the line does not drop to sea level. `gx:Track` stays at height 0.
+
+### Magyar
+
+- A térképvonal a usage sebességsávjait használja (lassú teal-től gyors feketéig), krém szegéllyel és sarok-jelmagyarázattal. A mentett track a felvétel usage-ének színeit tartja. Sebesség nélküli szakasz szürke.
+- A megosztott KMZ látható `LineString` a letárolt GPS-magasságon `absolute`, ezért a Google Earth felemeli a terepről. Hiányzó magasságnál az előző magasság marad, a vonal nem esik tengerszintre. A `gx:Track` magassága 0 marad.
 
 ## [2.0.15] — 2026-09-26
 
