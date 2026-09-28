@@ -42,16 +42,22 @@ object KmlExporter {
             builder.appendLine("<Folder>")
             builder.appendLine("<name>${escape(track.name)}</name>")
             if (track.points.isNotEmpty()) {
+                val lineAltitudes = absoluteAltitudes(track.points)
                 builder.appendLine("<Placemark>")
                 builder.appendLine("<name>${escape(track.name)}</name>")
                 builder.appendLine("<styleUrl>#track</styleUrl>")
                 builder.appendLine("<LineString>")
-                builder.appendLine("<tessellate>1</tessellate>")
-                builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
+                if (lineAltitudes == null) {
+                    builder.appendLine("<tessellate>1</tessellate>")
+                    builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
+                } else {
+                    builder.appendLine("<altitudeMode>absolute</altitudeMode>")
+                }
                 builder.appendLine("<coordinates>")
-                track.points.forEach { vertex ->
+                track.points.forEachIndexed { index, vertex ->
                     val p = vertex.point
-                    builder.appendLine("${p.longitude},${p.latitude},0")
+                    val altitude = lineAltitudes?.get(index)
+                    builder.appendLine(lonLatAlt(p.longitude, p.latitude, altitude))
                 }
                 builder.appendLine("</coordinates>")
                 builder.appendLine("</LineString>")
@@ -120,8 +126,14 @@ object KmlExporter {
                     builder.appendLine("<gx:drawOrder>${mark.drawOrder}</gx:drawOrder>")
                 }
                 builder.appendLine("<Point>")
-                builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
-                builder.appendLine("<coordinates>${mark.point.longitude},${mark.point.latitude},0</coordinates>")
+                val iconAltitude = mark.point.altitude
+                if (iconAltitude == null) {
+                    builder.appendLine("<altitudeMode>clampToGround</altitudeMode>")
+                    builder.appendLine("<coordinates>${lonLatAlt(mark.point.longitude, mark.point.latitude, null)}</coordinates>")
+                } else {
+                    builder.appendLine("<altitudeMode>absolute</altitudeMode>")
+                    builder.appendLine("<coordinates>${lonLatAlt(mark.point.longitude, mark.point.latitude, iconAltitude)}</coordinates>")
+                }
                 builder.appendLine("</Point>")
                 builder.appendLine("</Placemark>")
             }
@@ -130,6 +142,38 @@ object KmlExporter {
         builder.appendLine("</Document>")
         builder.appendLine("</kml>")
         return builder.toString()
+    }
+
+    private fun absoluteAltitudes(points: List<KmlVertex>): List<Double>? {
+        val raw = points.map { it.point.altitude }
+        if (raw.none { it != null }) {
+            return null
+        }
+        val filled = raw.toMutableList()
+        var previous: Double? = null
+        filled.indices.forEach { index ->
+            val value = filled[index]
+            if (value != null) {
+                previous = value
+            } else if (previous != null) {
+                filled[index] = previous
+            }
+        }
+        var upcoming: Double? = null
+        filled.indices.reversed().forEach { index ->
+            val value = filled[index]
+            if (value != null) {
+                upcoming = value
+            } else if (upcoming != null) {
+                filled[index] = upcoming
+            }
+        }
+        return filled.map { value -> value ?: 0.0 }
+    }
+
+    private fun lonLatAlt(longitude: Double, latitude: Double, altitude: Double?): String {
+        val height = if (altitude == null) "0" else altitude.toString()
+        return "$longitude,$latitude,$height"
     }
 
     private fun appendStyles(builder: StringBuilder, color: String, width: Int) {

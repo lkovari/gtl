@@ -50,7 +50,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 - Szűrőlánc: pontosság / műhold → opcionális Kalman → sűrűség → Room → Térkép / Útvonal / KMZ / GPX
 - Térkép HUD (nagy sebesség, pontosság, GNSS used/in view; naplózáskor út, idő, pulzáló REC); keep-screen-on beállítás
 - GPS fül: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; magasság a `GpsAltitude.pick`-ből; baro, ha van nyomásszenzor
-- KMZ terepre feszített `LineString` (látható, magasság 0) plusz rejtett `gx:Track` az idősorhoz; Start / Pause / Stop balloon a letárolt vonalon (a Stop az utolsó elfogadott pont; `Baro:` / ExtendedData `baro` a `pressureHpa`-ból a megosztáskori QNH-val, 1500 m GPS-őr; `IconStyle` scale 0.8)
+- KMZ `LineString` a letárolt GPS-magasságon (`absolute`; `clampToGround` csak ha a tracken nincs magasság) plusz rejtett `gx:Track` magasság 0-val az idősorhoz; Start / Pause / Stop balloon a letárolt vonalon (a Stop az utolsó elfogadott pont; `Baro:` / ExtendedData `baro` a `pressureHpa`-ból a megosztáskori QNH-val, 1500 m GPS-őr; `IconStyle` scale 0.8)
 - GPX 1.1 megosztás (egy fájl, több `trk`; START/PAUSE/STOP `wpt`)
 - Magasságprofil (GPS × táv; szaggatott baro, QNH 900–1100 hPa a Beállításokból; 1500 m GPS-őr; tengely legalább 50 m)
 - OSM Mapsforge régióletöltés `OsmMapFile` ellenőrzéssel; sikertelen nyitás kikapcsolja a **Letöltött OSM térkép használatát**; a kamera a `.map`-en marad, ha a GPS azon kívül van. Google Maps, ha van `MAPS_API_KEY`

@@ -50,7 +50,7 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 - Filter chain: accuracy / satellites → optional Kalman → density → Room → Map / Route / KMZ / GPX
 - Map HUD (large speed, accuracy, GNSS used/in view; while logging: trip, elapsed, pulsing REC); keep-screen-on setting
 - GPS tab: L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, SNR, polar skyplot; altitude from `GpsAltitude.pick`; baro when a pressure sensor exists
-- KMZ tessellated `LineString` (visible, height 0) plus hidden `gx:Track` for timed data; Start / Pause / Stop balloons on the stored line (Stop is the last accepted point; `Baro:` / ExtendedData `baro` from `pressureHpa` at share-time QNH, 1500 m GPS guard; `IconStyle` scale 0.8)
+- KMZ `LineString` at stored GPS altitude (`absolute`; `clampToGround` only when the track has no altitude) plus hidden `gx:Track` at height 0 for timed data; Start / Pause / Stop balloons on the stored line (Stop is the last accepted point; `Baro:` / ExtendedData `baro` from `pressureHpa` at share-time QNH, 1500 m GPS guard; `IconStyle` scale 0.8)
 - GPX 1.1 share (one file, several `trk`; START/PAUSE/STOP `wpt`)
 - Elevation profile (GPS × distance; dashed baro using Settings QNH 900–1100 hPa; 1500 m GPS guard; axis at least 50 m)
 - OSM Mapsforge region download with `OsmMapFile` checks; failed open turns **Use downloaded OSM map** off; camera stays on the `.map` when GPS is outside it. Google Maps when `MAPS_API_KEY` is set

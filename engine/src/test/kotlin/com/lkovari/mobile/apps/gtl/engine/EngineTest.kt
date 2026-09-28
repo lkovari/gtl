@@ -672,8 +672,7 @@ class KmlExporterTest {
         assertTrue(kml.contains("xmlns:gx="))
         assertTrue(kml.contains("<when>2024-09-05T01:33:20Z</when>"))
         assertTrue(kml.contains("<LineString>"))
-        assertTrue(kml.contains("<tessellate>1</tessellate>"))
-        assertTrue(kml.contains("19.05,47.5,0"))
+        assertTrue(kml.contains("19.05,47.5,120.0"))
         assertTrue(kml.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"speed\">"))
         assertTrue(kml.contains("<gx:value>5.5</gx:value>"))
@@ -712,7 +711,9 @@ class KmlExporterTest {
         assertTrue(kml.contains("<gx:value>125.0</gx:value>"))
         assertTrue(kml.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
         assertTrue(kml.contains("<gx:coord>19.06 47.51 0</gx:coord>"))
-        assertTrue(kml.contains("19.05,47.5,0"))
+        assertTrue(kml.contains("19.05,47.5,120.0"))
+        assertTrue(kml.contains("19.06,47.51,125.0"))
+        assertFalse(kml.contains("19.05,47.5,108.0"))
         assertTrue(kml.contains("<gx:value>108.0</gx:value>"))
         assertTrue(kml.contains("<gx:value>-</gx:value>"))
         assertFalse(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
@@ -1163,19 +1164,85 @@ class KmlExporterTest {
     }
 
     @Test
-    fun drapesTrackAndPointIconsOnTheGround() {
-        val kml = sampleKml()
-        assertTrue(kml.contains("<gx:Track>"))
-        assertTrue(kml.contains("<LineString>"))
-        assertTrue(kml.contains("<tessellate>1</tessellate>"))
-        assertTrue(kml.contains("<altitudeMode>clampToGround</altitudeMode>"))
+    fun liftsVisibleLineAndIconsToStoredGpsAltitude() {
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "Flight",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(
+                    KmlTrack(
+                        name = "Flight",
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.5, 19.05, 120.0), SAMPLE_TIME, 40f, 0.0),
+                            KmlVertex(GeoPoint(47.51, 19.06, null), SAMPLE_TIME + 1000, 41f, 1000.0),
+                            KmlVertex(GeoPoint(47.52, 19.07, 1800.0), SAMPLE_TIME + 2000, 42f, 2000.0)
+                        ),
+                        placemarks = listOf(
+                            KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, 120.0), "begin"),
+                            KmlPlacemark(
+                                "Pause",
+                                EventKind.PAUSE,
+                                GeoPoint(47.51, 19.06, null),
+                                "hold"
+                            ),
+                            KmlPlacemark("Stop", EventKind.STOP, GeoPoint(47.52, 19.07, 1800.0), "end")
+                        )
+                    )
+                )
+            )
+        )
+        val line = kml.substringAfter("<LineString>").substringBefore("</LineString>")
+        assertTrue(line.contains("<altitudeMode>absolute</altitudeMode>"))
+        assertFalse(line.contains("<tessellate>"))
+        assertTrue(line.contains("19.05,47.5,120.0"))
+        assertTrue(line.contains("19.06,47.51,120.0"))
+        assertTrue(line.contains("19.07,47.52,1800.0"))
+        assertFalse(line.contains(",0"))
+        val timed = kml.substringAfter("<gx:Track>").substringBefore("</gx:Track>")
+        assertTrue(timed.contains("<altitudeMode>clampToGround</altitudeMode>"))
+        assertTrue(timed.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
+        assertTrue(timed.contains("<gx:coord>19.06 47.51 0</gx:coord>"))
+        assertTrue(timed.contains("<gx:value>120.0</gx:value>"))
+        assertTrue(timed.contains("<gx:value>1800.0</gx:value>"))
+        assertTrue(kml.contains("<coordinates>19.05,47.5,120.0</coordinates>"))
+        assertTrue(kml.contains("<coordinates>19.07,47.52,1800.0</coordinates>"))
+        val pause = kml.substringAfter("<name>Pause</name>").substringBefore("</Placemark>")
+        assertTrue(pause.contains("<altitudeMode>clampToGround</altitudeMode>"))
+        assertTrue(pause.contains("<coordinates>19.06,47.51,0</coordinates>"))
+    }
+
+    @Test
+    fun drapesLineAndIconsWhenNoGpsAltitudeIsStored() {
+        val kml = KmlExporter.export(
+            KmlDocument(
+                name = "Ride",
+                trackColorAabbggrr = "ff0000ff",
+                trackWidth = 6,
+                tracks = listOf(
+                    KmlTrack(
+                        name = "Ride",
+                        points = listOf(
+                            KmlVertex(GeoPoint(47.5, 19.05, null), SAMPLE_TIME, 5.5f, 0.0),
+                            KmlVertex(GeoPoint(47.51, 19.06, null), SAMPLE_TIME + 1000, 6.0f, 10.0)
+                        ),
+                        placemarks = listOf(
+                            KmlPlacemark("Start", EventKind.START, GeoPoint(47.5, 19.05, null), "begin")
+                        )
+                    )
+                )
+            )
+        )
+        val line = kml.substringAfter("<LineString>").substringBefore("</LineString>")
+        assertTrue(line.contains("<tessellate>1</tessellate>"))
+        assertTrue(line.contains("<altitudeMode>clampToGround</altitudeMode>"))
+        assertTrue(line.contains("19.05,47.5,0"))
+        assertTrue(line.contains("19.06,47.51,0"))
         assertFalse(kml.contains("<altitudeMode>absolute</altitudeMode>"))
-        assertTrue(kml.contains("<Point>"))
         assertTrue(kml.contains("<coordinates>19.05,47.5,0</coordinates>"))
         assertTrue(kml.contains("<styleUrl>#trackData</styleUrl>"))
         assertTrue(kml.contains("<visibility>0</visibility>"))
         assertEquals(3, "<IconStyle><scale>0.8</scale>".toRegex().findAll(kml).count())
-        assertFalse(kml.contains("<IconStyle><scale>0.6</scale>"))
     }
 
     @Test
