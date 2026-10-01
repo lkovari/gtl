@@ -1,19 +1,16 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.16)
+Sebességskála
 
-EN (≤500 characters)
+A térképen a sebességskála a kiválasztott használati mód sávjait mutatja. A Beállítások, Megjelenés alatt új kapcsoló: Sebességskála mindig nyitva. Alapból be van kapcsolva, így a skála a számokkal együtt látszik, és a koppintás nem változtat rajta.
 
-Speed-colored tracks; KMZ follows GPS altitude.
+Ha kikapcsolod, csak a színsáv pontjai maradnak, annyi, ahány részre a skála oszlik. Egy koppintás kinyitja a számokat, a következő összecsukja. A nyitott állapot megmarad, amíg újra rá nem koppintasz. A kapcsoló visszakapcsolása azonnal kinyitja a skálát, és a koppintás megint hatástalan.
 
-• Map line uses usage speed bands (slow teal to fast black), cream outline, corner legend
-• Saved tracks keep their recorded usage colors
-• Shared KMZ lifts off the terrain at stored GPS altitude in Google Earth
-• A missing altitude keeps the previous height so the line does not drop to sea level
+A skála továbbra is a jobb felső sarokban van, az iránytű alatt, és csak akkor jelenik meg, ha útvonal van a térképen.
 
-HU (≤500 characters)
+English
+Speed scale
 
-Sebesség szerint színezett track; a KMZ a GPS-magasságot követi.
+The map speed scale follows the bands of the selected usage type. Settings, Appearance has a new switch: Speed scale always open. It is on by default, so the scale stays labeled, and a tap does not change it.
 
-• A térképvonal a usage sávjait használja (lassú teal-től gyors feketéig), krém szegély, sarok-jelmagyarázat
-• A mentett track a felvétel usage-ének színeit tartja
-• A megosztott KMZ a letárolt GPS-magasságon emelkedik a Google Earth terepéről
-• Hiányzó magasságnál az előző magasság marad, a vonal nem esik tengerszintre
+Turn it off and only the color dots remain, one for each part of the scale. A tap opens the numbers, and the next tap closes them. It stays open until you tap it again. Turning the switch back on opens the scale at once, and taps do nothing again.
+
+The scale stays at the top right, under the compass, and only while a track is on the map.
