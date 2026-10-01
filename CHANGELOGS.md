@@ -3,11 +3,23 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.16** / `versionCode` **34** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.17** / `versionCode` **35** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.17] — 2026-10-01
+
+Play production track **35 (2.0.17)** (signed AAB). Speed scale always open, or collapse to color dots.
+
+### Added
+
+- Settings **Appearance** has **Speed scale always open** (on by default). The corner legend stays labeled, and a tap does not change it. Off: only the color dots remain, one per band. A tap opens the numbers, the next tap closes them. The scale stays at the top right, under the compass, only while a track is on the map.
+
+### Magyar
+
+- A Beállítások **Megjelenés** csoportjában **Sebességskála mindig nyitva** (alapból be). A sarok-jelmagyarázat a számokkal marad, koppintás nem változtat. Ki: csak a színsáv pontjai maradnak, annyi, ahány sáv. Koppintás kinyitja a számokat, a következő összecsukja. A skála a jobb felső sarokban van, az iránytű alatt, csak ha útvonal van a térképen.
 
 ## [2.0.16] — 2026-09-28
 

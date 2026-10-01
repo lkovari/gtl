@@ -6,7 +6,7 @@ Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. 
 
 A 2014-es Eclipse-app (`gtl-e`) Kotlin + Jetpack Compose újraírása. Alkalmazásazonosító: `com.lkovari.mobile.apps.gtl`.
 
-**Verzió:** 2.0.16 (versionCode 34)  
+**Verzió:** 2.0.17 (versionCode 35)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** angol és magyar, Material 3, álló (portrait)
 
@@ -178,6 +178,7 @@ Lassútól a usage teteje felé: teal `#0B6B66`, ibolya `#5B2D86`, borostyán `#
 - **Teljes útvonal a képernyőn** — naplózáskor minden GPS-frissítés a teljes nyomvonalat a képernyőre illeszti. A nagyítás és mozgatás a következő fixig megengedett.
 - **Képernyő bekapcsolva naplózáskor** — alapból ki. Csak felvétel alatt tartja ébren a kijelzőt (tankra szerelt telefon).
 - **Pontossági jelzés megjelenítése** — világos lila kör; a sugár a GPS pontossága. A HUD a nyers helyen marad (chip vagy fused).
+- **Sebességskála mindig nyitva** — alapból be. A sarok-jelmagyarázat a számokkal marad, koppintás nem változtat. Ki: csak a színsáv pontjai maradnak; koppintás kinyitja a számokat, a következő összecsukja. Jobb felső sarok, az iránytű alatt, csak ha útvonal van a térképen.
 - **Pontfelhő** — pasztell magenta pöttyök a nyers GPS-fixekből, amíg állsz, plusz magenta CEP95-kör a felhő centroidján. Alapból ki. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. Mozgás közben szünetel. Nem íródik a naplóba és a KMZ-be.
 - **Csak GNSS** — műholdchip-pozíciók fused hely helyett. Fut/túránál és kerékpárnál be; járműveknél ki.
 - **Rögzített útvonal simítása**, **Simítás erőssége**, **Álláskor ne vándoroljon a pont**, **Rögzítés sűrűsége** — ezek azt változtatják, ami **a tracklogba íródik**. Részletek lent.

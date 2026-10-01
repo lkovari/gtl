@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Status:** Product plan after 2.0.16 (versionCode 34). The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, OSM file/camera guards, and speed-colored map tracks.  
+**Status:** Product plan after 2.0.17 (versionCode 35). The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, OSM file/camera guards, and speed-colored map tracks.  
 **Not a code spec:** this document records *why* the order is this order, and the release waves. Write a short brief / test list for the wave you actually start.  
 **Effort:** calendar days for one developer who already knows this repo (not person-months, not a team week).
 
@@ -12,7 +12,7 @@ Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [DB
 
 ## How to read this
 
-GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.16 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region), and **speed-colored** map tracks.
+GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.17 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line with Settings QNH), **GPS altitude** pick (MSL then GNSS, implausible fused dropped), OSM **file validation** (Use no longer crash-loops; camera stays on the downloaded region), and **speed-colored** map tracks.
 
 The remaining gap is **night use, archive, and the second eye-catcher**: the map stays daylight, the notification is static, the saved list is a date. The Play feature graphic promises a dark cockpit and a glowing track; HUD, skyplot, and speed colour already match, dark tiles do not.
 
@@ -280,7 +280,7 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ## Release waves
 
-Version numbers are **suggestions**. 2.0.16 can stay a hotfix line; the next minor is the rest of wave 1.
+Version numbers are **suggestions**. 2.0.17 can stay a hotfix line; the next minor is the rest of wave 1.
 
 ### Wave 1 — “you can see it at night” (about 4.5–6.5 days)
 

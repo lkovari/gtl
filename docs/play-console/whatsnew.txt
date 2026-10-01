@@ -1,16 +1,17 @@
-Sebességskála
+GTL GPS Track Logger — Play Console “What’s new” (v2.0.17)
 
-A térképen a sebességskála a kiválasztott használati mód sávjait mutatja. A Beállítások, Megjelenés alatt új kapcsoló: Sebességskála mindig nyitva. Alapból be van kapcsolva, így a skála a számokkal együtt látszik, és a koppintás nem változtat rajta.
+EN (≤500 characters)
 
-Ha kikapcsolod, csak a színsáv pontjai maradnak, annyi, ahány részre a skála oszlik. Egy koppintás kinyitja a számokat, a következő összecsukja. A nyitott állapot megmarad, amíg újra rá nem koppintasz. A kapcsoló visszakapcsolása azonnal kinyitja a skálát, és a koppintás megint hatástalan.
+Speed scale always open, or collapse to color dots.
 
-A skála továbbra is a jobb felső sarokban van, az iránytű alatt, és csak akkor jelenik meg, ha útvonal van a térképen.
+• Settings → Appearance: Speed scale always open (on by default) — labeled scale, tap does nothing
+• Switch off: only the color dots remain; tap opens the numbers, tap again closes them
+• Top right, under the compass, only while a track is on the map
 
-English
-Speed scale
+HU (≤500 characters)
 
-The map speed scale follows the bands of the selected usage type. Settings, Appearance has a new switch: Speed scale always open. It is on by default, so the scale stays labeled, and a tap does not change it.
+Sebességskála mindig nyitva, vagy összecsukva pontokra.
 
-Turn it off and only the color dots remain, one for each part of the scale. A tap opens the numbers, and the next tap closes them. It stays open until you tap it again. Turning the switch back on opens the scale at once, and taps do nothing again.
-
-The scale stays at the top right, under the compass, and only while a track is on the map.
+• Beállítások → Megjelenés: Sebességskála mindig nyitva (alapból be) — számokkal látszik, koppintás nem változtat
+• Kikapcsolva: csak a színsáv pontjai maradnak; koppintás kinyitja a számokat, újra koppintva összecsukja
+• Jobb felső sarok, az iránytű alatt, csak ha útvonal van a térképen

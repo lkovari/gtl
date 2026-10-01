@@ -6,7 +6,7 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.16 (versionCode 34)  
+**Version:** 2.0.17 (versionCode 35)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
@@ -178,6 +178,7 @@ From slow to the top of the usage: teal `#0B6B66`, violet `#5B2D86`, amber `#7A5
 - **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
 - **Keep screen on while logging** — off by default. Holds the display awake only while a session is recording (tank-mount).
 - **Show accuracy marker** — pale purple circle; radius is GPS accuracy. HUD stays on the raw location (chip or fused).
+- **Speed scale always open** — on by default. The corner speed legend stays labeled, and a tap does not change it. Off: only the color dots remain; a tap opens the numbers, the next tap closes them. Top right, under the compass, only while a track is on the map.
 - **Show fix cloud** — pastel magenta dots of raw GPS fixes while you stand still, plus a magenta CEP95 circle around the cloud centroid. Off by default. Turning it on also turns on Show accuracy marker; turning it off only hides the cloud. Pauses while you move. Not written to the log or KMZ.
 - **Use GNSS only** — satellite-chip positions instead of fused location. On for Run/Hike and bicycle; off for vehicles.
 - **Smooth recorded track**, **Smoothing strength**, **Hold still when stopped**, **Recording density** — these change what is **written into the tracklog**. Details below.

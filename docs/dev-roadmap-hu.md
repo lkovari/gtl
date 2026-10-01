@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Állapot:** termékterv a 2.0.16 (versionCode 34) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás, az OSM fájl/kamera védelem és a sebesség szerint színezett térképvonal.  
+**Állapot:** termékterv a 2.0.17 (versionCode 35) után. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás, az OSM fájl/kamera védelem és a sebesség szerint színezett térképvonal.  
 **Nem kódspec:** ez a sorrend *miértjét* és a hullámokat rögzíti. Implementáció előtt a kiválasztott hullámra külön brief / tesztlista kell.  
 **Effort:** egy, a kódbázist ismerő fejlesztő naptári napja (nem emberhónap, nem naptári hét csapatra).
 
@@ -12,7 +12,7 @@ Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md)
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.16 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva), az OSM **fájlellenőrzés** (a Használ nem crash-loop; a kamera a letöltött régión marad) és a **sebesség szerint színezett** térképvonal is megvan.
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.17 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás (MSL, majd GNSS, a fused szemét eldobva), az OSM **fájlellenőrzés** (a Használ nem crash-loop; a kamera a letöltött régión marad) és a **sebesség szerint színezett** térképvonal is megvan.
 
 A következő hiány **éjszakai használat, archívum és a második eye-catcher**: a térkép nappali marad, az értesítés statikus, a mentett lista dátum. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD, a skyplot és a sebesség-szín már egyezik, a sötét csempe még nem.
 
@@ -280,7 +280,7 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 
 ## Kiadási hullámok
 
-A verziószámok **javaslatok**. A 2.0.16 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
+A verziószámok **javaslatok**. A 2.0.17 patch maradhat hotfixnek; a következő minor a hullám 1 maradéka.
 
 ### Hullám 1 — „éjjel is látod” (kb. 4,5–6,5 nap)
 
