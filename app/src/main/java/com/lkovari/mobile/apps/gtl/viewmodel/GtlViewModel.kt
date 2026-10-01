@@ -759,6 +759,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setShowAccuracyMarker(value) }
     }
 
+    fun setSpeedScaleAlwaysOpen(value: Boolean) {
+        viewModelScope.launch { app.preferences.setSpeedScaleAlwaysOpen(value) }
+    }
+
     fun setShowFixCloud(value: Boolean) {
         viewModelScope.launch { app.preferences.setShowFixCloud(value) }
     }

@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -184,6 +185,19 @@ fun MapPane(
         var searchFocus by remember { mutableStateOf<MapSearchFocus?>(null) }
         var searchOpen by remember { mutableStateOf(false) }
         var searchQuery by remember { mutableStateOf("") }
+        val speedScaleAlwaysOpen = state.settings.speedScaleAlwaysOpen
+        var speedScaleOpenedByTap by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(speedScaleAlwaysOpen) {
+            if (speedScaleAlwaysOpen) {
+                speedScaleOpenedByTap = false
+            }
+        }
+        val speedScaleExpanded = speedScaleAlwaysOpen || speedScaleOpenedByTap
+        val onSpeedScaleToggle: (() -> Unit)? = if (speedScaleAlwaysOpen) {
+            null
+        } else {
+            { speedScaleOpenedByTap = !speedScaleOpenedByTap }
+        }
         val mapPath = osmFile?.absolutePath
         var trackedMapPath by remember { mutableStateOf<String?>(null) }
         LaunchedEffect(mapPath) {
@@ -256,7 +270,9 @@ fun MapPane(
                     if (state.speedLegendVisible) {
                         SpeedLegend(
                             usage = state.speedUsage,
-                            system = state.settings.measurementSystem
+                            system = state.settings.measurementSystem,
+                            expanded = speedScaleExpanded,
+                            onToggle = onSpeedScaleToggle
                         )
                     }
                 }
@@ -307,7 +323,9 @@ fun MapPane(
                 onGoogleMapLayer,
                 tapPoint,
                 onMapTap,
-                onAnchorScreen = { tapAnchor.screen = it }
+                onAnchorScreen = { tapAnchor.screen = it },
+                speedScaleExpanded = speedScaleExpanded,
+                onSpeedScaleToggle = onSpeedScaleToggle
             )
         }
         Column(
@@ -570,7 +588,9 @@ private fun GoogleMapContent(
     onGoogleMapLayer: (GoogleMapLayer) -> Unit,
     tapAnchor: GeoPoint?,
     onTap: (GeoPoint) -> Unit,
-    onAnchorScreen: (Offset) -> Unit
+    onAnchorScreen: (Offset) -> Unit,
+    speedScaleExpanded: Boolean,
+    onSpeedScaleToggle: (() -> Unit)?
 ) {
     val live = state.live.lastLocation?.let { LatLng(it.latitude, it.longitude) }
     val start = live
@@ -723,7 +743,9 @@ private fun GoogleMapContent(
         if (state.speedLegendVisible) {
             SpeedLegend(
                 usage = state.speedUsage,
-                system = state.settings.measurementSystem
+                system = state.settings.measurementSystem,
+                expanded = speedScaleExpanded,
+                onToggle = onSpeedScaleToggle
             )
         }
     }

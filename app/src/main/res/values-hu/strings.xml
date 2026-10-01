@@ -143,6 +143,7 @@
     <string name="settings_show_track">Utolsó naplózott útvonal a térképen</string>
     <string name="settings_keep_whole_track">Teljes útvonal a képernyőn</string>
     <string name="settings_show_accuracy">Pontossági jelzés megjelenítése</string>
+    <string name="settings_speed_scale_always_open">Sebességskála mindig nyitva</string>
     <string name="settings_show_fix_cloud">Pontfelhő</string>
     <string name="settings_gnss_only">Csak GNSS</string>
     <string name="settings_optimize_tolerance">Egyszerűsítés tűrése</string>

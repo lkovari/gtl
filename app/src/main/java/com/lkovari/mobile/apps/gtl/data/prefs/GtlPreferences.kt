@@ -58,6 +58,7 @@ data class GtlSettings(
     val showLastTrackOnMap: Boolean,
     val keepWholeTrackOnScreen: Boolean,
     val showAccuracyMarker: Boolean,
+    val speedScaleAlwaysOpen: Boolean,
     val showFixCloud: Boolean,
     val keepScreenOnWhileLogging: Boolean,
     val trackSmoothingEnabled: Boolean,
@@ -117,6 +118,7 @@ data class GtlSettings(
                 showLastTrackOnMap = true,
                 keepWholeTrackOnScreen = false,
                 showAccuracyMarker = true,
+                speedScaleAlwaysOpen = true,
                 showFixCloud = false,
                 keepScreenOnWhileLogging = false,
                 trackSmoothingEnabled = smoothing.trackSmoothingEnabled,
@@ -216,6 +218,10 @@ class GtlPreferences(context: Context) {
 
     suspend fun setShowAccuracyMarker(value: Boolean) {
         dataStore.edit { it[Keys.showAccuracy] = value }
+    }
+
+    suspend fun setSpeedScaleAlwaysOpen(value: Boolean) {
+        dataStore.edit { it[Keys.speedScaleAlwaysOpen] = value }
     }
 
     suspend fun setShowFixCloud(value: Boolean) {
@@ -359,6 +365,7 @@ class GtlPreferences(context: Context) {
             showLastTrackOnMap = prefs[Keys.showTrack] ?: true,
             keepWholeTrackOnScreen = prefs[Keys.keepWholeTrack] ?: false,
             showAccuracyMarker = prefs[Keys.showAccuracy] ?: true,
+            speedScaleAlwaysOpen = prefs[Keys.speedScaleAlwaysOpen] ?: true,
             showFixCloud = prefs[Keys.showFixCloud] ?: false,
             keepScreenOnWhileLogging = prefs[Keys.keepScreenOn] ?: false,
             trackSmoothingEnabled = prefs[Keys.trackSmoothing] ?: smoothing.trackSmoothingEnabled,
@@ -435,6 +442,7 @@ class GtlPreferences(context: Context) {
         val showTrack = booleanPreferencesKey("show_last_track")
         val keepWholeTrack = booleanPreferencesKey("keep_whole_track")
         val showAccuracy = booleanPreferencesKey("show_accuracy_marker")
+        val speedScaleAlwaysOpen = booleanPreferencesKey("speed_scale_always_open")
         val showFixCloud = booleanPreferencesKey("show_fix_cloud")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on_logging")
         val trackSmoothing = booleanPreferencesKey("track_smoothing")

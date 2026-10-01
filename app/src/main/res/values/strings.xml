@@ -143,6 +143,7 @@
     <string name="settings_show_track">Show last logged route on map</string>
     <string name="settings_keep_whole_track">Keep whole track on the screen</string>
     <string name="settings_show_accuracy">Show accuracy marker</string>
+    <string name="settings_speed_scale_always_open">Speed scale always open</string>
     <string name="settings_show_fix_cloud">Show fix cloud</string>
     <string name="settings_gnss_only">Use GNSS only</string>
     <string name="settings_optimize_tolerance">Simplification tolerance</string>

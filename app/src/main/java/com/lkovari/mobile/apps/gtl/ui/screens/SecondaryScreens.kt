@@ -395,6 +395,14 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                     viewModel.setShowAccuracyMarker(it)
                                 }
                                 SettingSwitch(
+                                    stringResource(R.string.settings_speed_scale_always_open),
+                                    state.settings.speedScaleAlwaysOpen,
+                                    labelStyle,
+                                    switchScale
+                                ) {
+                                    viewModel.setSpeedScaleAlwaysOpen(it)
+                                }
+                                SettingSwitch(
                                     stringResource(R.string.settings_show_fix_cloud),
                                     state.settings.showFixCloud,
                                     labelStyle,
