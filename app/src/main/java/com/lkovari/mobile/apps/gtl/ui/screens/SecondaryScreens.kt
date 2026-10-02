@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -14,8 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +35,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -42,6 +44,8 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -72,6 +76,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -84,6 +89,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -94,12 +100,17 @@ import com.lkovari.mobile.apps.gtl.ui.errorLogTap
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
+import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
+import com.lkovari.mobile.apps.gtl.engine.ElevationSample
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
+import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
+import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.ui.dumpTap
 import com.lkovari.mobile.apps.gtl.ui.usageIcon
 import com.lkovari.mobile.apps.gtl.ui.theme.CockpitPanel
 import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
@@ -107,6 +118,7 @@ import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.NightMuted
 import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import com.lkovari.mobile.apps.gtl.ui.components.ElevationProfile
+import com.lkovari.mobile.apps.gtl.ui.components.TrackRouteThumbnail
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuDownloadRow
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuFeature
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuHelpSection
@@ -124,6 +136,7 @@ fun SecondaryScaffold(
     pageTitle: String,
     onBack: () -> Unit,
     compactTopBar: Boolean = false,
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
     Scaffold(
@@ -158,7 +171,8 @@ fun SecondaryScaffold(
                     }
                 }
             )
-        }
+        },
+        bottomBar = bottomBar
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             content()
@@ -894,7 +908,6 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TracksScreen(
     state: GtlUiState,
@@ -918,15 +931,40 @@ fun TracksScreen(
     val sessionIds = state.sessions.map { it.id }.toSet()
     val visibleSelected = selectedIds.intersect(sessionIds)
     val allSelected = sessionIds.isNotEmpty() && visibleSelected.size == sessionIds.size
-    var sharePicker by remember { mutableStateOf(false) }
-    var pendingDeleteId by remember { mutableStateOf<Long?>(null) }
+    var pendingDeleteIds by remember { mutableStateOf(setOf<Long>()) }
     val elevationSessionId by viewModel.savedElevationId.collectAsStateWithLifecycle()
     val elevationSamples by viewModel.savedElevation.collectAsStateWithLifecycle()
-    SecondaryScaffold(stringResource(R.string.tracks_title), onBack) {
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    val cards by viewModel.savedTrackCards.collectAsStateWithLifecycle()
+    val recordingId = if (state.live.logging) state.live.sessionId else null
+    val deletableSelected = visibleSelected.filter { it != recordingId }.toSet()
+    SecondaryScaffold(
+        stringResource(R.string.tracks_title),
+        onBack,
+        bottomBar = {
+            if (visibleSelected.isNotEmpty()) {
+                SavedTrackActionBar(
+                    showOnMapEnabled = visibleSelected.size == 1,
+                    shareEnabled = true,
+                    deleteEnabled = deletableSelected.isNotEmpty(),
+                    onShowOnMap = {
+                        val id = visibleSelected.singleOrNull() ?: return@SavedTrackActionBar
+                        onShowOnMap(id)
+                    },
+                    onGpx = { onShare(visibleSelected, TrackShareFormat.GPX) },
+                    onKmz = { onShare(visibleSelected, TrackShareFormat.KMZ) },
+                    onDelete = { pendingDeleteIds = deletableSelected }
+                )
+            }
+        }
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
@@ -938,161 +976,298 @@ fun TracksScreen(
                     )
                     Text(stringResource(R.string.tracks_select_all), style = MaterialTheme.typography.bodyLarge)
                 }
-                Button(
-                    onClick = { sharePicker = true },
-                    enabled = visibleSelected.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                ) {
-                    Text(stringResource(R.string.tracks_share_selected))
-                }
             }
-            items(state.sessions) { session ->
-                val checked = session.id in visibleSelected
-                val recording = state.live.logging && session.id == state.live.sessionId
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = checked,
-                            onCheckedChange = { on ->
-                                selectedIds = if (on) {
-                                    visibleSelected + session.id
-                                } else {
-                                    visibleSelected - session.id
-                                }
-                            }
-                        )
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .onTripleTap(session.id) {
-                                    viewModel.inspectSession(session.id)
-                                }
-                        ) {
-                            Text(format.format(Date(session.startedAt)), style = MaterialTheme.typography.titleLarge)
-                            val recordingLabel = stringResource(R.string.tracks_recording)
-                            Text(
-                                buildString {
-                                    append(session.usageType)
-                                    append(" · ")
-                                    append(session.measurementSystem)
-                                    if (recording) {
-                                        append(" · ")
-                                        append(recordingLabel)
-                                    }
-                                },
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+            items(state.sessions, key = { it.id }) { session ->
+                SavedTrackRow(
+                    session = session,
+                    card = cards[session.id],
+                    checked = session.id in visibleSelected,
+                    recording = session.id == recordingId,
+                    dateLabel = format.format(Date(session.startedAt)),
+                    elevationOpen = elevationSessionId == session.id,
+                    elevationSamples = elevationSamples,
+                    onCheckedChange = { on ->
+                        selectedIds = if (on) {
+                            visibleSelected + session.id
+                        } else {
+                            visibleSelected - session.id
                         }
-                    }
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 48.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(onClick = { onShowOnMap(session.id) }) {
-                            Text(stringResource(R.string.action_show_on_map))
-                        }
-                        Button(onClick = { viewModel.toggleSavedElevation(session.id) }) {
-                            Text(stringResource(R.string.tracks_elevation))
-                        }
-                        Button(
-                            onClick = { pendingDeleteId = session.id },
-                            enabled = !recording
-                        ) {
-                            Text(stringResource(R.string.action_delete))
-                        }
-                    }
-                    if (elevationSessionId == session.id) {
-                        val units = runCatching {
-                            MeasurementSystem.valueOf(session.measurementSystem)
-                        }.getOrDefault(MeasurementSystem.METRIC)
-                        ElevationProfile(
-                            samples = elevationSamples,
-                            system = units,
-                            modifier = Modifier.padding(start = 48.dp, top = 8.dp)
-                        )
-                    }
-                }
+                    },
+                    onOpenDump = { viewModel.inspectSession(session.id) },
+                    onToggleElevation = { viewModel.toggleSavedElevation(session.id) }
+                )
             }
         }
     }
-    if (pendingDeleteId != null) {
-        val deleteId = pendingDeleteId
+    if (pendingDeleteIds.isNotEmpty()) {
+        val ids = pendingDeleteIds
+        val many = ids.size > 1
         AlertDialog(
-            onDismissRequest = { pendingDeleteId = null },
-            title = { Text(stringResource(R.string.tracks_delete_title)) },
-            text = { Text(stringResource(R.string.tracks_delete_body)) },
+            onDismissRequest = { pendingDeleteIds = emptySet() },
+            title = {
+                Text(
+                    stringResource(
+                        if (many) R.string.tracks_delete_selected_title else R.string.tracks_delete_title
+                    )
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        if (many) R.string.tracks_delete_selected_body else R.string.tracks_delete_body
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (deleteId != null) {
-                            viewModel.deleteSession(deleteId)
-                            selectedIds = visibleSelected - deleteId
-                        }
-                        pendingDeleteId = null
+                        ids.forEach { id -> viewModel.deleteSession(id) }
+                        selectedIds = visibleSelected - ids
+                        pendingDeleteIds = emptySet()
                     }
                 ) {
                     Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeleteId = null }) {
+                TextButton(onClick = { pendingDeleteIds = emptySet() }) {
                     Text(stringResource(R.string.action_cancel))
-                }
-            }
-        )
-    }
-    if (sharePicker) {
-        AlertDialog(
-            onDismissRequest = { sharePicker = false },
-            title = { Text(stringResource(R.string.tracks_share_as)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            sharePicker = false
-                            onShare(visibleSelected, TrackShareFormat.KMZ)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.tracks_share_kmz))
-                    }
-                    Button(
-                        onClick = {
-                            sharePicker = false
-                            onShare(visibleSelected, TrackShareFormat.GPX)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.tracks_share_gpx))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { sharePicker = false }) {
-                    Text(stringResource(R.string.action_back))
                 }
             }
         )
     }
 }
 
-private fun Modifier.onTripleTap(key: Any, onTripleTap: () -> Unit): Modifier = pointerInput(key) {
+@Composable
+private fun SavedTrackRow(
+    session: TrackSessionEntity,
+    card: SavedTrackCard?,
+    checked: Boolean,
+    recording: Boolean,
+    dateLabel: String,
+    elevationOpen: Boolean,
+    elevationSamples: List<ElevationSample>,
+    onCheckedChange: (Boolean) -> Unit,
+    onOpenDump: () -> Unit,
+    onToggleElevation: () -> Unit
+) {
+    val units = runCatching {
+        MeasurementSystem.valueOf(session.measurementSystem)
+    }.getOrDefault(MeasurementSystem.METRIC)
+    val usage = runCatching { UsageType.valueOf(session.usageType) }.getOrNull()
+    val usageText = if (usage == null) session.usageType else stringResource(usageLabel(usage))
+    val distance = if (card == null) "—" else Units.formatDistance(card.odometerMeters, units)
+    val duration = if (card == null) "—" else Units.formatDuration(card.elapsedMillis)
+    val speeds = if (card == null) {
+        "—"
+    } else {
+        stringResource(R.string.tracks_avg, Units.formatSpeed(card.averageSpeedMps, units)) +
+            " · " +
+            stringResource(R.string.tracks_max, Units.formatSpeed(card.maxSpeedMps, units))
+    }
+    val shape = RoundedCornerShape(16.dp)
+    val borderColor = if (checked) {
+        HudCyan
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, borderColor, shape),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 12.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TrackRouteThumbnail(
+                    points = card?.preview ?: emptyList(),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(onClick = onToggleElevation)
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = dateLabel,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onDumpTap(session.id, onOpenDump)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onToggleElevation),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "$usageText · $distance",
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (recording) {
+                                Text(
+                                    text = stringResource(R.string.map_hud_rec),
+                                    color = TitleMagenta,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = duration,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = speeds,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                TrackSelectMark(checked = checked, onCheckedChange = onCheckedChange)
+            }
+            if (elevationOpen) {
+                ElevationProfile(
+                    samples = elevationSamples,
+                    system = units,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackSelectMark(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val mark = if (checked) HudCyan else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .border(2.dp, mark, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (checked) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(mark, CircleShape)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedTrackActionBar(
+    showOnMapEnabled: Boolean,
+    shareEnabled: Boolean,
+    deleteEnabled: Boolean,
+    onShowOnMap: () -> Unit,
+    onGpx: () -> Unit,
+    onKmz: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val colors = ButtonDefaults.textButtonColors(
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    )
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TrackBarButton(
+                    stringResource(R.string.action_show_on_map),
+                    showOnMapEnabled,
+                    colors,
+                    Modifier.weight(1.4f),
+                    onShowOnMap
+                )
+                TrackBarButton(
+                    stringResource(R.string.tracks_share_gpx),
+                    shareEnabled,
+                    colors,
+                    Modifier.weight(1f),
+                    onGpx
+                )
+                TrackBarButton(
+                    stringResource(R.string.tracks_share_kmz),
+                    shareEnabled,
+                    colors,
+                    Modifier.weight(1f),
+                    onKmz
+                )
+                TrackBarButton(
+                    stringResource(R.string.action_delete),
+                    deleteEnabled,
+                    colors,
+                    Modifier.weight(1f),
+                    onDelete
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackBarButton(
+    label: String,
+    enabled: Boolean,
+    colors: ButtonColors,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    TextButton(onClick = onClick, enabled = enabled, colors = colors, modifier = modifier) {
+        Text(
+            text = label,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+private fun Modifier.onDumpTap(key: Any, onDump: () -> Unit): Modifier = pointerInput(key) {
     var count = 0
     var lastAt = 0L
     detectTapGestures {
         val now = SystemClock.elapsedRealtime()
-        count = if (now - lastAt <= 500L) count + 1 else 1
+        val tap = dumpTap(count, lastAt, now)
+        count = tap.count
         lastAt = now
-        if (count >= 3) {
-            count = 0
-            onTripleTap()
+        if (tap.opened) {
+            onDump()
         }
     }
 }

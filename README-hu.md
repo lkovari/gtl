@@ -103,11 +103,13 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 
 ### Mentett útvonalak
 
-- Munkamenetek listája dátummal, használattal, mértékegységgel.
+- Kártyás lista. Minden kártyán: az útvonal előnézete (magenta vonal, cián kezdőpont, krém végpont), a dátum, a usage display neve (Motor, Autó, Fut/túra — a Room továbbra is az enum nevét tárolja), a távolság, az időtartam, az átlag- és a max sebesség. A számok a `gps_events` pontjaiból jönnek (`SavedTrackCards` / `TrackStatsCalculator`), a session `measurementSystem` szerint. A `track_sessions` sorában nincs külön átlag- vagy maxoszlop, és nincs opcionális fájlnév.
+- A dátum hármas koppintása fél másodpercen belül a `gps_events` dumpot nyitja.
+- A bélyegkép vagy a számok koppintása nyitja a **Magasság** profilt (GPS-magasság × távolság, szaggatott baro vonal, ha van minta; ugyanazok a Baro-szabályok, mint a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) alatt).
+- Jobb oldali körrel több track is kijelölhető. **Összes kijelölése** fent marad. Ha van kijelölés, alul sáv: **Térképen** (csak egy kijelölt tracknél), **GPX**, **KMZ**, **Törlés**.
 - **Térképen** a Térkép fület nyitja azon a munkameneten (Google Maps vagy OSM), a sessionben tárolt használati módot beírja a Beállításokba, és azzal rajzolja. Utána a usage vagy a csúszkák váltása más módban mutatja ugyanazt a logot. A következő Indít a kiválasztott Beállításokat követi. A seprő leveszi a vonalat, a munkamenetet nem törli.
-- **Magasság** GPS-magasság × távolság chartot nyit (szaggatott baro vonal, ha van minta; ugyanazok a Baro-szabályok, mint a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) alatt).
-- **Törlés** minden sessionnél (keskeny kijelzőn a Magasság alá tör). Megerősítés után cascade-törli a SQLite sessiont és a pontjait.
-- Jelölőnégyzetek, **Összes kijelölése**, **Kijelöltek megosztása** → KMZ vagy GPX:
+- **Törlés** megerősítés után cascade-törli a SQLite sessiont és a pontjait. Több kijelölt track egy párbeszéddel törölhető. A futó rögzítés REC jelölést kap, és nem törölhető.
+- Megosztás a kijelölésből, KMZ vagy GPX:
   - egy munkamenet → `GTL_yyyyMMdd_HHmmss.kmz` vagy `.gpx`
   - több munkamenet → egy KMZ trackenként mappával, vagy egy GPX több `<trk>`-kel
 
@@ -131,7 +133,7 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 - Minden letárolt pont `<trkpt>`: `lat`, `lon`, `<ele>` (GPS-magasság), `<time>` (UTC). Nincs speed-kiterjesztés, hogy az OsmAnd, Komoot, Garmin Connect, Relive és QGIS be tudja olvasni. A baro nem kerül a GPX-be; SQLite-ban és KMZ-ben marad. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 - START / PAUSE / STOP `<wpt>` neve Start, Pause, Stop. A Stop waypoint az utolsó path-pont (ugyanaz a pattinás, mint a KMZ).
 - Több kijelölt session → egy `.gpx` több `<trk>`-kel. Fájlnév `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
-- Mentett útvonalak → Kijelöltek megosztása → KMZ vagy GPX.
+- Mentett útvonalak → kijelölés → GPX vagy KMZ.
 
 
 
@@ -553,7 +555,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `compass.png` — Iránytű MAG / TRUE rózsa, alsó fülek. Újra véve 2026-09-12.
 - `about.png`
 - `settings.png` — Teljes telefonkép: hat használati mód (Hajó), QNH 1023 hPa Calibrate / Reset, OSM, egyszerűsítés, Csak GNSS, simítás, álláskor ne vándoroljon, rögzítés sűrűsége. Újra véve 2026-09-13 (1080×2160).
-- `saved-tracks.png` — Mentett útvonalak: Térképen, Magasság, Törlés, GPS/baro profil. Újra véve 2026-09-12.
+- `saved-tracks.png` — régi Mentett útvonalak: soronkénti Térképen, Magasság, Törlés, GPS/baro profil. Újra véve 2026-09-12. A kártyás lista (előnézet, usage név, út, idő, átlag, max, alsó sáv) még nincs a képen.
 - `settings-density.png` — Régebbi Beállítások elrendezés egyszerűsítő / simító csúszkákkal (2.0.3)
 - `help.png` — Súgótémák (2.0.3)
 - `app-icon.png`

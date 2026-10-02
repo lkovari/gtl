@@ -103,11 +103,13 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 
 ### Saved tracks
 
-- List of sessions with date, usage, units.
+- Card list. Each card shows a route preview (magenta line, cyan start, cream end), the date, the usage display name (Motorbike, Car, Run/Hike — Room still stores the enum name), distance, duration, average speed, and max speed. The figures come from `gps_events` (`SavedTrackCards` / `TrackStatsCalculator`) in the session `measurementSystem`. `track_sessions` has no average or max column, and no optional file name.
+- Three taps on the date within half a second open the `gps_events` dump.
+- A tap on the thumbnail or the figures opens **Elevation** (GPS altitude vs distance, dashed barometric line when those samples exist; same Baro rules as [Barometric altitude (Baro)](#barometric-altitude-baro)).
+- The circle on the right selects more than one track. **Select all** stays at the top. When something is selected, a bottom bar shows **Show on map** (only when exactly one track is selected), **GPX**, **KMZ**, and **Delete**.
 - **Show on map** opens the Map tab on that session (Google Maps or OSM), switches Settings to the usage stored on the session, and draws it with those settings. After that, changing usage or sliders redraws the same log that way. Next Start uses the Settings then selected. The Map broom takes that line off without deleting the session.
-- **Elevation** opens a GPS altitude vs distance chart for that session (dashed barometric line when those samples exist; same Baro rules as [Barometric altitude (Baro)](#barometric-altitude-baro)).
-- **Delete** on each session (wraps under Elevation on a narrow phone). Confirms, then cascade-deletes the SQLite session and its points.
-- Checkboxes, **Select all**, **Share selected** → KMZ or GPX:
+- **Delete** confirms, then cascade-deletes the SQLite session and its points. Several selected tracks share one dialog. The session that is recording shows REC and cannot be deleted.
+- Share from the selection, as KMZ or GPX:
   - one session → `GTL_yyyyMMdd_HHmmss.kmz` or `.gpx`
   - several sessions → one KMZ with a folder per track, or one GPX with several `<trk>`
 
@@ -131,7 +133,7 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 - Each stored point is a `<trkpt>` with `lat`, `lon`, `<ele>` (GPS altitude), `<time>` (UTC). No speed extension, so OsmAnd, Komoot, Garmin Connect, Relive, and QGIS can import it. Baro is not written to GPX; it stays in SQLite and KMZ. See [Barometric altitude (Baro)](#barometric-altitude-baro).
 - START / PAUSE / STOP are `<wpt>` named Start, Pause, Stop. The Stop waypoint uses the last path point (same snap as KMZ).
 - Several selected sessions → one `.gpx` with several `<trk>`. Filename `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
-- Saved tracks → Share selected → KMZ or GPX.
+- Saved tracks → select → GPX or KMZ.
 
 
 
@@ -553,7 +555,7 @@ Engine entry points worth reading:
 - `compass.png` — Compass MAG / TRUE rose, bottom tabs. Recaptured 2026-09-12.
 - `about.png`
 - `settings.png` — Full phone frame: six usage types (Watercraft selected), QNH 1023 hPa with Calibrate / Reset, OSM, simplify, GNSS only, smooth, hold still, recording density. Recaptured 2026-09-13 (1080×2160).
-- `saved-tracks.png` — Saved tracks: Show on map, Elevation, Delete, GPS/baro profile. Recaptured 2026-09-12.
+- `saved-tracks.png` — older Saved tracks: per-row Show on map, Elevation, Delete, GPS/baro profile. Recaptured 2026-09-12. The card list (preview, usage name, distance, time, average, max, bottom bar) is not in that shot.
 - `settings-density.png` — Older Settings layout with simplify / smoothing sliders (2.0.3)
 - `help.png` — Help topics (2.0.3)
 - `app-icon.png`

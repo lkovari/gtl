@@ -62,7 +62,7 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 - **Map at night:** HUD is there, tiles stay daylight. Listing shots in `docs/screenshots/` show GPS skyplot, Route elevation, Compass MAG rose, Settings QNH, Saved-track elevation, and Map with idle HUD + S/E (`map.png` / `settings.png` recaptured 2026-09-13). Logging HUD Map and the feature graphic still wait.
 - **Standing speed:** the map HUD rounds the chip’s raw Doppler to a whole km/h. Indoors, with the pin not moving, it still shows ~5 km/h. The Route tab already shows 0 while idle (`RouteTabSpeeds`). `pauseSpeedMps()` belongs to the stored pause, and this noise sits above it. Speed accuracy is never read.
 - **Route tab:** 2×4 `HudMetric` cards plus an elevation profile. Speed is not *the* number.
-- **Saved tracks:** a plain row, date + raw `usageType` enum (`TWO_WHEELERS`) + `METRIC`. Elevation, delete confirm, and KMZ/GPX share exist. No card, no optional file name, and the session row has no average or max speed.
+- **Saved tracks:** the card exists (route preview, usage display name, distance, duration, average and max from `gps_events`). Still missing: an optional file name. Average and max are not columns on the session; each open recomputes them from the points.
 - **Theme:** cockpit colours exist, but the **map stays daylight**, there is no in-app System / Light / Dark control, and `themes.xml` keeps a light status bar.
 - **Notification:** static title + text + Stop (`TrackingForegroundService.buildNotification`). No live speed / distance.
 - **Play feature graphic** (`docs/play-console/feature-graphic.png`): dark dash, glowing track, skyplot. HUD and skyplot exist; dark tiles and speed colour do not.
@@ -199,22 +199,20 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ---
 
-### 5. Saved tracks: cards, file name, speed
+### 5. Saved tracks: card is done, file name and stored speed remain
 
-**Value:** medium–high — the private archive becomes usable  
-**Effort:** 3–4 days  
+**Value:** medium — the card exists; the name and the speeds stored on the session are still missing  
+**Effort:** 1–2 days  
 **Wave:** 2
 
-**Why.** After Stop, the list is a date. Two Saturday rides are indistinguishable. Settings already says “Motorbike”; Saved tracks prints `TWO_WHEELERS`. The shared file is a timestamp, and the user cannot name it. Average and max speed are not on the session row: the list could show them only by rescanning every point.
+**Why.** The card already shows distance, duration, average, max, and the usage display name. Two Saturday rides are still only dates. The shared file is a timestamp, and the user cannot name it. Average and max are recomputed from `gps_events` every time the list opens.
 
-**Today.** `track_sessions` (schema 6): `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. No `displayName`, no `avgSpeed` / `maxSpeed`. `TracksScreen`: a plain row, checkbox, raw enum + unit system, Show on map, Elevation, Delete with confirm, share selected as KMZ or GPX.
+**Today.** `TracksScreen` is a card: route preview, date, usage display name (Motorbike, Car, Run/Hike), distance, duration, average and max from the points (`SavedTrackCards`). A circle selects, **Select all** stays, and a bottom bar offers Show on map (one track), GPX, KMZ, and Delete. Elevation opens from a tap on the thumbnail or the figures. Three taps on the date open the `gps_events` dump. `track_sessions` (schema 6): `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. No `displayName`, no `avgSpeed` / `maxSpeed`. The filename is still `GTL_yyyyMMdd_HHmmss`.
 
-**Build.**
+**Still to build.**
 
-- Saved tracks uses a **card**: usage icon, name or date, distance, duration, average and max speed. Checkbox, Show on map, Elevation, and Delete stay on the card.
-- Optional name for the saved file: `displayName` on the session. Empty = date, as now. The KMZ/GPX filename and the `<name>` / KMZ folder use it (the format chooser already exists); replace characters that are illegal in a filename.
-- Extend `track_sessions` (Room migrate 6→7): `avgSpeed` and `maxSpeed` in m/s, written at Stop from `TrackStatsCalculator`. The list reads those columns and does not scan all `gps_events` on every scroll. Display uses the session `measurementSystem`.
-- Usage on the card is a **display name** (the same string as Settings: Motorbike, Car, Run/Hike), not the enum. Room keeps storing the enum name (`TWO_WHEELERS`).
+- Optional name for the saved file: `displayName` on the session. Empty = date, as now. The KMZ/GPX filename and the `<name>` / KMZ folder use it; replace characters that are illegal in a filename.
+- Extend `track_sessions` (Room migrate 6→7): `avgSpeed` and `maxSpeed` in m/s, written at Stop from `TrackStatsCalculator`. The list reads those columns and does not scan all `gps_events` on every open. Display uses the session `measurementSystem`. Room keeps storing the enum name (`TWO_WHEELERS`); the card shows the display name.
 
 **Depends on.** Coloured track (4) beautifies Show on map; it does not block the list.
 
@@ -297,14 +295,14 @@ GPS / Route / Compass / Settings / Saved tracks listing shots recaptured 2026-09
 
 **Done when:** dark mode uses dark tiles; a standing indoor fix shows 0 km/h and walking in the open comes through; the notification shows km/h and km, the same number as the HUD; the new 9:16 listing shot is the HUD Map, not the idle S/E track.
 
-### Wave 2 — “archive and the line tell a story” (about 7–10 days)
+### Wave 2 — “archive and the line tell a story” (about 5–8 days)
 
 | # | Item | Effort |
 | - | ---- | ------ |
 | 4 | Coloured polyline + Route large speed / sparkline | 4–6 days |
-| 5 | Saved-track cards, file name, avg/max speed, usage display name | 3–4 days |
+| 5 | Saved-track file name + avg/max on the session row (the card is done) | 1–2 days |
 
-**Done when:** a highway stretch is not the same colour as city crawling; two sessions are distinguishable by name on the card, usage reads “Motorbike” rather than `TWO_WHEELERS`, and average and max come from the session row; the shared file uses the optional name; Show on map uses that session’s speed bands.
+**Done when:** a highway stretch is not the same colour as city crawling; Show on map uses that session’s speed bands. The Saved tracks card is done: preview, display usage, distance, duration, average and max from the points. What remains of the wave: two sessions distinguishable by name, average and max read from the session row, and the shared file uses the optional name.
 
 ### Wave 3 — deepen (later, sliced)
 
@@ -327,14 +325,14 @@ GPS / Route / Compass / Settings / Saved tracks listing shots recaptured 2026-09
 | 2 | Standing speed on the HUD | high | ~1 day | 1 |
 | 3 | Live notification | medium–high | 1–2 days | 1 |
 | 4 | Coloured track + Route cockpit | high | 4–6 days | 2 |
-| 5 | Saved-track cards, file name, speed, usage display name | medium–high | 3–4 days | 2 |
+| 5 | Saved-track file name + avg/max on the session row (the card is done) | medium | 1–2 days | 2 |
 | 6 | Manual pause / lap | medium | 2–3 days | 3 |
 | 7 | Landscape tank HUD | medium | 5–8 days | 3+ |
 | 8 | Postcard share | medium | 4–6 days | 3+ |
 | 9 | Quick Settings tile | low–medium | ~1 day | any |
 
 Wave 1 remaining: **about 4.5–6.5 days** plus listing assets.  
-Wave 2: **about 7–10 days**.  
+Wave 2: **about 5–8 days**.  
 If you can only ship **two** items: **dark map + coloured track**. That closes “it glares at night” and “a red scribble on the listing”.
 
 ---

@@ -47,6 +47,8 @@ import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
 import com.lkovari.mobile.apps.gtl.engine.OfflineMapUse
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectDump
 import com.lkovari.mobile.apps.gtl.engine.TrackInspectEvent
+import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
+import com.lkovari.mobile.apps.gtl.engine.SavedTrackCards
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
 import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
 import com.lkovari.mobile.apps.gtl.engine.UsageType
@@ -197,6 +199,27 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     val sessions: StateFlow<List<TrackSessionEntity>> = app.trackRepository.observeSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val savedTrackCards: StateFlow<Map<Long, SavedTrackCard>> = sessions
+        .flatMapLatest { sessionList ->
+            if (sessionList.isEmpty()) {
+                flowOf(emptyMap())
+            } else {
+                combine(
+                    sessionList.map { session ->
+                        app.trackRepository.observeEvents(session.id).map { events ->
+                            val card = withContext(Dispatchers.Default) {
+                                SavedTrackCards.from(app.trackRepository.toSamples(events))
+                            }
+                            session.id to card
+                        }
+                    }
+                ) { pairs ->
+                    pairs.associate { it }
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init {
         observeLoggingPreview()

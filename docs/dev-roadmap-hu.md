@@ -62,7 +62,7 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 - **Térkép éjjel:** HUD van, a csempe nappali. A listing `docs/screenshots/` képei a GPS skyplotot, az Útvonal magasságprofilt, az Iránytű MAG rózsát, a Beállítások QNH-ját, a Mentett track Magasságot és a Térkép idle HUD + S/E-t mutatják (`map.png` / `settings.png` újra véve 2026-09-13). A naplózás közbeni HUD-os Térkép és a feature graphic még vár.
 - **Álló sebesség:** a térkép HUD a chip nyers Dopplerét kerekíti egész km/h-ra. Bent, mozdulatlan pin mellett is kijön ~5 km/h. A Route lap idle-ben már 0 (`RouteTabSpeeds`). A `pauseSpeedMps()` a letárolt szüneté, és ez a zaj felette van. A sebességpontosság nincs kiolvasva.
 - **Útvonal fül:** 2×4 `HudMetric` kártya plusz magasságprofil. A sebesség nem *a* szám.
-- **Mentett útvonalak:** sima sor, dátum + nyers `usageType` enum (`TWO_WHEELERS`) + `METRIC`. Van Magasság, törlés-megerősítés, KMZ/GPX. Nincs kártya, nincs opcionális fájlnév, a session sorában nincs átlag/max sebesség.
+- **Mentett útvonalak:** kártya van (útvonal-előnézet, usage display név, út, idő, átlag és max a `gps_events`-ből). Hátravan az opcionális fájlnév. Az átlag és a max nincs a session sorában: minden megnyitáskor a pontokból számol.
 - **Téma:** a cockpit paletta kész, a **térkép nappali marad**, nincs in-app Rendszer / Világos / Sötét, a `themes.xml` status bar light.
 - **Értesítés:** statikus cím + szöveg + Leállít (`TrackingForegroundService.buildNotification`). Nincs élő sebesség / út.
 - **Play feature graphic** (`docs/play-console/feature-graphic.png`): sötét műszerfal, izzó track, skyplot. HUD és skyplot megvan; a sötét csempe és a sebesség-szín még hiányzik.
@@ -199,22 +199,20 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 
 ---
 
-### 5. Mentett útvonalak: kártya, fájlnév, sebesség
+### 5. Mentett útvonalak: kártya kész, hátravan a fájlnév és a tárolt sebesség
 
-**Érték:** közepes–magas — a saját archívum használhatóvá válik  
-**Effort:** 3–4 nap  
+**Érték:** közepes — a kártya megvan; a név és a sessionben tárolt sebesség még hiányzik  
+**Effort:** 1–2 nap  
 **Hullám:** 2
 
-**Miért.** Leállítás után a lista dátum. Két szombati motoros kör megkülönböztethetetlen. A Beállítások már „Motor”-t ír, a Mentett tracklog `TWO_WHEELERS`-t. Megosztáskor a fájlnév időbélyeg, és a felhasználó nem adhat neki nevet. Az átlag és a max sebesség nincs a session sorában: a lista csak a pontok újraszámolásával tudná mutatni.
+**Miért.** A kártya már mutatja az utat, az időt, az átlagot, a maxot és a usage display nevet. Két szombati kör ettől még csak dátummal különül el. Megosztáskor a fájlnév időbélyeg, a felhasználó nem adhat nevet. Az átlag és a max minden megnyitáskor a `gps_events` újraszámolása.
 
-**Ma.** `track_sessions` (séma 6): `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. Nincs `displayName`, nincs `avgSpeed` / `maxSpeed`. `TracksScreen`: sima sor, checkbox, nyers enum + mértékegység, Térképen, Magasság, Törlés megerősítéssel, kijelöltek megosztása KMZ vagy GPX.
+**Ma.** `TracksScreen` kártya: útvonal-előnézet, dátum, usage display név (Motor, Autó, Fut/túra), távolság, időtartam, átlag és max a pontokból (`SavedTrackCards`). Kijelölő kör, **Összes kijelölése**, alsó sáv: Térképen (egy track), GPX, KMZ, Törlés. A magasságprofil a bélyegkép vagy a számok koppintására nyílik. A dátum hármas koppintása a `gps_events` dump. `track_sessions` (séma 6): `startedAt`, `stoppedAt`, `usageType`, `measurementSystem`. Nincs `displayName`, nincs `avgSpeed` / `maxSpeed`. A fájlnév továbbra is `GTL_yyyyMMdd_HHmmss`.
 
-**Mit építs.**
+**Hátravan.**
 
-- A Mentett tracklog képernyő **kártya**: usage ikon, név vagy dátum, út, időtartam, átlag és max sebesség. A checkbox, Térképen, Magasság és Törlés a kártyán marad.
-- Opcionális név a lementett fájlra: `displayName` a sessionön. Üres = dátum, mint most. A KMZ/GPX fájlnév és a `<name>` / KMZ folder ezt használja (a formátumválasztó megvan); a fájlnévből a tiltott karaktereket cseréld.
-- `track_sessions` bővítés (Room migráció 6→7): `avgSpeed` és `maxSpeed` m/s-ban, Leállításkor a `TrackStatsCalculator`-ból. A lista ezeket olvassa, ne minden görgetésre a teljes `gps_events`-et. Megjelenítés a session `measurementSystem` szerint.
-- A usage a kártyán **display név** (ugyanaz a string, mint a Beállítások: Motor, Autó, Fut/túra), nem az enum. A Room továbbra is az enum nevét tárolja (`TWO_WHEELERS`).
+- Opcionális név a lementett fájlra: `displayName` a sessionön. Üres = dátum, mint most. A KMZ/GPX fájlnév és a `<name>` / KMZ folder ezt használja; a fájlnévből a tiltott karaktereket cseréld.
+- `track_sessions` bővítés (Room migráció 6→7): `avgSpeed` és `maxSpeed` m/s-ban, Leállításkor a `TrackStatsCalculator`-ból. A lista ezeket olvassa, ne minden megnyitáskor a teljes `gps_events`-et. Megjelenítés a session `measurementSystem` szerint. A Room továbbra is az enum nevét tárolja (`TWO_WHEELERS`); a kártya a display nevet mutatja.
 
 **Függőség.** A színezett track (4.) a Térképen-nézetet szépíti, a listát nem blokkolja.
 
@@ -297,14 +295,14 @@ GPS / Útvonal / Iránytű / Beállítások / Mentett trackek listing képek új
 
 **Kész, ha:** sötét módban a csempe sötét; álló benti fixen a HUD 0 km/h, szabad égen a gyaloglás megjön; az értesítésben van km/h és km, ugyanaz a szám, mint a HUD-on; a listing új 9:16 képe a HUD-os Térkép, nem az idle S/E track.
 
-### Hullám 2 — „az archívum és a vonal mesél” (kb. 7–10 nap)
+### Hullám 2 — „az archívum és a vonal mesél” (kb. 5–8 nap)
 
 | # | Tétel | Effort |
 | - | ----- | ------ |
 | 4 | Színezett polyline + Route nagy sebesség / sparkline | 4–6 nap |
-| 5 | Mentett track kártyák, fájlnév, átlag/max sebesség, usage display név | 3–4 nap |
+| 5 | Mentett track fájlnév + átlag/max a session sorában (a kártya kész) | 1–2 nap |
 
-**Kész, ha:** egy autópályás szakasz nem azonos színű, mint a város; két session a kártyán névvel megkülönböztethető, a usage „Motor” és nem `TWO_WHEELERS`, az átlag és a max a session sorából jön; a megosztott fájl az opcionális nevet kapja; a Térképen a színezés a session usage sávjait használja.
+**Kész, ha:** egy autópályás szakasz nem azonos színű, mint a város; a Térképen a színezés a session usage sávjait használja. A Mentett track kártya kész: előnézet, display usage, út, idő, átlag és max a pontokból. A hullám maradéka: két session névvel megkülönböztethető, az átlag és a max a session sorából jön, a megosztott fájl az opcionális nevet kapja.
 
 ### Hullám 3 — mélyítés (később, darabolva)
 
@@ -327,14 +325,14 @@ A 7. és 8. a drágák: csak akkor, ha a hullám 1–2 után még a „tankra ra
 | 2 | Álló sebesség a HUD-on | magas | ~1 nap | 1 |
 | 3 | Élő értesítés | közepes–magas | 1–2 nap | 1 |
 | 4 | Színezett track + Route cockpit | magas | 4–6 nap | 2 |
-| 5 | Mentett track kártyák, fájlnév, sebesség, usage display név | közepes–magas | 3–4 nap | 2 |
+| 5 | Mentett track fájlnév + átlag/max a session sorában (a kártya kész) | közepes | 1–2 nap | 2 |
 | 6 | Kézi szünet / lap | közepes | 2–3 nap | 3 |
 | 7 | Fekvő tank HUD | közepes | 5–8 nap | 3+ |
 | 8 | Képeslap megosztás | közepes | 4–6 nap | 3+ |
 | 9 | Quick Settings tile | alacsony–közepes | ~1 nap | bármikor |
 
 Hullám 1 maradék: **kb. 4,5–6,5 nap** + listing asset.  
-Hullám 2: **kb. 7–10 nap**.  
+Hullám 2: **kb. 5–8 nap**.  
 Ha csak **kettőt** lehet: **sötét térkép + színezett track**. Ez zárja a „éjjel vakít” és a „piros firka a listingen” rést.
 
 ---
