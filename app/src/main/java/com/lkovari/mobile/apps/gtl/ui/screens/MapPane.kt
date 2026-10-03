@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -52,8 +53,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -181,6 +185,8 @@ fun MapPane(
         var coordinateText by remember { mutableStateOf<String?>(null) }
         var postalAddress by remember { mutableStateOf<PostalAddress?>(null) }
         var distanceTarget by remember { mutableStateOf<GeoPoint?>(null) }
+        var mapLogoPadding by remember { mutableStateOf(0.dp) }
+        val density = LocalDensity.current
         var cameraHold by remember { mutableStateOf(false) }
         var searchFocus by remember { mutableStateOf<MapSearchFocus?>(null) }
         var searchOpen by remember { mutableStateOf(false) }
@@ -325,7 +331,8 @@ fun MapPane(
                 onMapTap,
                 onAnchorScreen = { tapAnchor.screen = it },
                 speedScaleExpanded = speedScaleExpanded,
-                onSpeedScaleToggle = onSpeedScaleToggle
+                onSpeedScaleToggle = onSpeedScaleToggle,
+                logoPadding = mapLogoPadding
             )
         }
         Column(
@@ -451,10 +458,19 @@ fun MapPane(
         } else {
             null
         }
-        if (hudMode != MapHudMode.Hidden || showCloudPaused || distanceText != null) {
+        val hudVisible = hudMode != MapHudMode.Hidden || showCloudPaused || distanceText != null
+        if (!hudVisible || state.showingOsmMap) {
+            SideEffect { mapLogoPadding = 0.dp }
+        }
+        if (hudVisible) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
+                    .onGloballyPositioned { coordinates ->
+                        if (!state.showingOsmMap) {
+                            mapLogoPadding = with(density) { coordinates.size.height.toDp() }
+                        }
+                    }
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -590,7 +606,8 @@ private fun GoogleMapContent(
     onTap: (GeoPoint) -> Unit,
     onAnchorScreen: (Offset) -> Unit,
     speedScaleExpanded: Boolean,
-    onSpeedScaleToggle: (() -> Unit)?
+    onSpeedScaleToggle: (() -> Unit)?,
+    logoPadding: Dp
 ) {
     val live = state.live.lastLocation?.let { LatLng(it.latitude, it.longitude) }
     val start = live
@@ -607,6 +624,7 @@ private fun GoogleMapContent(
         modifier = Modifier.fillMaxSize(),
         cameraPositionState = camera,
         properties = MapProperties(mapType = state.settings.googleMapLayer.toComposeType()),
+        contentPadding = PaddingValues(bottom = logoPadding),
         uiSettings = MapUiSettings(
             zoomControlsEnabled = true,
             compassEnabled = false,

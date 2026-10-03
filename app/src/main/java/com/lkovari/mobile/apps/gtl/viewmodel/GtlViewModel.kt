@@ -17,6 +17,7 @@ import com.lkovari.mobile.apps.gtl.data.prefs.GoogleMapLayer
 import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
 import com.lkovari.mobile.apps.gtl.domain.GpxExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
+import com.lkovari.mobile.apps.gtl.domain.TrackShareFailure
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
@@ -78,6 +79,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 private data class OsmTuhuBits(
     val mapCleared: Boolean,
@@ -591,8 +593,15 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         )
     )
 
+    val locationPermissionAsked: StateFlow<Boolean> = app.preferences.locationPermissionAsked
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     fun acceptDisclaimer() {
         viewModelScope.launch { app.preferences.setDisclaimerAccepted(true) }
+    }
+
+    fun markLocationPermissionAsked() {
+        viewModelScope.launch { app.preferences.setLocationPermissionAsked() }
     }
 
     fun startLogging() {
@@ -909,8 +918,14 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.tuhuPreferences.setHillshading(value) }
     }
 
-    fun downloadRegion(region: OsmRegion) {
-        app.osmMapStore.enqueue(region)
+    val regionSizes: StateFlow<Map<String, Long>> = app.osmMapStore.regionSizes
+
+    fun probeRegionSizes() {
+        viewModelScope.launch { app.osmMapStore.probeSizes(OsmCatalog.regions) }
+    }
+
+    fun downloadRegion(region: OsmRegion, title: String) {
+        app.osmMapStore.enqueue(region, title)
     }
 
     fun observeDownload(regionId: String): kotlinx.coroutines.flow.Flow<OsmDownloadState> {
@@ -1056,8 +1071,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun isDownloaded(region: OsmRegion): Boolean = app.osmMapStore.downloadedFile(region.id) != null
 
-    fun downloadTuhu() {
-        app.tuhuMapStore.enqueue()
+    fun downloadTuhu(title: String) {
+        app.tuhuMapStore.enqueue(title)
     }
 
     fun observeTuhuDownload(): kotlinx.coroutines.flow.Flow<OsmDownloadState> {
@@ -1108,8 +1123,14 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun isTuhuDownloaded(): Boolean = app.tuhuMapStore.downloadedFile() != null
 
-    fun shareSessions(sessionIds: Collection<Long>, format: TrackShareFormat, onReady: (Intent) -> Unit) {
+    fun shareSessions(
+        sessionIds: Collection<Long>,
+        format: TrackShareFormat,
+        onReady: (Intent) -> Unit,
+        onFailed: (TrackShareFailure) -> Unit
+    ) {
         if (sessionIds.isEmpty()) {
+            onFailed(TrackShareFailure.Empty)
             return
         }
         viewModelScope.launch {
@@ -1118,28 +1139,38 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                 session to app.trackRepository.eventsFor(session.id)
             }.filter { it.second.isNotEmpty() }
             if (items.isEmpty()) {
+                onFailed(TrackShareFailure.Empty)
                 return@launch
             }
-            val file = when (format) {
-                TrackShareFormat.KMZ -> exporter.write(
-                    items,
-                    settings.value.qnhHpa,
-                    settings.value.baroPressureOffsetHpa
-                )
-                TrackShareFormat.GPX -> gpxExporter.write(items)
-            }
-            val mime = when (format) {
-                TrackShareFormat.KMZ -> "application/vnd.google-earth.kmz"
-                TrackShareFormat.GPX -> "application/gpx+xml"
-            }
-            val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
-            onReady(
-                Intent(Intent.ACTION_SEND).apply {
-                    type = mime
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            var file: File? = null
+            try {
+                file = when (format) {
+                    TrackShareFormat.KMZ -> exporter.write(
+                        items,
+                        settings.value.qnhHpa,
+                        settings.value.baroPressureOffsetHpa
+                    )
+                    TrackShareFormat.GPX -> gpxExporter.write(items)
                 }
-            )
+                val mime = when (format) {
+                    TrackShareFormat.KMZ -> "application/vnd.google-earth.kmz"
+                    TrackShareFormat.GPX -> "application/gpx+xml"
+                }
+                val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+                onReady(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = mime
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                )
+            } catch (error: IOException) {
+                file?.delete()
+                onFailed(TrackShareFailure.Write)
+            } catch (error: IllegalArgumentException) {
+                file?.delete()
+                onFailed(TrackShareFailure.Write)
+            }
         }
     }
 

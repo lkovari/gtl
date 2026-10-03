@@ -1,13 +1,26 @@
 package com.lkovari.mobile.apps.gtl.ui.screens
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lkovari.mobile.apps.gtl.engine.LocationStartAction
+import com.lkovari.mobile.apps.gtl.engine.locationPermissionResult
+import com.lkovari.mobile.apps.gtl.engine.locationStartTap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -91,11 +104,14 @@ fun MainTrackerScreen(
     onOpenTracks: () -> Unit,
     onOpenHelp: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenErrorLog: () -> Unit,
     onOpenLocationSettings: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(state.mainTab) }
     var menu by remember { mutableStateOf(false) }
+    var showPermissionSettings by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val locationAsked by viewModel.locationPermissionAsked.collectAsStateWithLifecycle()
     val previewLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
@@ -108,16 +124,31 @@ fun MainTrackerScreen(
     val startLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
-        val fineGranted = ContextCompat.checkSelfPermission(
-            context,
+        val fineGranted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        val activity = context.findActivity()
+        val canAskAgain = activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
+            activity,
             Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val locOk = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            fineGranted
-        if (locOk) {
-            viewModel.startLogging()
-        } else if (grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            Toast.makeText(context, R.string.location_fine_required, Toast.LENGTH_LONG).show()
+        )
+        when (locationPermissionResult(fineGranted, coarseGranted, canAskAgain)) {
+            LocationStartAction.StartLogging -> viewModel.startLogging()
+            LocationStartAction.PreciseRequired -> {
+                Toast.makeText(context, R.string.location_fine_required, Toast.LENGTH_LONG).show()
+            }
+            LocationStartAction.OpenAppSettings -> showPermissionSettings = true
+            LocationStartAction.PermissionDenied,
+            LocationStartAction.RequestPermission -> {
+                Toast.makeText(context, R.string.location_permission_denied, Toast.LENGTH_LONG).show()
+            }
         }
     }
     LaunchedEffect(Unit) {
@@ -164,27 +195,63 @@ fun MainTrackerScreen(
                                     context,
                                     Manifest.permission.ACCESS_FINE_LOCATION
                                 ) == PackageManager.PERMISSION_GRANTED
+                                val coarse = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
                                 val notifyGranted = Build.VERSION.SDK_INT < 33 ||
                                     ContextCompat.checkSelfPermission(
                                         context,
                                         Manifest.permission.POST_NOTIFICATIONS
                                     ) == PackageManager.PERMISSION_GRANTED
-                                if (fine && notifyGranted) {
-                                    viewModel.startLogging()
-                                } else {
-                                    val needed = buildList {
-                                        if (!fine) {
-                                            add(Manifest.permission.ACCESS_FINE_LOCATION)
-                                            add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                                        }
-                                        if (Build.VERSION.SDK_INT >= 33 && !notifyGranted) {
-                                            add(Manifest.permission.POST_NOTIFICATIONS)
+                                val activity = context.findActivity()
+                                val canAskAgain = activity != null &&
+                                    ActivityCompat.shouldShowRequestPermissionRationale(
+                                        activity,
+                                        Manifest.permission.ACCESS_FINE_LOCATION
+                                    )
+                                when (
+                                    locationStartTap(
+                                        fineGranted = fine,
+                                        coarseGranted = coarse,
+                                        askedBefore = locationAsked,
+                                        canAskAgain = canAskAgain
+                                    )
+                                ) {
+                                    LocationStartAction.StartLogging -> {
+                                        if (notifyGranted) {
+                                            viewModel.startLogging()
+                                        } else {
+                                            startLauncher.launch(
+                                                arrayOf(Manifest.permission.POST_NOTIFICATIONS)
+                                            )
                                         }
                                     }
-                                    if (needed.isEmpty()) {
-                                        viewModel.startLogging()
-                                    } else {
-                                        startLauncher.launch(needed.toTypedArray())
+                                    LocationStartAction.PreciseRequired -> {
+                                        Toast.makeText(
+                                            context,
+                                            R.string.location_fine_required,
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                    LocationStartAction.OpenAppSettings -> showPermissionSettings = true
+                                    LocationStartAction.RequestPermission,
+                                    LocationStartAction.PermissionDenied -> {
+                                        viewModel.markLocationPermissionAsked()
+                                        val needed = buildList {
+                                            if (!fine) {
+                                                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                                                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                                            }
+                                            if (Build.VERSION.SDK_INT >= 33 && !notifyGranted) {
+                                                add(Manifest.permission.POST_NOTIFICATIONS)
+                                            }
+                                        }
+                                        if (needed.isEmpty()) {
+                                            viewModel.startLogging()
+                                        } else {
+                                            startLauncher.launch(needed.toTypedArray())
+                                        }
                                     }
                                 }
                             }
@@ -225,6 +292,10 @@ fun MainTrackerScreen(
                         DropdownMenuItem(text = { Text(stringResource(R.string.about_title)) }, onClick = {
                             menu = false
                             onOpenAbout()
+                        })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.error_log_title)) }, onClick = {
+                            menu = false
+                            onOpenErrorLog()
                         })
                         DropdownMenuItem(text = { Text(stringResource(R.string.action_location_settings)) }, onClick = {
                             menu = false
@@ -325,6 +396,47 @@ fun MainTrackerScreen(
             }
         }
     }
+    if (showPermissionSettings) {
+        AlertDialog(
+            onDismissRequest = { showPermissionSettings = false },
+            title = { Text(stringResource(R.string.location_permission_settings_title)) },
+            text = { Text(stringResource(R.string.location_permission_settings_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionSettings = false
+                        context.openAppPermissionSettings()
+                    }
+                ) {
+                    Text(stringResource(R.string.location_open_app_permissions))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionSettings = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+}
+
+private fun Context.findActivity(): Activity? {
+    var current = this
+    while (current is ContextWrapper) {
+        if (current is Activity) {
+            return current
+        }
+        current = current.baseContext
+    }
+    return null
+}
+
+private fun Context.openAppPermissionSettings() {
+    startActivity(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+        }
+    )
 }
 
 @Composable

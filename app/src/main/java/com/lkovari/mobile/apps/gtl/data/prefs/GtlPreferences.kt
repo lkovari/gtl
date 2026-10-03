@@ -301,6 +301,14 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.osmHillshading] = value }
     }
 
+    val locationPermissionAsked: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.locationPermissionAsked] ?: false
+    }
+
+    suspend fun setLocationPermissionAsked() {
+        dataStore.edit { it[Keys.locationPermissionAsked] = true }
+    }
+
     private suspend fun migrateSmoothingIfNeeded() {
         dataStore.edit { prefs ->
             if (prefs.contains(Keys.trackSmoothing)) {
@@ -463,6 +471,7 @@ class GtlPreferences(context: Context) {
         val osmCycleways = booleanPreferencesKey("osm_cycleways")
         val osmParks = booleanPreferencesKey("osm_parks")
         val osmHillshading = booleanPreferencesKey("osm_hillshading")
+        val locationPermissionAsked = booleanPreferencesKey("location_permission_asked")
     }
 
     companion object {

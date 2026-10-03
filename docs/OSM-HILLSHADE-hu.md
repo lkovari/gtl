@@ -15,7 +15,7 @@ Két adat, két letöltés:
 
 | Mi | Forrás ma | Mi van benne |
 | --- | --- | --- |
-| OSM vektor | `https://download.mapsforge.org/maps/v5/.../{ország}.map` — `OsmCatalog` + `OsmDownloadWorker` | utak, víz, park, POI |
+| OSM vektor | `https://ftp-stud.hs-esslingen.de/Mirrors/download.mapsforge.org/maps/v5/.../{ország}.map` — `OsmCatalog` + `OsmDownloadWorker`. Ha a tükör nem 2xx-et ad, egyszer `https://download.mapsforge.org/maps/v5` | utak, víz, park, POI |
 | Domborzat | **nincs a GTL-ben** | 1°×1° magasságcsempe, `.hgt` |
 
 A Mapsforge 0.25 a hillshade-et **nem** a `.map`-ből olvassa. Kell `HillsRenderConfig` + `DemFolder` (SRTM HGT mappa), és ezt a `TileRendererLayer` konstruktorába kell adni.

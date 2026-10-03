@@ -2,13 +2,13 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import android.os.SystemClock
 import android.provider.Settings
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,11 +64,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,7 +78,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
@@ -95,23 +94,26 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.io.File
 import com.lkovari.mobile.apps.gtl.R
-import com.lkovari.mobile.apps.gtl.ui.errorLogTap
 import com.lkovari.mobile.apps.gtl.data.device.DeviceIdentity
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
+import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadBudget
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.ElevationSample
+import com.lkovari.mobile.apps.gtl.engine.formatDownloadSize
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
 import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.engine.UsageType
-import com.lkovari.mobile.apps.gtl.ui.dumpTap
+import com.lkovari.mobile.apps.gtl.ui.rememberMapDownloadStart
 import com.lkovari.mobile.apps.gtl.ui.usageIcon
+import java.util.Locale
 import com.lkovari.mobile.apps.gtl.ui.theme.CockpitPanel
 import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
@@ -320,7 +322,7 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                     onClick = { viewModel.setUnits(system) },
                                     label = {
                                         Text(
-                                            system.name.lowercase().replaceFirstChar { it.titlecase() },
+                                            stringResource(unitLabel(system)),
                                             style = chipStyle,
                                             maxLines = 1
                                         )
@@ -698,6 +700,14 @@ private fun EndpointSlider(
     }
 }
 
+private fun unitLabel(system: MeasurementSystem): Int {
+    return when (system) {
+        MeasurementSystem.METRIC -> R.string.units_metric
+        MeasurementSystem.IMPERIAL -> R.string.units_imperial
+        MeasurementSystem.ICAO -> R.string.units_icao
+    }
+}
+
 private fun usageLabel(type: UsageType): Int {
     return when (type) {
         UsageType.AIRCRAFT -> R.string.usage_aircraft
@@ -725,10 +735,21 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
             )
             Button(
                 onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                    )
+                }
+            ) {
+                Text(stringResource(R.string.location_open_app_permissions))
+            }
+            Button(
+                onClick = {
                     context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 }
             ) {
-                Text(stringResource(R.string.location_settings_open))
+                Text(stringResource(R.string.location_open_gps_panel))
             }
         }
     }
@@ -791,6 +812,22 @@ private fun OsmActionButton(
 
 @Composable
 fun OsmDownloadScreen(viewModel: GtlViewModel, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var usableSpace by remember { mutableLongStateOf(context.filesDir.usableSpace) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                usableSpace = context.filesDir.usableSpace
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.probeRegionSizes()
+        usableSpace = context.filesDir.usableSpace
+    }
     SecondaryScaffold(stringResource(R.string.osm_title), onBack) {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             if (TuhuFeature.showDownloadRow()) {
@@ -799,7 +836,10 @@ fun OsmDownloadScreen(viewModel: GtlViewModel, onBack: () -> Unit) {
                 }
             }
             items(viewModel.regions()) { region ->
-                OsmRow(region, viewModel)
+                OsmRow(region, viewModel, usableSpace) {
+                    usableSpace = context.filesDir.usableSpace
+                    usableSpace
+                }
             }
         }
     }
@@ -809,20 +849,60 @@ fun OsmDownloadScreen(viewModel: GtlViewModel, onBack: () -> Unit) {
 private fun osmRegionDetail(
     regionId: String,
     downloaded: Boolean,
-    download: com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
+    download: com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState,
+    knownBytes: Long?
 ): String {
     if (downloaded) {
         return stringResource(R.string.osm_downloaded)
     }
     if (download.running && download.totalBytes > 0L) {
-        val mb = (download.totalBytes + (1024L * 1024L) - 1L) / (1024L * 1024L)
-        return "$regionId · $mb MB"
+        return "$regionId · ${formatDownloadSize(download.totalBytes, Locale.getDefault())}"
+    }
+    if (knownBytes != null && knownBytes > 0L) {
+        return formatDownloadSize(knownBytes, Locale.getDefault())
     }
     return regionId
 }
 
 @Composable
-private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
+private fun downloadFailureText(reason: String?): String {
+    val res = when (reason) {
+        OsmDownloadBudget.ReasonTooLarge -> R.string.osm_too_large
+        OsmDownloadBudget.ReasonNoSpace -> R.string.osm_no_space
+        else -> R.string.osm_failed
+    }
+    return stringResource(res)
+}
+
+private fun partBytes(context: android.content.Context, regionId: String): Long {
+    val file = File(context.filesDir, "maps/$regionId.map.part")
+    return if (file.isFile) file.length() else 0L
+}
+
+@Composable
+private fun OsmRow(
+    region: OsmRegion,
+    viewModel: GtlViewModel,
+    usableSpace: Long,
+    measureSpace: () -> Long
+) {
+    val context = LocalContext.current
+    val europeWord = stringResource(R.string.osm_continent_europe)
+    val title = region.title(europeWord)
+    val sizes by viewModel.regionSizes.collectAsStateWithLifecycle()
+    val knownBytes = sizes[region.id]
+    val alreadyOnDisk = partBytes(context, region.id)
+    val blockReason = OsmDownloadBudget.blockBeforeStart(knownBytes, usableSpace, alreadyOnDisk)
+    LaunchedEffect(knownBytes) {
+        measureSpace()
+    }
+    val startDownload = rememberMapDownloadStart {
+        val space = measureSpace()
+        val onDisk = partBytes(context, region.id)
+        if (OsmDownloadBudget.blockBeforeStart(knownBytes, space, onDisk) == null) {
+            viewModel.downloadRegion(region, title)
+        }
+    }
     val download by viewModel.observeDownload(region.id).collectAsState(
         initial = com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState(region.id, false, 0, false)
     )
@@ -842,9 +922,9 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(region.label, style = MaterialTheme.typography.titleLarge)
+                Text(title, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    osmRegionDetail(region.id, downloaded, download),
+                    osmRegionDetail(region.id, downloaded, download, knownBytes),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -865,9 +945,13 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
                     } else {
                         OsmActionButton(
                             stringResource(R.string.osm_download),
-                            enabled = !download.running
+                            enabled = !download.running && blockReason == null
                         ) {
-                            viewModel.downloadRegion(region)
+                            val space = measureSpace()
+                            val onDisk = partBytes(context, region.id)
+                            if (OsmDownloadBudget.blockBeforeStart(knownBytes, space, onDisk) == null) {
+                                startDownload()
+                            }
                         }
                     }
                 }
@@ -881,7 +965,9 @@ private fun OsmRow(region: OsmRegion, viewModel: GtlViewModel) {
             Text("${download.progress} %", style = MaterialTheme.typography.labelMedium)
         }
         if (download.failed) {
-            Text(stringResource(R.string.osm_failed), color = MaterialTheme.colorScheme.error)
+            Text(downloadFailureText(download.failureReason), color = MaterialTheme.colorScheme.error)
+        } else if (blockReason != null) {
+            Text(downloadFailureText(blockReason), color = MaterialTheme.colorScheme.error)
         }
     }
     if (pendingDelete) {
@@ -950,6 +1036,9 @@ fun TracksScreen(
                         val id = visibleSelected.singleOrNull() ?: return@SavedTrackActionBar
                         onShowOnMap(id)
                     },
+                    onPoints = visibleSelected.singleOrNull()?.let { id ->
+                        { viewModel.inspectSession(id) }
+                    },
                     onGpx = { onShare(visibleSelected, TrackShareFormat.GPX) },
                     onKmz = { onShare(visibleSelected, TrackShareFormat.KMZ) },
                     onDelete = { pendingDeleteIds = deletableSelected }
@@ -993,7 +1082,6 @@ fun TracksScreen(
                             visibleSelected - session.id
                         }
                     },
-                    onOpenDump = { viewModel.inspectSession(session.id) },
                     onToggleElevation = { viewModel.toggleSavedElevation(session.id) }
                 )
             }
@@ -1048,7 +1136,6 @@ private fun SavedTrackRow(
     elevationOpen: Boolean,
     elevationSamples: List<ElevationSample>,
     onCheckedChange: (Boolean) -> Unit,
-    onOpenDump: () -> Unit,
     onToggleElevation: () -> Unit
 ) {
     val units = runCatching {
@@ -1101,9 +1188,7 @@ private fun SavedTrackRow(
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onDumpTap(session.id, onOpenDump)
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Column(
                         modifier = Modifier
@@ -1191,6 +1276,7 @@ private fun SavedTrackActionBar(
     shareEnabled: Boolean,
     deleteEnabled: Boolean,
     onShowOnMap: () -> Unit,
+    onPoints: (() -> Unit)?,
     onGpx: () -> Unit,
     onKmz: () -> Unit,
     onDelete: () -> Unit
@@ -1213,6 +1299,15 @@ private fun SavedTrackActionBar(
                     Modifier.weight(1.4f),
                     onShowOnMap
                 )
+                if (onPoints != null) {
+                    TrackBarButton(
+                        stringResource(R.string.tracks_points_action),
+                        true,
+                        colors,
+                        Modifier.weight(1f),
+                        onPoints
+                    )
+                }
                 TrackBarButton(
                     stringResource(R.string.tracks_share_gpx),
                     shareEnabled,
@@ -1258,29 +1353,15 @@ private fun TrackBarButton(
     }
 }
 
-private fun Modifier.onDumpTap(key: Any, onDump: () -> Unit): Modifier = pointerInput(key) {
-    var count = 0
-    var lastAt = 0L
-    detectTapGestures {
-        val now = SystemClock.elapsedRealtime()
-        val tap = dumpTap(count, lastAt, now)
-        count = tap.count
-        lastAt = now
-        if (tap.opened) {
-            onDump()
-        }
-    }
-}
-
 @Composable
 private fun SessionInspectScreen(text: String, onBack: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val vertical = rememberScrollState()
     val horizontal = rememberScrollState()
-    SecondaryScaffold("gps_events", onBack) {
+    SecondaryScaffold(stringResource(R.string.tracks_points), onBack) {
         Column(modifier = Modifier.fillMaxSize()) {
             TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
-                Text("Copy")
+                Text(stringResource(R.string.action_copy))
             }
             SelectionContainer(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1561,11 +1642,9 @@ private const val AboutSectionRepo = "repo"
 private const val AboutSectionCopyright = "copyright"
 
 @Composable
-fun AboutScreen(onBack: () -> Unit, onOpenErrorLog: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val deviceName = remember { DeviceIdentity.displayName(context) }
-    var errorLogTaps by remember { mutableIntStateOf(0) }
-    var errorLogTapAt by remember { mutableLongStateOf(0L) }
+    val deviceName = remember { DeviceIdentity.displayName() }
     val copyrightUrl = stringResource(R.string.about_osm_copyright_url)
     val websiteUrl = stringResource(R.string.about_osm_website_url)
     val repoUrl = stringResource(R.string.about_repo_url)
@@ -1586,19 +1665,7 @@ fun AboutScreen(onBack: () -> Unit, onOpenErrorLog: () -> Unit) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "${com.lkovari.mobile.apps.gtl.BuildConfig.VERSION_NAME}  ·  com.lkovari.mobile.apps.gtl",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                val now = SystemClock.elapsedRealtime()
-                                val tap = errorLogTap(errorLogTaps, errorLogTapAt, now)
-                                errorLogTaps = tap.count
-                                errorLogTapAt = now
-                                if (tap.opened) {
-                                    onOpenErrorLog()
-                                }
-                            }
+                            style = MaterialTheme.typography.bodyLarge
                         )
                         Text(
                             text = "${stringResource(R.string.about_device)}: $deviceName",

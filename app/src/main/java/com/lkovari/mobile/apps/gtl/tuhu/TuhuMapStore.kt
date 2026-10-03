@@ -26,7 +26,7 @@ class TuhuMapStore(
         return file.takeIf { it.isFile }
     }
 
-    fun enqueue() {
+    fun enqueue(title: String) {
         val request = OneTimeWorkRequestBuilder<TuhuDownloadWorker>()
             .setConstraints(
                 Constraints.Builder()
@@ -36,7 +36,8 @@ class TuhuMapStore(
             .setInputData(
                 workDataOf(
                     OsmDownloadWorker.KEY_REGION_ID to TuhuCatalog.REGION_ID,
-                    OsmDownloadWorker.KEY_URL to TuhuCatalog.ZIP_URL
+                    OsmDownloadWorker.KEY_URL to TuhuCatalog.ZIP_URL,
+                    OsmDownloadWorker.KEY_TITLE to title
                 )
             )
             .addTag(OsmMapStore.WORK_TAG)

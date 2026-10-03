@@ -1,17 +1,21 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.17)
+GTL GPS Track Logger — Play Console “What’s new”
 
-EN (≤500 characters)
+EN (499 characters)
 
-Speed scale always open, or collapse to color dots.
+Offline maps go up to 4 GB, so Germany and France download. Size is shown first. Too large, or not enough free space, and the download does not start.
 
-• Settings → Appearance: Speed scale always open (on by default) — labeled scale, tap does nothing
-• Switch off: only the color dots remain; tap opens the numbers, tap again closes them
-• Top right, under the compass, only while a track is on the map
+• Downloads notify you, ask on mobile data, and resume a partial file
+• If location stays denied, Start explains and opens the app permission screen
+• GPX and KMZ report a write failure or an empty selection
+• Error log is in the menu. One selected track opens its saved points
+• Google logo sits above the speed panel. About shows the phone model
 
-HU (≤500 characters)
+HU (486 characters)
 
-Sebességskála mindig nyitva, vagy összecsukva pontokra.
+Az offline térkép 4 GB, ezért Németország és Franciaország letölthető. A méret előre látszik. Túl nagy vagy kevés hely: a letöltés nem indul.
 
-• Beállítások → Megjelenés: Sebességskála mindig nyitva (alapból be) — számokkal látszik, koppintás nem változtat
-• Kikapcsolva: csak a színsáv pontjai maradnak; koppintás kinyitja a számokat, újra koppintva összecsukja
-• Jobb felső sarok, az iránytű alatt, csak ha útvonal van a térképen
+• Értesítés, rákérdezés mobilneten, a félbemaradt fájl folytatása
+• Végleges elutasításnál az Indít elmagyarázza, és az app engedélyeit nyitja
+• A GPX és a KMZ jelzi az írási hibát és az üres kijelölést
+• Hibanapló a menüben. Egy kijelölt útvonal pontjai a sávról nyílnak
+• A Google-logó a sebességpanel fölött van. A névjegy a modellt mutatja

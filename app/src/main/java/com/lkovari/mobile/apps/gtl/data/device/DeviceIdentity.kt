@@ -1,26 +1,27 @@
 package com.lkovari.mobile.apps.gtl.data.device
 
-import android.content.Context
 import android.os.Build
-import android.provider.Settings
 
 object DeviceIdentity {
-    fun displayName(context: Context): String {
-        val assigned = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-            Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)
-        } else {
-            null
-        }
-        if (!assigned.isNullOrBlank()) {
-            return assigned
-        }
-        val brand = Build.MANUFACTURER.orEmpty().trim()
-        val model = Build.MODEL.orEmpty().trim()
-        return when {
-            brand.isNotEmpty() && model.isNotEmpty() && !model.contains(brand, ignoreCase = true) -> "$brand $model"
-            model.isNotEmpty() -> model
+    fun displayName(): String {
+        return format(
+            manufacturer = Build.MANUFACTURER.orEmpty(),
+            model = Build.MODEL.orEmpty(),
+            androidRelease = Build.VERSION.RELEASE.orEmpty()
+        )
+    }
+
+    fun format(manufacturer: String, model: String, androidRelease: String): String {
+        val brand = manufacturer.trim()
+        val hardware = model.trim()
+        val release = androidRelease.trim()
+        val device = when {
+            brand.isNotEmpty() && hardware.isNotEmpty() && !hardware.contains(brand, ignoreCase = true) ->
+                "$brand $hardware"
+            hardware.isNotEmpty() -> hardware
             brand.isNotEmpty() -> brand
             else -> "Android"
         }
+        return if (release.isEmpty()) device else "$device · Android $release"
     }
 }

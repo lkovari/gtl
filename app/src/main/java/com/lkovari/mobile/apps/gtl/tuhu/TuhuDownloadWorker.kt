@@ -5,10 +5,17 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.lkovari.mobile.apps.gtl.GtlApplication
+import com.lkovari.mobile.apps.gtl.data.maps.MapDownloadNotice
+import com.lkovari.mobile.apps.gtl.data.maps.MapDownloadStop
+import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadBudget
 import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadWorker
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
+import com.lkovari.mobile.apps.gtl.engine.DownloadBodyMode
+import com.lkovari.mobile.apps.gtl.engine.DownloadResume
 import com.lkovari.mobile.apps.gtl.engine.OsmMapFile
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.CancellationException
@@ -26,7 +33,9 @@ class TuhuDownloadWorker(
         val extractDir = File(applicationContext.cacheDir, "tuhu-extract")
         val target = File(mapsDir, "${TuhuCatalog.REGION_ID}.map")
         val themeTarget = File(applicationContext.filesDir, "tuhu/theme.xml")
+        val title = inputData.getString(OsmDownloadWorker.KEY_TITLE) ?: TuhuCatalog.REGION_ID
         return try {
+            MapDownloadNotice.promote(this, TuhuCatalog.REGION_ID, title)
             download(url, zipPart)
             extractDir.deleteRecursively()
             val extracted = TuhuZip.extract(zipPart, extractDir)
@@ -54,10 +63,17 @@ class TuhuDownloadWorker(
             Result.success(workDataOf(OsmDownloadWorker.KEY_FILE to target.absolutePath))
         } catch (cancelled: CancellationException) {
             throw cancelled
+        } catch (stop: MapDownloadStop) {
+            AppErrorLog.record("tuhu.download", stop)
+            TuhuDownloadCleanup.purgeFailedAttempt(mapsDir, applicationContext.cacheDir)
+            Result.failure(workDataOf(OsmDownloadWorker.KEY_REASON to stop.reason))
+        } catch (error: IOException) {
+            AppErrorLog.record("tuhu.download", error)
+            Result.retry()
         } catch (error: Exception) {
             AppErrorLog.record("tuhu.download", error)
             TuhuDownloadCleanup.purgeFailedAttempt(mapsDir, applicationContext.cacheDir)
-            Result.failure()
+            Result.failure(workDataOf(OsmDownloadWorker.KEY_REASON to OsmDownloadBudget.ReasonOther))
         }
     }
 
@@ -74,6 +90,9 @@ class TuhuDownloadWorker(
             }
             val connection = opened
             connection.setRequestProperty("User-Agent", USER_AGENT)
+            DownloadResume.rangeHeader(if (target.isFile) target.length() else 0L)?.let { range ->
+                connection.setRequestProperty("Range", range)
+            }
             connection.connectTimeout = 60_000
             connection.readTimeout = 120_000
             connection.instanceFollowRedirects = false
@@ -91,25 +110,34 @@ class TuhuDownloadWorker(
             }
             if (code !in 200..299) {
                 connection.disconnect()
-                error("HTTP $code")
+                throw MapDownloadStop(OsmDownloadBudget.ReasonOther)
             }
-            val total = connection.contentLengthLong
+            val existing = if (target.isFile) target.length() else 0L
+            val append = DownloadResume.bodyMode(code, existing) == DownloadBodyMode.Append
+            val total = DownloadResume.fullSize(
+                existingBytes = existing,
+                responseCode = code,
+                contentLength = connection.contentLengthLong,
+                contentRangeTotal = DownloadResume.contentRangeTotal(
+                    connection.getHeaderField("Content-Range")
+                )
+            )
             if (total > TuhuDownloadPolicy.MaxDownloadBytes) {
                 connection.disconnect()
-                error("download too large")
+                throw MapDownloadStop(OsmDownloadBudget.ReasonTooLarge)
             }
             try {
+                var copied = if (append) existing else 0L
                 connection.inputStream.use { input ->
-                    target.outputStream().use { output ->
+                    FileOutputStream(target, append).use { output ->
                         val buffer = ByteArray(64 * 1024)
-                        var copied = 0L
                         var read = input.read(buffer)
                         while (read >= 0) {
+                            output.write(buffer, 0, read)
                             copied += read
                             if (copied > TuhuDownloadPolicy.MaxDownloadBytes) {
-                                error("download too large")
+                                throw MapDownloadStop(OsmDownloadBudget.ReasonTooLarge)
                             }
-                            output.write(buffer, 0, read)
                             val progress = if (total > 0) {
                                 ((copied * 100L) / total).toInt().coerceIn(0, 100)
                             } else {

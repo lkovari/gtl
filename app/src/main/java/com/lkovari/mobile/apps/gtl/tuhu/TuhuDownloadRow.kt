@@ -27,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadBudget
 import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
+import com.lkovari.mobile.apps.gtl.ui.rememberMapDownloadStart
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 
 @Composable
@@ -47,6 +49,10 @@ fun TuhuDownloadRow(viewModel: GtlViewModel) {
         downloaded && viewModel.isTuhuInUse()
     }
     var pendingDelete by rememberSaveable { mutableStateOf(false) }
+    val title = stringResource(R.string.tuhu_label)
+    val startDownload = rememberMapDownloadStart {
+        viewModel.downloadTuhu(title)
+    }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -79,7 +85,7 @@ fun TuhuDownloadRow(viewModel: GtlViewModel) {
                             stringResource(R.string.tuhu_download),
                             enabled = !download.running
                         ) {
-                            viewModel.downloadTuhu()
+                            startDownload()
                         }
                     }
                 }
@@ -93,7 +99,12 @@ fun TuhuDownloadRow(viewModel: GtlViewModel) {
             Text("${download.progress} %", style = MaterialTheme.typography.labelMedium)
         }
         if (download.failed) {
-            Text(stringResource(R.string.tuhu_failed), color = MaterialTheme.colorScheme.error)
+            val failure = when (download.failureReason) {
+                OsmDownloadBudget.ReasonTooLarge -> R.string.osm_too_large
+                OsmDownloadBudget.ReasonNoSpace -> R.string.osm_no_space
+                else -> R.string.tuhu_failed
+            }
+            Text(stringResource(failure), color = MaterialTheme.colorScheme.error)
         }
     }
     if (pendingDelete) {

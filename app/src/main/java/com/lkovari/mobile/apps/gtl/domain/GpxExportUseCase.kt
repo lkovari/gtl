@@ -21,6 +21,11 @@ enum class TrackShareFormat {
     GPX
 }
 
+enum class TrackShareFailure {
+    Empty,
+    Write
+}
+
 class GpxExportUseCase(private val context: Context) {
     fun write(session: TrackSessionEntity, events: List<GpsEventEntity>): File {
         return write(listOf(session to events))

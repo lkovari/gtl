@@ -3,6 +3,7 @@ package com.lkovari.mobile.apps.gtl.ui
 import android.app.Activity
 import android.content.Intent
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -13,6 +14,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.domain.TrackShareFailure
 import com.lkovari.mobile.apps.gtl.ui.screens.AboutScreen
 import com.lkovari.mobile.apps.gtl.ui.screens.ErrorLogScreen
 import com.lkovari.mobile.apps.gtl.ui.screens.DisclaimerScreen
@@ -61,6 +64,7 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                             onOpenTracks = { nav.navigate("tracks") },
                             onOpenHelp = { nav.navigate("help") },
                             onOpenAbout = { nav.navigate("about") },
+                            onOpenErrorLog = { nav.navigate("diagnostics") },
                             onOpenLocationSettings = { nav.navigate("location") }
                         )
                     }
@@ -76,9 +80,21 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                             viewModel = viewModel,
                             onBack = { nav.popBackStack() },
                             onShare = { ids, format ->
-                                viewModel.shareSessions(ids, format) { intent ->
-                                    context.startActivity(Intent.createChooser(intent, null))
-                                }
+                                viewModel.shareSessions(
+                                    ids,
+                                    format,
+                                    onReady = { intent ->
+                                        context.startActivity(Intent.createChooser(intent, null))
+                                    },
+                                    onFailed = { failure ->
+                                        val message = if (failure == TrackShareFailure.Empty) {
+                                            R.string.export_empty
+                                        } else {
+                                            R.string.export_failed
+                                        }
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    }
+                                )
                             },
                             onShowOnMap = { sessionId ->
                                 viewModel.showSessionOnMap(sessionId)
@@ -96,10 +112,7 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                         LocationSettingsScreen { nav.popBackStack() }
                     }
                     composable("about") {
-                        AboutScreen(
-                            onBack = { nav.popBackStack() },
-                            onOpenErrorLog = { nav.navigate("diagnostics") }
-                        )
+                        AboutScreen(onBack = { nav.popBackStack() })
                     }
                     composable("diagnostics") {
                         ErrorLogScreen { nav.popBackStack() }

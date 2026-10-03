@@ -9,6 +9,37 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Added
+
+- Start, after a permanent location denial, explains that precise location is required and opens the app permission screen. Location settings has separate actions for app permissions and the GPS panel.
+- Offline map rows show the file size before download. A file over the limit, or one that does not fit in free space, does not start and has its own message.
+- Map downloads show a notification, ask before using mobile data, and continue a partial file instead of starting over.
+- Sharing GPX or KMZ reports a write failure, including a full disk, and an empty selection.
+- Error log is in the menu. Saved points for one selected track are on the saved-tracks bar.
+
+### Changed
+
+- The offline map size limit is 4 GiB, so Germany and France can be downloaded.
+- Region files come from the Esslingen Mapsforge mirror, with download.mapsforge.org as a fallback.
+- On Google Maps the logo sits above the speed panel.
+- About shows the manufacturer, model, and Android version.
+- European regions are labeled Europe, not EU. Unit chips use Metric, Imperial, and ICAO in English, and Metrikus, Angolszász, and ICAO in Hungarian.
+- The privacy policy page uses system fonts. It names the Esslingen mirror and the Mapsforge fallback host.
+
+### Magyar
+
+- Végleges helyelutasítás után az Indít elmondja, hogy precíz hely kell, és az alkalmazás engedélyképernyőjére visz. A helybeállítások külön nyitják az alkalmazás engedélyeit és a GPS-panelt.
+- Az offline térkép sora a letöltés előtt mutatja a fájl méretét. A határ fölötti fájl, és amelyik nem fér a szabad helyre, nem indul el, és saját üzenetet kap.
+- A térképletöltés értesítést mutat, mobilhálózaton rákérdez, és a megszakadt fájlt folytatja.
+- A GPX és KMZ megosztás jelzi az írási hibát, tele tárhelynél is, és az üres kijelölést.
+- A hibanapló menüpont. Egy kijelölt menet pontjai a Mentett útvonalak sávján nyílnak.
+- Az offline térkép mérethatára 4 GiB, ezért Németország és Franciaország letölthető.
+- A régiófájlok az Esslingen-tükörről jönnek, a download.mapsforge.org a tartalék.
+- Google-térképen a logó a sebességpanel fölött van.
+- A névjegy a gyártót, a modellt és az Android-verziót mutatja.
+- Az európai régiók felirata Európa, nem EU. A mértékegység-chipek magyarul Metrikus, Angolszász és ICAO.
+- Az adatvédelmi lap rendszerbetűt használ. Megnevezi az Esslingen-tükröt és a Mapsforge tartalék hosztot.
+
 ## [2.0.18] — 2026-10-02
 
 Play production track **36 (2.0.18)** (signed AAB). Saved tracks as cards.
