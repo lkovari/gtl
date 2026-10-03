@@ -3,11 +3,23 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.17** / `versionCode` **35** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.18** / `versionCode` **36** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.18] — 2026-10-02
+
+Play production track **36 (2.0.18)** (signed AAB). Saved tracks as cards.
+
+### Changed
+
+- Saved tracks is a card list. Each card shows a route preview (magenta line, cyan start, cream end), the date, the usage display name, distance, duration, average speed, and max speed from `gps_events`. A tap on the thumbnail or the figures opens Elevation. The circle selects; **Select all** stays at the top. The bottom bar offers Show on map (one track), GPX, KMZ, and Delete. The session that is recording shows REC and cannot be deleted.
+
+### Magyar
+
+- A Mentett útvonalak kártyás lista. Minden kártyán: útvonal-előnézet (magenta vonal, cián kezdőpont, krém végpont), dátum, usage display név, távolság, időtartam, átlag- és max sebesség a `gps_events` pontjaiból. A bélyegkép vagy a számok koppintása a magasságprofilt nyitja. A körrel jelölj; az **Összes kijelölése** fent marad. Az alsó sáv: Térképen (egy track), GPX, KMZ, Törlés. A felvétel alatt álló session REC-et mutat, és nem törölhető.
 
 ## [2.0.17] — 2026-10-01
 
