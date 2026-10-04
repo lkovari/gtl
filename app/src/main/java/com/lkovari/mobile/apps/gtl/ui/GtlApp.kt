@@ -9,6 +9,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -58,26 +59,26 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                         MainTrackerScreen(
                             state = state,
                             viewModel = viewModel,
-                            onOpenSettings = { nav.navigate("settings") },
-                            onOpenMaps = { nav.navigate("osm") },
-                            onOpenTracks = { nav.navigate("tracks") },
-                            onOpenHelp = { nav.navigate("help") },
-                            onOpenAbout = { nav.navigate("about") },
-                            onOpenErrorLog = { nav.navigate("diagnostics") },
-                            onOpenLocationSettings = { nav.navigate("location") }
+                            onOpenSettings = dropUnlessResumed { nav.navigate("settings") },
+                            onOpenMaps = dropUnlessResumed { nav.navigate("osm") },
+                            onOpenTracks = dropUnlessResumed { nav.navigate("tracks") },
+                            onOpenHelp = dropUnlessResumed { nav.navigate("help") },
+                            onOpenAbout = dropUnlessResumed { nav.navigate("about") },
+                            onOpenErrorLog = dropUnlessResumed { nav.navigate("diagnostics") },
+                            onOpenLocationSettings = dropUnlessResumed { nav.navigate("location") }
                         )
                     }
                     composable("settings") {
-                        SettingsScreen(state, viewModel) { nav.popBackStack() }
+                        SettingsScreen(state, viewModel, rememberGuardedPop(nav))
                     }
                     composable("osm") {
-                        OsmDownloadScreen(viewModel) { nav.popBackStack() }
+                        OsmDownloadScreen(viewModel, rememberGuardedPop(nav))
                     }
                     composable("tracks") {
                         TracksScreen(
                             state = state,
                             viewModel = viewModel,
-                            onBack = { nav.popBackStack() },
+                            onBack = rememberGuardedPop(nav),
                             onShare = { ids, format ->
                                 viewModel.shareSessions(
                                     ids,
@@ -95,7 +96,7 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                                     }
                                 )
                             },
-                            onShowOnMap = { sessionId ->
+                            onShowOnMap = dropUnlessResumedWith { sessionId ->
                                 viewModel.showSessionOnMap(sessionId)
                                 nav.popBackStack()
                             }
@@ -103,18 +104,18 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
                     }
                     composable("help") {
                         HelpScreen(
-                            onBack = { nav.popBackStack() },
+                            onBack = rememberGuardedPop(nav),
                             tuhuMapDownloaded = state.tuhuMapDownloaded
                         )
                     }
                     composable("location") {
-                        LocationSettingsScreen { nav.popBackStack() }
+                        LocationSettingsScreen(rememberGuardedPop(nav))
                     }
                     composable("about") {
-                        AboutScreen(onBack = { nav.popBackStack() })
+                        AboutScreen(onBack = rememberGuardedPop(nav))
                     }
                     composable("diagnostics") {
-                        ErrorLogScreen { nav.popBackStack() }
+                        ErrorLogScreen(rememberGuardedPop(nav))
                     }
                 }
             }

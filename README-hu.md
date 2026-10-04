@@ -489,6 +489,10 @@ Az eszközön tárolt hibanapló alkalmazástesztjei (`./gradlew :app:testDebugU
 - `ErrorLogExceptionsTest` — az `IOException`, az `SQLException`, az üzenet nélküli `IllegalArgumentException`, az `IllegalStateException` okozati lánca (`IOException`, alatta `IllegalArgumentException`) és az `OutOfMemoryError` megtartja az üzenetet és a teljes vermet. Több bejegyzés az írási sorrendben marad. Az aszinkron `record` út kiírja az `IOException`t.
 - `ErrorLogTapTest` — a hetedik érintés két másodpercen belül megnyitja a naplót; a hosszabb szünet nullázza a számlálót.
 
+Navigációs regressziós tesztek (Robolectric + Compose UI teszt, valódi `NavHost`, megállított óra):
+
+- `NavigationGuardsTest` — második vissza-koppintás a kilépő animáció alatt. A védtelen `popBackStack()` kiüríti a backstacket (az üres képernyős hiba, reprodukcióként megtartva). A `rememberGuardedPop` és a `dropUnlessResumedWith` mellett a `main` marad az aktuális célpont. Az egyszeri, védett koppintás továbbra is visszalép. Lásd [white-crash.md](white-crash.md).
+
 ### Hibakeresés a telefonon
 
 Ha a telefonon hibás képernyő látszik (például fehér képernyő), hagyd úgy, ne zárd be az appot, és USB-n csatlakoztatott telefonnál futtasd Terminálból:
@@ -522,6 +526,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | Dokumentum                                                                     | Mi ez                                                                                                               |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | [CHANGELOGS.md](CHANGELOGS.md)                                                 | Kanonikus verzióelőzmény (2.0.0 újraírás → Unreleased, angol és magyar)                                            |
+| [white-crash.md](white-crash.md)                                               | Üres képernyős hiba: tünet, root cause (a dupla vissza-koppintás kiüríti a NavHostot), bizonyíték, javítás (EN/HU) |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console kiadásnév és EN/HU what’s-new szöveg                                                                   |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Adatvédelmi tájékoztató (az élő KLHome-oldal helyi másolata)                                                        |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Áruház feature graphic                                                                                         |

@@ -489,6 +489,10 @@ App unit tests for the on-device error log (`./gradlew :app:testDebugUnitTest`):
 - `ErrorLogExceptionsTest` — `IOException`, `SQLException`, an `IllegalArgumentException` with no message, an `IllegalStateException` cause chain (`IOException`, then `IllegalArgumentException`), and `OutOfMemoryError` each keep their message and full stack. Several records stay in write order. The async `record` path writes the `IOException`.
 - `ErrorLogTapTest` — the seventh tap within two seconds opens the log; a later gap resets the counter.
 
+Navigation regression tests (Robolectric + Compose UI test, real `NavHost`, paused clock):
+
+- `NavigationGuardsTest` — a second back tap during the exit transition. Unguarded `popBackStack()` empties the back stack (the blank-screen bug, kept as a reproduction). `rememberGuardedPop` and `dropUnlessResumedWith` keep `main` as the current destination. A single guarded tap still goes back. See [white-crash.md](white-crash.md).
+
 ### Debugging on the phone
 
 When the phone shows a broken screen (for example a white screen), leave the app as it is, do not close it, and with the phone on USB run from Terminal:
@@ -522,6 +526,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | Document                                                                       | What it is                                                                                                          |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | [CHANGELOGS.md](CHANGELOGS.md)                                                 | Canonical version history (2.0.0 rewrite through Unreleased, English and Hungarian)                                 |
+| [white-crash.md](white-crash.md)                                               | Blank-screen bug: symptom, root cause (double back tap empties the NavHost), proof, and the fix (EN/HU)             |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console release name and EN/HU what’s-new text                                                                 |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page)                                                                 |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic                                                                                          |

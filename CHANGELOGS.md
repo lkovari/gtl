@@ -9,6 +9,14 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Fixed
+
+- Blank screen after leaving a secondary screen. A fast double tap on the back arrow of Settings, Download Offline map, Saved tracks, Help, Location settings, About, or Error log popped the main screen too. The whole app then showed only its background color: no buttons, no tabs, no map, and no tap brought it back. It looked tied to switching offline maps (OSM Hungary → Turistautak), but any secondary screen could trigger it. Back and the menu entries now run only while their screen is the current, resumed destination (`dropUnlessResumed`), so the second tap is ignored. Root cause, proof, and the fix: [white-crash.md](white-crash.md).
+
+### Magyar
+
+- Üres képernyő egy másodlagos képernyő elhagyása után. A Beállítások, az Offline térkép letöltése, a Mentett útvonalak, a Súgó, a Helymeghatározás beállításai, a Névjegy vagy a Hibanapló vissza-nyilának gyors dupla koppintása a főképernyőt is levette. Az egész app ekkor csak a háttérszínt mutatta: se gomb, se fül, se térkép, és koppintásra sem jött vissza. Úgy tűnt, az offline térkép váltásához (OSM Hungary → Turistautak) kötődik, de bármelyik másodlagos képernyő előidézhette. A visszalépés és a menüpontok mostantól csak akkor futnak le, ha a képernyőjük az aktuális, `RESUMED` célpont (`dropUnlessResumed`), így a második koppintás elvész. Root cause, bizonyíték és javítás: [white-crash.md](white-crash.md).
+
 ## [2.0.20] — 2026-10-04
 
 Play production track **38 (2.0.20)** (signed AAB). Dark map, standing 0 km/h, lean in a turn.
