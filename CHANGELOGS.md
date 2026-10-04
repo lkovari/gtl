@@ -3,11 +3,15 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.20** / `versionCode` **38** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.21** / `versionCode` **39** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.21] — 2026-10-04
+
+Play production track **39 (2.0.21)** (signed AAB). Blank screen after leaving a secondary screen.
 
 ### Fixed
 

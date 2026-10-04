@@ -1,27 +1,21 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.20)
+GTL GPS Track Logger — Play Console “What’s new” (v2.0.21)
 
-EN (472 / 500 characters)
+EN (426 / 500 characters)
 
-Dark map, 0 km/h when standing, lean in a turn.
+Fix: blank screen after tapping Back.
 
-• Theme: Automatic follows dusk and dawn, or pick Light or Dark
-• HUD speed is 0 while you stand still
-• Lean in a curve uses speed and turn rate, not gravity
-• New GPS altitude is metres above the EGM2008 geoid
-• Turning GPS on after Start still logs the same session
-• Light theme keeps the status-bar icons readable
-• Recording filters apply from the next Start
-• A finished track's distance and speeds are saved at Stop
+• A quick double tap on Back no longer leaves an empty screen with no buttons
+• It showed up most often after switching offline maps, for example to Turistautak
+• Settings, Download Offline map, Saved tracks, Help, Location settings, About, and Error log all return to the main screen
+• A double tap on a menu item opens its screen only once
+• A running recording was never stopped by it
 
-HU (500 / 500 characters)
+HU (424 / 500 characters)
 
-Sötét térkép, állóhelyben 0 km/h, dőlés kanyarban.
+Javítva: üres képernyő a Vissza után.
 
-• Téma: Automatikus a helyi szürkületet követi, vagy Világos / Sötét
-• A HUD sebesség 0, amíg állsz
-• Kanyarban a dőlés sebességből és fordulási rátából jön, nem gravitációból
-• Az új GPS-magasság az EGM2008 geoid felett (MSL)
-• Az Indítás után bekapcsolt GPS ugyanabba a menetbe ír
-• Világos témában az állapotsor ikonjai olvashatók
-• A rögzítés szűrői a következő Indítástól érvényesek
-• Lezárt menet: a táv és a sebességek Leállításkor mentődnek
+• A Vissza gyors dupla koppintása után már nem marad üres, gomb nélküli képernyő
+• Leginkább offline térkép váltása után jött elő, például Turistautakra
+• A Beállítások, Offline térkép, Mentett útvonalak, Súgó, Helymeghatározás, Névjegy és Hibanapló mind a főképernyőre tér vissza
+• Menüpont dupla koppintása csak egyszer nyitja meg a képernyőt
+• A futó rögzítést ez sosem állította le
