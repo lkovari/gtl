@@ -1,21 +1,27 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.19)
+GTL GPS Track Logger — Play Console “What’s new” (v2.0.20)
 
-EN (499 characters)
+EN (472 / 500 characters)
 
-Offline maps go up to 4 GB, so Germany and France download. Size is shown first. Too large, or not enough free space, and the download does not start.
+Dark map, 0 km/h when standing, lean in a turn.
 
-• Downloads notify you, ask on mobile data, and resume a partial file
-• If location stays denied, Start explains and opens the app permission screen
-• GPX and KMZ report a write failure or an empty selection
-• Error log is in the menu. One selected track opens its saved points
-• Google logo sits above the speed panel. About shows the phone model
+• Theme: Automatic follows dusk and dawn, or pick Light or Dark
+• HUD speed is 0 while you stand still
+• Lean in a curve uses speed and turn rate, not gravity
+• New GPS altitude is metres above the EGM2008 geoid
+• Turning GPS on after Start still logs the same session
+• Light theme keeps the status-bar icons readable
+• Recording filters apply from the next Start
+• A finished track's distance and speeds are saved at Stop
 
-HU (486 characters)
+HU (500 / 500 characters)
 
-Az offline térkép 4 GB, ezért Németország és Franciaország letölthető. A méret előre látszik. Túl nagy vagy kevés hely: a letöltés nem indul.
+Sötét térkép, állóhelyben 0 km/h, dőlés kanyarban.
 
-• Értesítés, rákérdezés mobilneten, a félbemaradt fájl folytatása
-• Végleges elutasításnál az Indít elmagyarázza, és az app engedélyeit nyitja
-• A GPX és a KMZ jelzi az írási hibát és az üres kijelölést
-• Hibanapló a menüben. Egy kijelölt útvonal pontjai a sávról nyílnak
-• A Google-logó a sebességpanel fölött van. A névjegy a modellt mutatja
+• Téma: Automatikus a helyi szürkületet követi, vagy Világos / Sötét
+• A HUD sebesség 0, amíg állsz
+• Kanyarban a dőlés sebességből és fordulási rátából jön, nem gravitációból
+• Az új GPS-magasság az EGM2008 geoid felett (MSL)
+• Az Indítás után bekapcsolt GPS ugyanabba a menetbe ír
+• Világos témában az állapotsor ikonjai olvashatók
+• A rögzítés szűrői a következő Indítástól érvényesek
+• Lezárt menet: a táv és a sebességek Leállításkor mentődnek

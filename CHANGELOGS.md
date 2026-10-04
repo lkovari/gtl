@@ -3,24 +3,38 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.19** / `versionCode` **37** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.20** / `versionCode` **38** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
 
+## [2.0.20] — 2026-10-04
+
+Play production track **38 (2.0.20)** (signed AAB). Dark map, standing 0 km/h, lean in a turn.
+
 ### Added
 
+- Settings **Theme**: Automatic follows dusk and dawn at your position (light until there is a fix), or pick Light or Dark. Google, OSM, and Turistautak tiles follow.
 - `tools/capture-white.sh` saves the view tree, gfxinfo, logcat, the app error log, and a screenshot from the connected phone while a broken screen is visible. Output goes to the gitignored `captures/`. See README — Debugging on the phone.
+
+### Changed
+
+- HUD speed is 0 while you stand still (two consecutive quiet fixes), so GPS jitter does not look like motion.
+- Highlight cycleways defaults off; changing usage resets it to off. Turistautak **Emphasize paths** is the same magenta overlay.
 
 ### Fixed
 
 - Lean angle in a turn. The stored value and the Route figure no longer come from gravity, which reads about 0° in a steady coordinated turn. They use `atan(v · ω / g)`: the saved point uses speed and the change in stored bearing, and the live figure uses gyroscope yaw rate when the phone has one. Below 3 m/s, or when bearings are too close or more than 5 s apart, the figure is a dash. The lean ribbon is not drawn. Points already saved keep their old gravity value.
+- New GPS altitude is metres above the EGM2008 geoid (MSL). A plausible sea-level sample is kept; an ellipsoid height has the local undulation subtracted. Older tracks keep the stored value.
 
 ### Magyar
 
-- A `tools/capture-white.sh` hibás képernyő közben elmenti a csatlakoztatott telefonról a View-fát, a gfxinfót, a logcatet, az app hibanaplóját és egy képernyőképet. A kimenet a gitignored `captures/` mappába kerül. Lásd README — Hibakeresés a telefonon.
-- Kanyarban a dőlésszög. A letárolt érték és az Útvonal száma többé nem a gravitációból jön, ami egyenletes, koordinált kanyarban kb. 0°-ot mutat. `atan(v · ω / g)`: a mentett pont a sebességet és a letárolt bearing változását használja, az élő szám a giroszkóp yaw rate-et, ha van. 3 m/s alatt, vagy ha a bearingek túl közel vannak vagy 5 s-nél távolabb, gondolatjel. A dőlésszalag nincs megrajzolva. A már mentett pontok a régi gravitációs értéket őrzik.
+- Beállítások **Téma**: Automatikus a helyi szürkületet követi (helyzet nélkül világos), vagy Világos / Sötét. A Google, OSM és Turistautak csempe követi.
+- A HUD sebesség 0, amíg állsz (két egymás utáni csendes fix), a GPS-zaj nem mozgás.
+- A Kerékpárutak kiemelése alapból ki; usage-váltás ki-ra állítja. A Turistautak **Ösvénykiemelés** ugyanaz a magenta overlay.
+- Kanyarban a dőlésszög. A letárolt érték és az Útvonal száma többé nem a gravitációból jön. `atan(v · ω / g)`: a mentett pont a sebességet és a bearing változását használja, az élő szám a giroszkóp yaw rate-et, ha van. 3 m/s alatt gondolatjel. A már mentett pontok a régi gravitációs értéket őrzik.
+- Az új GPS-magasság az EGM2008 geoid felett (MSL). A hihető tengerszint megmarad; ellipszoidnál a helyi unduláció levonódik. A korábbi track a letárolt értéket mutatja.
 
 ## [2.0.19] — 2026-10-03
 

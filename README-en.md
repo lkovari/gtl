@@ -6,7 +6,7 @@ On-device GPS track logger. Route points stay in SQLite on the phone. Share a KM
 
 Kotlin + Jetpack Compose rewrite of the 2014 Eclipse app (`gtl-e`). Application id `com.lkovari.mobile.apps.gtl`.
 
-**Version:** 2.0.19 (versionCode 37)  
+**Version:** 2.0.20 (versionCode 38)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** English and Hungarian, Material 3, portrait
 
@@ -84,7 +84,7 @@ Session totals after Start (and for a saved / last session on Map): elapsed time
 - **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
 - **OSM Mapsforge** after you download a region (or Turistautak) and put it **In Use** on **Download Offline map** (or turn on **Use downloaded OSM map**). The same polyline and accuracy ring draw on OSM. A missing or non-Mapsforge file shows an on-device message and turns that switch off so the next launch is not a crash loop. Download keeps only files with magic `mapsforge binary OSM` and a matching header size. Camera starts on the `.map` start/bounds when the GPS fix is outside that file; live follow only inside the file. The OSM `MapView` stays laid out when you leave the Map tab.
 - Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
-- **HUD** over both map engines: large speed (units from Settings), accuracy, GNSS used/in view. While logging: odometer, elapsed time, pulsing REC. Idle with a fix: dim compact panel at the bottom left. Hidden when a saved track is shown and you are not logging.
+- **HUD** over both map engines: large speed (units from Settings), accuracy, GNSS used/in view. While you stand still the speed is 0 (two consecutive quiet fixes), so GPS jitter does not look like motion. While logging: odometer, elapsed time, pulsing REC. Idle with a fix: dim compact panel at the bottom left. Hidden when a saved track is shown and you are not logging.
 - **Tap** on Google, OSM, and Turistautak opens the same menu on that point. The menu is tied to the geographic point and follows it when the camera moves. A new tap replaces the previous one. Drag and zoom stay. The menu and the distance target live on the Map tab, so the HUD distance survives a switch between Google and an offline map. The three actions run separately: address does not start the HUD, and distance does not show an address.
   - **Distance** — that point becomes the target. Straight-line distance updates on every live GPS fix, including when you move away. The row sits under the HUD even when the speed HUD is hidden. No fix: an em dash. A new target replaces the old one. Tap the row to clear it. No space: prefix **D** (English) or **T** (Hungarian); the unit comes from Settings — Metric `km` (one decimal under 10, otherwise a whole number: `D2.7km`, `D655km`), Imperial `mi`, ICAO `NM`.
   - **Pointer** — on that same row, while a target is set and a GPS fix exists. The needle is the initial great-circle bearing from the fix to the target, minus the direction you are facing, wrapped to 0–360°. Straight up (0°) means the point is ahead. At 1 m/s or faster, and when the fix has a GPS course, that course is the facing direction (true north). Below 1 m/s, or when the fix has no course, the phone compass is the facing direction: magnetic azimuth plus declination from the fix, so the top of the phone is forward. The MAG/TRUE switch on the Compass tab does not change the pointer; it always aims at the geographic bearing. Low magnetometer accuracy dims the needle only while the compass is in use. Within 20 m, or inside the reported GPS accuracy when that is larger, the needle hides and the ring stays, so the row width does not jump; the distance keeps updating. In a pocket the compass follows the phone, not your body; once you are moving, the GPS course replaces it. Search **Yes** sets the same target, so the pointer appears there too. Switching `.map` files clears the target and the pointer together. Tap the row to clear both. No fix: the em dash, and no dial.
@@ -173,6 +173,7 @@ From slow to the top of the usage: teal `#0B6B66`, violet `#5B2D86`, amber `#7A5
 **What each control does**
 
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (Run/Hike and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
+- **Theme** — Automatic follows dusk and dawn at your position (light until there is a fix), or pick Light or Dark. Google, OSM, and Turistautak tiles follow.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
 - **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro, the elevation dashed line, and KMZ `Baro:` / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ at **share** time). If that height is more than 1500 m from the point’s GPS altitude, the stored insert-time `baroAltitude` is used instead, or baro is omitted. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it. **Auto-calibrate at start** (default on) runs that same calibration automatically once two consecutive GPS fixes agree on altitude (within 15 m) after each recording starts, so you don't have to tap Calibrate yourself. Full write-up: [Barometric altitude (Baro)](#barometric-altitude-baro).
 - **Use downloaded OSM map** — off and disabled until a region is downloaded. On uses the Mapsforge file currently **In Use**; turning it off shows Google Maps. A missing or invalid `.map` turns the switch off. Settings shows **OSM map** only while an OSM region is **In Use** (not Turistautak), and **Turistautak.hu** only while that map is **In Use**. The Map tab layers button (same spot as Google layers) opens the matching switches. OSM: Buildings (default on), **POI** (off; shops, restaurants, parking, fuel from zoom 14 — not bus stops), Public transport (off; rail/tram/stations and bus stops), Highlight cycleways (off; magenta overlay from zoom 12; dedicated `highway=cycleway` stays blue; changing usage resets this to off), Parks and protected areas (on), Terrain relief (off). Toggling a switch redraws OSM tiles without moving the camera. Official Mapsforge files for any country store dedicated `highway=cycleway` only (not on-road lanes). Terrain relief stays disabled unless HGT files sit next to the `.map` or in a `hills/` folder (official Mapsforge downloads usually have none).
@@ -590,7 +591,8 @@ Phone listing: 24-bit PNG, no alpha. Older shots (`gps-idle.png`, `route.png`, `
 
 ## Next to do
 
-- Add light and dark themes
+- Notification with live numbers
+- Course-up map following
 
 ---
 

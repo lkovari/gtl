@@ -6,7 +6,7 @@ Helyben futó GPS útvonalnapló. Az útpontok SQLite-ban maradnak a telefonon. 
 
 A 2014-es Eclipse-app (`gtl-e`) Kotlin + Jetpack Compose újraírása. Alkalmazásazonosító: `com.lkovari.mobile.apps.gtl`.
 
-**Verzió:** 2.0.19 (versionCode 37)  
+**Verzió:** 2.0.20 (versionCode 38)  
 **SDK:** minSdk 24 · targetSdk 36 · compileSdk 36  
 **UI:** angol és magyar, Material 3, álló (portrait)
 
@@ -84,7 +84,7 @@ Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképe
 - **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
 - **OSM Mapsforge**, ha letöltöttél egy régiót (vagy Turistautakot) és **Használatban** van az **Offline térkép letöltése** listán (vagy be van a **Letöltött OSM térkép használata**). Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re. Hiányzó vagy nem Mapsforge fájl üzenetet mutat, és kikapcsolja a kapcsolót, hogy a következő indítás ne crash-loop legyen. A letöltés csak `mapsforge binary OSM` mágiájú, egyező header-méretű fájlt tart meg. A kamera a `.map` start/bounds pontját használja, ha a GPS a fájlon kívül van; élő követés csak a fájlon belül. Az OSM `MapView` mérete megmarad, ha elhagyod a Térkép fület.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
-- **HUD** mindkét térképmotor fölött: nagy sebesség (a Beállítások mértékegysége), pontosság, GNSS used/in view. Naplózáskor: út, eltelt idő, pulzáló REC. Idle GPS-fixszel: halkított panel bal lent. Mentett tracknél, ha nincs naplózás, rejtve.
+- **HUD** mindkét térképmotor fölött: nagy sebesség (a Beállítások mértékegysége), pontosság, GNSS used/in view. Állva a sebesség 0 (két egymás utáni csendes fix), a GPS-zaj nem mozgás. Naplózáskor: út, eltelt idő, pulzáló REC. Idle GPS-fixszel: halkított panel bal lent. Mentett tracknél, ha nincs naplózás, rejtve.
 - **Koppintás** a Google, az OSM és a Turistautak térképen ugyanazt a menüt nyitja a ponton. A menü a földrajzi ponthoz van kötve, és a kamera mozgatásakor követi. Új koppintás a régit leváltja. A húzás és a zoom megmarad. A menü és a távolságcél a Térkép fülön él, ezért Google és offline térkép között váltva a HUD-távolság megmarad. A három művelet külön fut: a cím nem indít HUD-ot, a távolság nem ír ki címet.
   - **Távolság** — a pont lesz a cél. Minden élő GPS-fixnél légvonal, távolodáskor is. A sor a HUD alatt van, akkor is, ha a sebesség-HUD rejtett. Nincs fix: gondolatjel. Új célpont felülírja a régit. A sor megnyomása törli. Szóköz nélkül: előtag **T** (magyar) vagy **D** (angol); mérték a Beállításokból — Metric `km` (10 alatt egy tizedes, attól felfelé egész: `T2.7km`, `T655km`), Imperial `mi`, ICAO `NM`.
   - **Mutató** — ugyanazon a soron, ha van cél és GPS-fix. A tű a fix és a cél kezdő főkör-irányszöge, mínusz az előre irány, 0–360°-ra tekerve. A felfelé álló tű (0°) azt jelenti, hogy a pont előtted van. 1 m/s-tól, ha a fixnek van GPS-pályája, az a haladási irány (igaz észak). 1 m/s alatt, vagy ha nincs pálya, a telefon iránytűje az előre: mágneses azimut plusz a fix deklinációja, tehát a telefon teteje az előre. Az Iránytű fül MAG/TRUE kapcsolója a mutatót nem változtatja; mindig a földrajzi irányszögre céloz. Alacsony magnetométer-pontosság csak akkor halványítja a tűt, ha az iránytű adja az irányt. 20 m-en belül, vagy a jelentett GPS-pontosságon belül, ha az nagyobb, a tű eltűnik és a tárcsa marad, hogy a sor szélessége ne ugorjon; a távolság tovább frissül. Zsebben az iránytű a telefont követi, nem a tested; amint mozogsz, a GPS-pálya váltja fel. A keresés **Igen** ugyanezt a célt állítja, ezért a mutató ott is megjelenik. Másik `.map` fájl a célt és a mutatót együtt törli. A sor megnyomása mindkettőt törli. Nincs fix: a gondolatjel, tárcsa nélkül.
@@ -173,6 +173,7 @@ Lassútól a usage teteje felé: teal `#0B6B66`, ibolya `#5B2D86`, borostyán `#
 **Mit csinál az egyes vezérlő**
 
 - **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (Fut/túra és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
+- **Téma** — Automatikus a helyzeted szerinti szürkületet követi (helyzet nélkül világos), vagy Világos / Sötét. A Google, OSM és Turistautak csempe követi.
 - **Mértékegység** — metrikus, angolszász vagy ICAO az Útvonalon (km/h és méter; mph és láb/mérföld; csomó, tengeri mérföld és láb). A letárolt koordinátákat nem mozgatja.
 - **QNH** — tengerszinti nyomás a barométerhez, **900–1100 hPa** (alap `PRESSURE_STANDARD_ATMOSPHERE` 1013,25). Csak akkor látszik, ha a telefonnak van nyomásszenzora. Az élő baro, a magasságprofil szaggatott vonala és a KMZ `Baro:` / ExtendedData `baro` a `getAltitude(QNH, nyomás − offset)` (KMZ **megosztáskor**). Ha ez a magasság több mint 1500 m-re van a pont GPS-magasságától, a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad. A letárolt `pressureHpa` nyers; a `baroAltitude` íráskor az akkor érvényes QNH-t és offsetet használja. Valós tengerszinti QNH-t METAR-ból, ATIS-ból vagy reptéri időjárásból nézz (nem állomásnyomás). **Kalibrálás GPS-ből** (állj, jó GPS-magasság) a chip offsetjét a DataStore-ba írja (±10 hPa), a QNH csúszkát nem; **Baro visszaállítás** törli. **Automatikus kalibrálás induláskor** (alapból be) ugyanezt a kalibrálást futtatja le automatikusan, amint minden felvétel indulása után két egymást követő GPS-fix 15 méteren belül egyezik a magasságban, hogy ezt ne neked kelljen megnyomnod. Részletek: [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 - **Letöltött OSM térkép használata** — letöltésig ki van kapcsolva és nem állítható. Bekapcsolva a **Használatban** lévő Mapsforge fájl; kikapcsolva a Térkép Google Térképet mutat. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót. A Beállításokban az **OSM térkép** kártya csak OSM-régió **Használatban** állapotánál látszik (nem Turistautak), a **Turistautak.hu** kártya csak annak **Használatban** állapotánál. A Térkép fül réteg gombja (ugyanott, ahol a Google rétegek) a megfelelő kapcsolókat nyitja. OSM: Épületek (alapból be), **POI** (ki; boltok, éttermek, parkolók, kutak 14-es zoomtól — nem buszmegálló), Tömegközlekedés (ki; vasút/villamos/állomás és buszmegálló), Kerékpárutak kiemelése (ki; magenta overlay 12-es zoomtól; a külön `highway=cycleway` kék marad; usage-váltás ki-ra állítja vissza), Védett terület / park (be), Domborzat (ki). A kapcsoló a csempét újrarajzolja, a kamera nem mozog. A hivatalos Mapsforge fájlban bármely országnál csak a külön `highway=cycleway` van, úttesti sáv nincs. A Domborzat ki marad, kivéve ha HGT fájlok vannak a `.map` mellett vagy a `hills/` mappában (a hivatalos Mapsforge-letöltésekben általában nincs).
@@ -590,7 +591,8 @@ Telefon listing: 24 bites PNG, nincs alfa. A korábbi képek (`gps-idle.png`, `r
 
 ## Következő teendők
 
-- Világos és sötét téma
+- Értesítés élő számokkal
+- A térkép a menet irányába fordul
 
 ---
 
