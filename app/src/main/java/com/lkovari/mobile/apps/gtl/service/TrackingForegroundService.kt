@@ -28,12 +28,16 @@ import com.lkovari.mobile.apps.gtl.engine.GpsQualityNotice
 import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
 import com.lkovari.mobile.apps.gtl.engine.TrackFix
 import java.util.concurrent.atomic.AtomicInteger
+import com.lkovari.mobile.apps.gtl.diagnostics.RecordingInterruptNotice
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -55,6 +59,8 @@ class TrackingForegroundService : LifecycleService() {
     private var kalman = KalmanTrackFilter()
     private var autoCalibratedThisSession = false
     private var pendingCalibrationAltitude: Double? = null
+    @Volatile
+    private var foregroundRejected = false
 
     override fun onCreate() {
         super.onCreate()
@@ -68,17 +74,31 @@ class TrackingForegroundService : LifecycleService() {
                 stopRecording()
                 return START_NOT_STICKY
             }
-            else -> startRecording()
+            else -> {
+                if (!startRecording()) {
+                    return START_NOT_STICKY
+                }
+            }
         }
         return START_STICKY
     }
 
-    private fun startRecording() {
+    private fun startRecording(): Boolean {
         val app = application as GtlApplication
-        startAsForeground()
-        recordingGeneration.incrementAndGet()
+        if (!startAsForeground()) {
+            if (locationJob == null) {
+                abandonInterruptedStart(app)
+                return false
+            }
+            return true
+        }
+        foregroundRejected = false
+        val generation = recordingGeneration.incrementAndGet()
         lifecycleScope.launch {
             recordingLock.withLock {
+                if (foregroundRejected || recordingGeneration.get() != generation) {
+                    return@withLock
+                }
                 if (locationJob != null) {
                     refreshNotification()
                     return@withLock
@@ -119,6 +139,9 @@ class TrackingForegroundService : LifecycleService() {
                 }
                 lastKind = if (lastAccepted == null) EventKind.START else EventKind.MOVE
                 val acceptedCount = if (lastAccepted == null) 0 else 1
+                if (foregroundRejected || recordingGeneration.get() != generation) {
+                    return@withLock
+                }
                 app.trackingState.update {
                     it.copy(
                         logging = true,
@@ -188,6 +211,7 @@ class TrackingForegroundService : LifecycleService() {
                 }
             }
         }
+        return true
     }
 
     private suspend fun collectLocation(
@@ -197,16 +221,25 @@ class TrackingForegroundService : LifecycleService() {
         usageTypeName: String
     ) {
         val client = LocationClient(this)
-        if (settings.gnssOnly && !client.isGpsProviderEnabled()) {
-            app.trackingState.update { it.copy(gpsOff = true) }
-            refreshNotification()
-        }
-        client.locations(
-            settings.minTimeMillis.coerceAtLeast(500L),
-            0f,
-            settings.gnssOnly,
-            recording = true
-        ).collect { location ->
+        coroutineScope {
+            val gpsWatch = launch {
+                client.gpsEnabled.collect { enabled ->
+                    val off = settings.gnssOnly && !enabled
+                    val wasOff = app.trackingState.state.value.gpsOff
+                    if (wasOff == off) {
+                        return@collect
+                    }
+                    app.trackingState.update { it.copy(gpsOff = off) }
+                    refreshNotification()
+                }
+            }
+            try {
+                client.locations(
+                    settings.minTimeMillis.coerceAtLeast(500L),
+                    0f,
+                    settings.gnssOnly,
+                    recording = true
+                ).collect { location ->
             val gnss = app.trackingState.state.value.gnss
             val reportedSpeed = if (location.hasSpeed()) location.speed else null
             if (reportedSpeed != null) {
@@ -318,6 +351,10 @@ class TrackingForegroundService : LifecycleService() {
                 val nextCount = live.acceptedFixCount + 1
                 app.trackingState.update { it.copy(acceptedFixCount = nextCount, poorGps = false) }
                 refreshNotification()
+            }
+            } finally {
+                gpsWatch.cancel()
+            }
         }
     }
 
@@ -475,15 +512,70 @@ class TrackingForegroundService : LifecycleService() {
         }
     }
 
-    private fun startAsForeground() {
+    private fun startAsForeground(): Boolean {
         val text = getString(R.string.status_waiting_gps)
         postedNotificationText = text
         val notification = buildNotification(text)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            true
+        } catch (error: Exception) {
+            if (!foregroundStartBlocked(error)) {
+                throw error
+            }
+            AppErrorLog.recordSync("track.foreground", error)
+            false
         }
+    }
+
+    private fun foregroundStartBlocked(error: Exception): Boolean {
+        if (error is SecurityException) {
+            return true
+        }
+        return error.javaClass.name == "android.app.ForegroundServiceStartNotAllowedException"
+    }
+
+    private fun abandonInterruptedStart(app: GtlApplication) {
+        foregroundRejected = true
+        recordingGeneration.incrementAndGet()
+        locationJob?.cancel()
+        locationJob = null
+        activeSessionId = null
+        app.trackingState.update {
+            LiveTrackingState(
+                temperatureAvailable = app.ambientTemperatureSource.isAvailable,
+                pressureAvailable = app.pressureSource.isAvailable
+            )
+        }
+        runBlocking(Dispatchers.IO) {
+            closeInterruptedSession(app)
+        }
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        stopSelf()
+    }
+
+    private suspend fun closeInterruptedSession(app: GtlApplication) {
+        val session = app.trackRepository.openSession() ?: return
+        val latest = app.trackRepository.latestEvent(session.id)
+        if (latest != null && latest.eventKind != EventKind.STOP.name) {
+            try {
+                app.trackRepository.insertEvent(
+                    latest.copy(
+                        id = 0,
+                        isPlacemark = true,
+                        eventKind = EventKind.STOP.name
+                    )
+                )
+            } catch (error: SQLException) {
+                AppErrorLog.recordSync("track.stop", error)
+            }
+        }
+        app.trackRepository.stopSession(session.id)
+        RecordingInterruptNotice.mark(app, session.id)
     }
 
     private fun refreshNotification() {

@@ -1,8 +1,12 @@
 package com.lkovari.mobile.apps.gtl.data.db
 
+import androidx.room.withTransaction
 import com.lkovari.mobile.apps.gtl.data.sync.RemoteTrackSync
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
+import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
+import com.lkovari.mobile.apps.gtl.engine.SavedTrackCards
+import com.lkovari.mobile.apps.gtl.engine.TrackPreviewPolyline
 import com.lkovari.mobile.apps.gtl.engine.TrackSample
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import kotlinx.coroutines.flow.Flow
@@ -30,9 +34,38 @@ class TrackRepository(
     }
 
     suspend fun stopSession(sessionId: Long) {
-        val existing = sessions.getById(sessionId) ?: return
-        sessions.update(existing.copy(stoppedAt = System.currentTimeMillis()))
-        remoteTrackSync.uploadSession(existing, events.listBySession(sessionId))
+        val snapshot = database.withTransaction {
+            val existing = sessions.getById(sessionId) ?: return@withTransaction null
+            val stored = events.listBySession(sessionId)
+            sessions.update(existing.withCard(stored, System.currentTimeMillis()))
+            existing to stored
+        } ?: return
+        remoteTrackSync.uploadSession(snapshot.first, snapshot.second)
+    }
+
+    suspend fun sessionsNeedingCard(): List<TrackSessionEntity> = sessions.sessionsNeedingCard()
+
+    suspend fun backfillCard(sessionId: Long) {
+        database.withTransaction {
+            val existing = sessions.getById(sessionId) ?: return@withTransaction
+            if (existing.stoppedAt == null || existing.previewPolyline != null) {
+                return@withTransaction
+            }
+            val stored = events.listBySession(sessionId)
+            sessions.update(existing.withCard(stored, existing.stoppedAt))
+        }
+    }
+
+    private fun TrackSessionEntity.withCard(stored: List<GpsEventEntity>, stoppedAtMillis: Long): TrackSessionEntity {
+        val card = SavedTrackCards.from(toSamples(stored))
+        return copy(
+            stoppedAt = stoppedAtMillis,
+            distanceMeters = card.odometerMeters,
+            durationMs = card.elapsedMillis,
+            avgSpeedMps = card.averageSpeedMps,
+            maxSpeedMps = card.maxSpeedMps,
+            previewPolyline = TrackPreviewPolyline.encode(card.preview)
+        )
     }
 
     suspend fun openSession(): TrackSessionEntity? = sessions.getOpenSession()
@@ -63,4 +96,19 @@ class TrackRepository(
             )
         }
     }
+}
+
+fun TrackSessionEntity.toStoredCard(): SavedTrackCard? {
+    val distance = distanceMeters ?: return null
+    val duration = durationMs ?: return null
+    val average = avgSpeedMps ?: return null
+    val fastest = maxSpeedMps ?: return null
+    val preview = previewPolyline ?: return null
+    return SavedTrackCard(
+        odometerMeters = distance,
+        elapsedMillis = duration,
+        averageSpeedMps = average,
+        maxSpeedMps = fastest,
+        preview = TrackPreviewPolyline.decode(preview)
+    )
 }

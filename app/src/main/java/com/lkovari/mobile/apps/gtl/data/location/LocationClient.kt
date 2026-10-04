@@ -1,7 +1,10 @@
 package com.lkovari.mobile.apps.gtl.data.location
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -18,8 +21,13 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.lkovari.mobile.apps.gtl.engine.DisplaySpeedFix
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
+import com.lkovari.mobile.apps.gtl.engine.LocationSource
+import com.lkovari.mobile.apps.gtl.engine.LocationSourceChoice
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
@@ -28,6 +36,8 @@ class LocationClient(context: Context) {
     private val appContext = context.applicationContext
     private val client = LocationServices.getFusedLocationProviderClient(appContext)
     private val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    private val gpsEnabledState = MutableStateFlow(readGpsEnabled())
+    val gpsEnabled: StateFlow<Boolean> = gpsEnabledState.asStateFlow()
 
     fun locations(
         minTimeMillis: Long,
@@ -39,22 +49,17 @@ class LocationClient(context: Context) {
             appContext,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-        if (!fineGranted) {
-            return emptyFlow()
-        }
-        if (gnssOnly) {
-            if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                return emptyFlow()
-            }
-            return gpsProviderLocations(minTimeMillis, minDistanceMeters, recording).map { location ->
+        return when (LocationSourceChoice.source(fineGranted, gnssOnly)) {
+            LocationSource.None -> emptyFlow()
+            LocationSource.Gps -> gpsProviderLocations(minTimeMillis, minDistanceMeters, recording).map { location ->
                 withTrustedAltitude(location, location)
             }
+            LocationSource.Fused -> fusedLocations(minTimeMillis, minDistanceMeters, recording)
         }
-        return fusedLocations(minTimeMillis, minDistanceMeters, recording)
     }
 
     fun isGpsProviderEnabled(): Boolean {
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        return readGpsEnabled()
     }
 
     private fun gpsProviderLocations(
@@ -63,39 +68,27 @@ class LocationClient(context: Context) {
         recording: Boolean
     ): Flow<Location> {
         return callbackFlow {
-            val listener = object : LocationListener {
-                override fun onLocationChanged(location: Location) {
-                    if (isFreshEnough(location, recording)) {
-                        trySend(location)
+            val listener = locationListener(recording) { location ->
+                trySend(location)
+            }
+            var attached = attachGpsUpdates(listener, minTimeMillis, minDistanceMeters)
+            if (attached == GpsAttach.Denied) {
+                close()
+                return@callbackFlow
+            }
+            val receiver = providerChanges {
+                publishGpsEnabled()
+                if (attached != GpsAttach.Listening) {
+                    attached = attachGpsUpdates(listener, minTimeMillis, minDistanceMeters)
+                    if (attached == GpsAttach.Denied) {
+                        close()
                     }
                 }
-
-                @Deprecated("Deprecated in Java")
-                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-                }
-
-                override fun onProviderEnabled(provider: String) {
-                }
-
-                override fun onProviderDisabled(provider: String) {
-                }
             }
-            try {
-                locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    minTimeMillis.coerceAtLeast(500L),
-                    minDistanceMeters,
-                    listener,
-                    Looper.getMainLooper()
-                )
-            } catch (_: SecurityException) {
-                close()
-            }
+            registerProviderChanges(receiver)
             awaitClose {
-                try {
-                    locationManager.removeUpdates(listener)
-                } catch (_: SecurityException) {
-                }
+                detachGpsUpdates(listener)
+                unregisterProviderChanges(receiver)
             }
         }
     }
@@ -110,6 +103,7 @@ class LocationClient(context: Context) {
             val gpsListener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
                     lastGnss = location
+                    gpsEnabledState.value = true
                 }
 
                 @Deprecated("Deprecated in Java")
@@ -117,23 +111,25 @@ class LocationClient(context: Context) {
                 }
 
                 override fun onProviderEnabled(provider: String) {
+                    if (provider == LocationManager.GPS_PROVIDER) {
+                        gpsEnabledState.value = true
+                    }
                 }
 
                 override fun onProviderDisabled(provider: String) {
+                    if (provider == LocationManager.GPS_PROVIDER) {
+                        gpsEnabledState.value = false
+                    }
                 }
             }
-            try {
-                if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    locationManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        minTimeMillis.coerceAtLeast(500L),
-                        minDistanceMeters,
-                        gpsListener,
-                        Looper.getMainLooper()
-                    )
+            var gpsAttached = attachGpsUpdates(gpsListener, minTimeMillis, minDistanceMeters)
+            val receiver = providerChanges {
+                publishGpsEnabled()
+                if (gpsAttached != GpsAttach.Listening) {
+                    gpsAttached = attachGpsUpdates(gpsListener, minTimeMillis, minDistanceMeters)
                 }
-            } catch (_: SecurityException) {
             }
+            registerProviderChanges(receiver)
             val request = LocationRequest.Builder(
                 Priority.PRIORITY_HIGH_ACCURACY,
                 minTimeMillis.coerceAtLeast(500L)
@@ -160,12 +156,110 @@ class LocationClient(context: Context) {
                     client.removeLocationUpdates(callback)
                 } catch (_: SecurityException) {
                 }
-                try {
-                    locationManager.removeUpdates(gpsListener)
-                } catch (_: SecurityException) {
+                detachGpsUpdates(gpsListener)
+                unregisterProviderChanges(receiver)
+            }
+        }
+    }
+
+    private fun locationListener(
+        recording: Boolean,
+        onFix: (Location) -> Unit
+    ): LocationListener {
+        return object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                gpsEnabledState.value = true
+                if (isFreshEnough(location, recording)) {
+                    onFix(location)
+                }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+            }
+
+            override fun onProviderEnabled(provider: String) {
+                if (provider == LocationManager.GPS_PROVIDER) {
+                    gpsEnabledState.value = true
+                }
+            }
+
+            override fun onProviderDisabled(provider: String) {
+                if (provider == LocationManager.GPS_PROVIDER) {
+                    gpsEnabledState.value = false
                 }
             }
         }
+    }
+
+    private fun attachGpsUpdates(
+        listener: LocationListener,
+        minTimeMillis: Long,
+        minDistanceMeters: Float
+    ): GpsAttach {
+        return try {
+            locationManager.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                minTimeMillis.coerceAtLeast(500L),
+                minDistanceMeters,
+                listener,
+                Looper.getMainLooper()
+            )
+            publishGpsEnabled()
+            GpsAttach.Listening
+        } catch (_: IllegalArgumentException) {
+            publishGpsEnabled()
+            GpsAttach.Unavailable
+        } catch (_: SecurityException) {
+            GpsAttach.Denied
+        }
+    }
+
+    private fun detachGpsUpdates(listener: LocationListener) {
+        try {
+            locationManager.removeUpdates(listener)
+        } catch (_: SecurityException) {
+        }
+    }
+
+    private fun providerChanges(onChange: () -> Unit): BroadcastReceiver {
+        return object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == LocationManager.PROVIDERS_CHANGED_ACTION) {
+                    onChange()
+                }
+            }
+        }
+    }
+
+    private fun registerProviderChanges(receiver: BroadcastReceiver) {
+        ContextCompat.registerReceiver(
+            appContext,
+            receiver,
+            IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION),
+            ContextCompat.RECEIVER_EXPORTED
+        )
+    }
+
+    private fun unregisterProviderChanges(receiver: BroadcastReceiver) {
+        try {
+            appContext.unregisterReceiver(receiver)
+        } catch (_: IllegalArgumentException) {
+        }
+    }
+
+    private fun publishGpsEnabled() {
+        gpsEnabledState.value = readGpsEnabled()
+    }
+
+    private fun readGpsEnabled(): Boolean {
+        return runCatching { locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrDefault(false)
+    }
+
+    private enum class GpsAttach {
+        Listening,
+        Unavailable,
+        Denied
     }
 
     companion object {
@@ -186,10 +280,15 @@ class LocationClient(context: Context) {
 }
 
 internal fun withTrustedAltitude(primary: Location, gnss: Location?): Location {
-    val chosen = GpsAltitude.pick(
-        gnssMsl = mslOrNull(gnss),
+    val freshGnss = gnss?.takeIf { sample ->
+        GpsAltitude.gnssAltitudeIsFresh(primary.elapsedRealtimeNanos, sample.elapsedRealtimeNanos)
+    }
+    val chosen = GpsAltitude.toMsl(
+        latitude = primary.latitude,
+        longitude = primary.longitude,
+        gnssMsl = mslOrNull(freshGnss),
         fusedMsl = mslOrNull(primary),
-        gnssEllipsoid = ellipsoidOrNull(gnss),
+        gnssEllipsoid = ellipsoidOrNull(freshGnss),
         fusedEllipsoid = ellipsoidOrNull(primary)
     )
     if (chosen == null) {

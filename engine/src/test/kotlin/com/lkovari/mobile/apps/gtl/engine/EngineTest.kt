@@ -672,8 +672,8 @@ class KmlExporterTest {
         assertTrue(kml.contains("xmlns:gx="))
         assertTrue(kml.contains("<when>2024-09-05T01:33:20Z</when>"))
         assertTrue(kml.contains("<LineString>"))
-        assertTrue(kml.contains("19.05,47.5,120.0"))
-        assertTrue(kml.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
+        assertTrue(kml.contains("19.0500000,47.5000000,120.0"))
+        assertTrue(kml.contains("<gx:coord>19.0500000 47.5000000 0.0</gx:coord>"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"speed\">"))
         assertTrue(kml.contains("<gx:value>5.5</gx:value>"))
         assertTrue(kml.contains("<gx:SimpleArrayData name=\"odometer\">"))
@@ -709,15 +709,15 @@ class KmlExporterTest {
         assertTrue(kml.contains("GPS altitude (m)"))
         assertTrue(kml.contains("<gx:value>120.0</gx:value>"))
         assertTrue(kml.contains("<gx:value>125.0</gx:value>"))
-        assertTrue(kml.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
-        assertTrue(kml.contains("<gx:coord>19.06 47.51 0</gx:coord>"))
-        assertTrue(kml.contains("19.05,47.5,120.0"))
-        assertTrue(kml.contains("19.06,47.51,125.0"))
-        assertFalse(kml.contains("19.05,47.5,108.0"))
+        assertTrue(kml.contains("<gx:coord>19.0500000 47.5000000 0.0</gx:coord>"))
+        assertTrue(kml.contains("<gx:coord>19.0600000 47.5100000 0.0</gx:coord>"))
+        assertTrue(kml.contains("19.0500000,47.5000000,120.0"))
+        assertTrue(kml.contains("19.0600000,47.5100000,125.0"))
+        assertFalse(kml.contains("19.0500000,47.5000000,108.0"))
         assertTrue(kml.contains("<gx:value>108.0</gx:value>"))
         assertTrue(kml.contains("<gx:value>-</gx:value>"))
-        assertFalse(kml.contains("<gx:coord>19.05 47.5 120.0</gx:coord>"))
-        assertFalse(kml.contains("<gx:coord>19.05 47.5 108.0</gx:coord>"))
+        assertFalse(kml.contains("<gx:coord>19.0500000 47.5000000 120.0</gx:coord>"))
+        assertFalse(kml.contains("<gx:coord>19.0500000 47.5000000 108.0</gx:coord>"))
     }
 
     @Test
@@ -1195,21 +1195,21 @@ class KmlExporterTest {
         val line = kml.substringAfter("<LineString>").substringBefore("</LineString>")
         assertTrue(line.contains("<altitudeMode>absolute</altitudeMode>"))
         assertFalse(line.contains("<tessellate>"))
-        assertTrue(line.contains("19.05,47.5,120.0"))
-        assertTrue(line.contains("19.06,47.51,120.0"))
-        assertTrue(line.contains("19.07,47.52,1800.0"))
+        assertTrue(line.contains("19.0500000,47.5000000,120.0"))
+        assertTrue(line.contains("19.0600000,47.5100000,120.0"))
+        assertTrue(line.contains("19.0700000,47.5200000,1800.0"))
         assertFalse(line.contains(",0"))
         val timed = kml.substringAfter("<gx:Track>").substringBefore("</gx:Track>")
         assertTrue(timed.contains("<altitudeMode>clampToGround</altitudeMode>"))
-        assertTrue(timed.contains("<gx:coord>19.05 47.5 0</gx:coord>"))
-        assertTrue(timed.contains("<gx:coord>19.06 47.51 0</gx:coord>"))
+        assertTrue(timed.contains("<gx:coord>19.0500000 47.5000000 0.0</gx:coord>"))
+        assertTrue(timed.contains("<gx:coord>19.0600000 47.5100000 0.0</gx:coord>"))
         assertTrue(timed.contains("<gx:value>120.0</gx:value>"))
         assertTrue(timed.contains("<gx:value>1800.0</gx:value>"))
-        assertTrue(kml.contains("<coordinates>19.05,47.5,120.0</coordinates>"))
-        assertTrue(kml.contains("<coordinates>19.07,47.52,1800.0</coordinates>"))
+        assertTrue(kml.contains("<coordinates>19.0500000,47.5000000,120.0</coordinates>"))
+        assertTrue(kml.contains("<coordinates>19.0700000,47.5200000,1800.0</coordinates>"))
         val pause = kml.substringAfter("<name>Pause</name>").substringBefore("</Placemark>")
         assertTrue(pause.contains("<altitudeMode>clampToGround</altitudeMode>"))
-        assertTrue(pause.contains("<coordinates>19.06,47.51,0</coordinates>"))
+        assertTrue(pause.contains("<coordinates>19.0600000,47.5100000,0.0</coordinates>"))
     }
 
     @Test
@@ -1236,10 +1236,10 @@ class KmlExporterTest {
         val line = kml.substringAfter("<LineString>").substringBefore("</LineString>")
         assertTrue(line.contains("<tessellate>1</tessellate>"))
         assertTrue(line.contains("<altitudeMode>clampToGround</altitudeMode>"))
-        assertTrue(line.contains("19.05,47.5,0"))
-        assertTrue(line.contains("19.06,47.51,0"))
+        assertTrue(line.contains("19.0500000,47.5000000,0.0"))
+        assertTrue(line.contains("19.0600000,47.5100000,0.0"))
         assertFalse(kml.contains("<altitudeMode>absolute</altitudeMode>"))
-        assertTrue(kml.contains("<coordinates>19.05,47.5,0</coordinates>"))
+        assertTrue(kml.contains("<coordinates>19.0500000,47.5000000,0.0</coordinates>"))
         assertTrue(kml.contains("<styleUrl>#trackData</styleUrl>"))
         assertTrue(kml.contains("<visibility>0</visibility>"))
         assertEquals(3, "<IconStyle><scale>0.8</scale>".toRegex().findAll(kml).count())
@@ -1555,6 +1555,54 @@ class TrackLogExportTest {
     }
 }
 
+class LocationSourceChoiceTest {
+    @Test
+    fun gnssOnlyKeepsGpsWhenTheProviderStartsDisabled() {
+        assertEquals(LocationSource.Gps, LocationSourceChoice.source(fineGranted = true, gnssOnly = true))
+        assertEquals(LocationSource.None, LocationSourceChoice.source(fineGranted = false, gnssOnly = true))
+        assertEquals(LocationSource.Fused, LocationSourceChoice.source(fineGranted = true, gnssOnly = false))
+    }
+}
+
+class CoordinateFormatTest {
+    @Test
+    fun coordinatesStayDecimalNearZero() {
+        assertEquals("-0.0005000", CoordinateFormat.coordinate(-0.0005))
+        assertEquals("0.0000100", CoordinateFormat.coordinate(0.00001))
+        assertEquals("179.9999999", CoordinateFormat.coordinate(179.9999999))
+        assertEquals("-89.9000000", CoordinateFormat.coordinate(-89.9))
+        assertFalse(CoordinateFormat.coordinate(-0.0005).contains('E'))
+    }
+
+    @Test
+    fun altitudeUsesOneDecimal() {
+        assertEquals("123.5", CoordinateFormat.altitude(123.46))
+        assertEquals("120.0", CoordinateFormat.altitude(120.0))
+        assertFalse(CoordinateFormat.altitude(0.00001).contains('E'))
+    }
+
+    @Test
+    fun gpxRejectsScientificNotation() {
+        val gpx = GpxExporter.export(
+            GpxDocument(
+                tracks = listOf(
+                    GpxTrack(
+                        name = "Prime",
+                        points = listOf(
+                            GpxTrackPoint(GeoPoint(-0.0005, 0.00001, 123.46), 0L)
+                        ),
+                        waypoints = emptyList()
+                    )
+                )
+            )
+        )
+        assertTrue(gpx.contains("""<trkpt lat="-0.0005000" lon="0.0000100">"""))
+        assertTrue(gpx.contains("<ele>123.5</ele>"))
+        assertFalse(gpx.contains("E-"))
+        assertFalse(gpx.contains("E+"))
+    }
+}
+
 class GpxExporterTest {
     companion object {
         private const val SAMPLE_TIME = 1_725_500_000_000L
@@ -1565,7 +1613,7 @@ class GpxExporterTest {
         val gpx = sampleGpx()
         assertTrue(gpx.contains("""<?xml version="1.0" encoding="UTF-8"?>"""))
         assertTrue(gpx.contains("""<gpx version="1.1" creator="GTL" xmlns="http://www.topografix.com/GPX/1/1">"""))
-        assertTrue(gpx.contains("""<trkpt lat="47.5" lon="19.05">"""))
+        assertTrue(gpx.contains("""<trkpt lat="47.5000000" lon="19.0500000">"""))
         assertTrue(gpx.contains("<ele>120.0</ele>"))
         assertTrue(gpx.contains("<time>2024-09-05T01:33:20Z</time>"))
         assertFalse(gpx.contains("speed"))
@@ -1575,7 +1623,7 @@ class GpxExporterTest {
     @Test
     fun writesStartAndStopWaypoints() {
         val gpx = sampleGpx()
-        assertTrue(gpx.contains("<wpt lat=\"47.5\" lon=\"19.05\">"))
+        assertTrue(gpx.contains("<wpt lat=\"47.5000000\" lon=\"19.0500000\">"))
         assertTrue(gpx.contains("<name>START</name>"))
         assertTrue(gpx.contains("<name>STOP</name>"))
         assertTrue(gpx.contains("<trkseg>"))
@@ -1633,8 +1681,8 @@ class GpxExporterTest {
             )
         )
         assertFalse(gpx.contains("<ele>"))
-        assertTrue(gpx.contains("""<trkpt lat="47.5" lon="19.05">"""))
-        assertTrue(gpx.contains("""<wpt lat="47.5" lon="19.05">"""))
+        assertTrue(gpx.contains("""<trkpt lat="47.5000000" lon="19.0500000">"""))
+        assertTrue(gpx.contains("""<wpt lat="47.5000000" lon="19.0500000">"""))
     }
 
     private fun sampleGpx(): String {
@@ -3180,11 +3228,14 @@ class GpsAltitudeTest {
         assertFalse(GpsAltitude.isPlausible(-1787.0))
         assertEquals(
             null,
-            GpsAltitude.pick(
+            GpsAltitude.toMsl(
+                latitude = 47.5,
+                longitude = 19.0,
                 gnssMsl = null,
                 fusedMsl = null,
                 gnssEllipsoid = null,
-                fusedEllipsoid = -1787.0
+                fusedEllipsoid = -1787.0,
+                undulationMeters = 44.0
             )
         )
     }
@@ -3193,24 +3244,30 @@ class GpsAltitudeTest {
     fun prefersMslOverJunkEllipsoid() {
         assertEquals(
             124.0,
-            GpsAltitude.pick(
+            GpsAltitude.toMsl(
+                latitude = 47.5,
+                longitude = 19.0,
                 gnssMsl = null,
                 fusedMsl = 124.0,
                 gnssEllipsoid = null,
-                fusedEllipsoid = -1787.0
+                fusedEllipsoid = -1787.0,
+                undulationMeters = 44.0
             )
         )
     }
 
     @Test
-    fun prefersGnssEllipsoidOverFusedJunk() {
+    fun ellipsoidConvertsToMsl() {
         assertEquals(
-            163.0,
-            GpsAltitude.pick(
+            119.0,
+            GpsAltitude.toMsl(
+                latitude = 47.5,
+                longitude = 19.0,
                 gnssMsl = null,
                 fusedMsl = null,
                 gnssEllipsoid = 163.0,
-                fusedEllipsoid = -1787.0
+                fusedEllipsoid = -1787.0,
+                undulationMeters = 44.0
             )
         )
     }
@@ -3219,11 +3276,14 @@ class GpsAltitudeTest {
     fun missingAltitudeIsNull() {
         assertEquals(
             null,
-            GpsAltitude.pick(
+            GpsAltitude.toMsl(
+                latitude = 47.5,
+                longitude = 19.0,
                 gnssMsl = null,
                 fusedMsl = null,
                 gnssEllipsoid = null,
-                fusedEllipsoid = null
+                fusedEllipsoid = null,
+                undulationMeters = 44.0
             )
         )
     }
@@ -3233,26 +3293,73 @@ class GpsAltitudeTest {
         assertTrue(GpsAltitude.isPlausible(11000.0))
         assertEquals(
             11000.0,
-            GpsAltitude.pick(
+            GpsAltitude.toMsl(
+                latitude = 47.5,
+                longitude = 19.0,
                 gnssMsl = 11000.0,
                 fusedMsl = null,
                 gnssEllipsoid = null,
-                fusedEllipsoid = null
+                fusedEllipsoid = null,
+                undulationMeters = 44.0
             )
         )
     }
 
     @Test
-    fun deadSeaEllipsoidIsKept() {
+    fun deadSeaEllipsoidConvertsInsideTheGate() {
         assertEquals(
             -410.0,
-            GpsAltitude.pick(
+            GpsAltitude.toMsl(
+                latitude = 31.5,
+                longitude = 35.5,
                 gnssMsl = null,
                 fusedMsl = null,
                 gnssEllipsoid = -410.0,
-                fusedEllipsoid = null
+                fusedEllipsoid = null,
+                undulationMeters = 0.0
             )
         )
+    }
+
+    @Test
+    fun alternatingMslAndEllipsoidStayContinuous() {
+        val undulation = 44.0
+        val stored = listOf(120.0, 120.4, 121.0).mapIndexed { index, metres ->
+            if (index % 2 == 0) {
+                GpsAltitude.toMsl(
+                    latitude = 47.5,
+                    longitude = 19.0,
+                    gnssMsl = metres,
+                    fusedMsl = null,
+                    gnssEllipsoid = null,
+                    fusedEllipsoid = null,
+                    undulationMeters = undulation
+                )
+            } else {
+                GpsAltitude.toMsl(
+                    latitude = 47.5,
+                    longitude = 19.0,
+                    gnssMsl = null,
+                    fusedMsl = null,
+                    gnssEllipsoid = metres + undulation,
+                    fusedEllipsoid = null,
+                    undulationMeters = undulation
+                )
+            }
+        }
+        assertEquals(listOf(120.0, 120.4, 121.0), stored)
+    }
+
+    @Test
+    fun gnssAltitudeOlderThanTwoSecondsIsDropped() {
+        val now = 8_000_000_000L
+        assertTrue(GpsAltitude.gnssAltitudeIsFresh(now, now - 2_000_000_000L))
+        assertFalse(GpsAltitude.gnssAltitudeIsFresh(now, now - 3_000_000_000L))
+    }
+
+    @Test
+    fun budapestUndulationMatchesTheOneDegreeGrid() {
+        assertEquals(43.64, Egm2008Geoid.undulationMeters(47.4979, 19.0402), 0.05)
     }
 }
 

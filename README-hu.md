@@ -54,7 +54,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Naplózás
 
-- **Indít / Leállít** a munkamenetet látható előtér-szolgáltatásként rögzíti, értesítéssel.
+- **Indít / Leállít** a munkamenetet látható előtér-szolgáltatásként rögzíti, értesítéssel. A rögzítés megy tovább, ha az app háttérbe kerül, és akkor is, ha a képernyő zárolódik. Ha a rendszer a folyamat halála után nem tudja újraindítani a szolgáltatást, a track az utolsó mentett pontnál lezárul, és a következő megnyitáskor egyszer jelzi.
 - A fixek csak akkor tárolódnak, ha átmennek a pontossági és műholdszám-kapun. Opcionális **Kalman**-simítás utána elmozdítja a pontot. Az **Okos** vagy **Minden jó fix** sűrűség dönti el, hogy beíródik-e (lásd Beállítások). Fut/túránál az alap: **Csak GNSS** (műholdchip, nem fused hely) simítás nélkül, hogy a kis úttest-alakzatok megmaradjanak a tracklogban. Teljes lánc: [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - Eseménytípusok: `START`, `MOVE`, `PAUSE` (a usage pauza-sebesség alatt), `STOP`.
 - Használati módok: repülő, hajó, autó, motor (alap), kerékpár, Fut/túra. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A Fut/túra és a kerékpár lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
@@ -68,7 +68,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - Polar **skyplot** az SNR alatt (észak fent, Használatban vs Látható, L5 gyűrű). Lásd [GNSS skyplot](#gnss-skyplot). Rendszerek és sávok: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md).
 - SNR minőség (kiváló / jó / közepes / gyenge / nincs jel).
 - Szélesség, hosszúság, pontosság, forrás, magasság, naplózási állapot. **Baro**, ha van nyomásszenzor (QNH a Beállításokban; [hogyan számolódik a Baro](#barometrikus-magasság-baro)). Környezeti hőmérséklet.
-- A **magasság** először MSL, aztán GNSS ellipszoid, aztán fused ellipszoid (`GpsAltitude.pick`). A −430…20000 m-en kívüli érték (néhány telefonon fused −1800 m körüli szemét) hiányzik.
+- A **magasság** az új rögzítésben geoid feletti (EGM2008, MSL). A hihető tengerszint megmarad; ha csak ellipszoid van, abból levonjuk a helyi undulációt. Két másodpercnél régebbi GNSS-magasság nem kerül friss fused fixre. A −430…20000 m-en kívüli érték hiányzik. A korábban mentett track a letárolt értéket mutatja.
 - Ha a **Pontfelhő** be van: n, RMS, CEP95, medián jelentett pontosság, plusz álló / mozgás / várakozás felirat (ugyanaz a memóriabeli ablak, mint a térkép pöttyei; a CEP95-höz 8 minta kell).
 
 
@@ -131,7 +131,7 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 ### GPX export
 
 - GPX 1.1 mag: sessionenként egy `<trk>` / egy `<trkseg>` (az auto-PAUSE nem darabolja a vonalat). A záró STOP marker nem lesz extra `<trkpt>`.
-- Minden letárolt pont `<trkpt>`: `lat`, `lon`, `<ele>` (GPS-magasság), `<time>` (UTC). Nincs speed-kiterjesztés, hogy az OsmAnd, Komoot, Garmin Connect, Relive és QGIS be tudja olvasni. A baro nem kerül a GPX-be; SQLite-ban és KMZ-ben marad. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
+- Minden letárolt pont `<trkpt>`: `lat`, `lon`, `<ele>` (GPS-magasság), `<time>` (UTC). A `lat` és a `lon` hét tizedes, az `<ele>` egy tizedes, mindig közönséges tizedestört, kitevő nélkül (a 0° közelében is). Ugyanez a KML `coordinates` és `gx:coord`. Nincs speed-kiterjesztés, hogy az OsmAnd, Komoot, Garmin Connect, Relive és QGIS be tudja olvasni. A baro nem kerül a GPX-be; SQLite-ban és KMZ-ben marad. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 - START / PAUSE / STOP `<wpt>` neve Start, Pause, Stop. A Stop waypoint az utolsó path-pont (ugyanaz a pattinás, mint a KMZ).
 - Több kijelölt session → egy `.gpx` több `<trk>`-kel. Fájlnév `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
 - Mentett útvonalak → kijelölés → GPX vagy KMZ.
@@ -250,9 +250,11 @@ Leállít
 
 **Két helyfolyam.** Amíg az app nyitva van és nem naplóz, a `GtlViewModel` kb. másodpercenként figyel, hogy a GPS és Térkép HUD az Indítás előtt is frissüljön. Indítás után a ViewModel leállítja ezt a preview-t, hogy a HUD a service `lastLocation`-jével egyezzen. Csak a `TrackingForegroundService` ír. Legalább 500 ms-enként kér frissítést (`minTimeMillis`, minimális távolság `0`). A térközt később a `FixAcceptance` alkalmazza, nem az Android.
 
-**Forrás.** **Csak GNSS** be → Android `GPS_PROVIDER` (a műholdchip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — a szolgáltató neve történeti). Ki → Play Services fused `PRIORITY_HIGH_ACCURACY` (műholdak Wi-Fi-vel, cellával és IMU-val keverve). Ha a Csak GNSS be van és a GPS ki, nincs fused tartalék; a HUD kéri, hogy kapcsold be a GPS-t. Fut/túránál az alap a csak GNSS, hogy egy 5–10 m-es úttest-hurkot ne lapítson el a telefon „hol van a felhasználó?” szűrője, mielőtt a GTL egyáltalán látná.
+**Forrás.** **Csak GNSS** be → Android `GPS_PROVIDER` (a műholdchip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — a szolgáltató neve történeti). Ki → Play Services fused `PRIORITY_HIGH_ACCURACY` (műholdak Wi-Fi-vel, cellával és IMU-val keverve). Ha a Csak GNSS be van és a GPS ki, nincs fused tartalék; a HUD kéri, hogy kapcsold be a GPS-t. A felvétel nyitva marad: a GPS bekapcsolása után a pontok ugyanabba a sessionbe érkeznek. Fut/túránál az alap a csak GNSS, hogy egy 5–10 m-es úttest-hurkot ne lapítson el a telefon „hol van a felhasználó?” szűrője, mielőtt a GTL egyáltalán látná.
 
-**HUD vs letárolt track.** Minden frissítés a **nyers** `Location`-t másolja a `lastLocation`-be. A világos lila pontossági kör, az élő szélesség/hosszúság, a forrás és a pontosság ez a nyers fix. A **magasság** ezen az objektumon már `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipszoid, fused ellipszoid; −430…20000 m-en kívül eldobva). A **Pontfelhő** ugyanezt a `lastLocation`-t mintavételezi egy memóriabeli ablakba (centroid RMS / CEP95), és nem ír SQLite-ot. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. A piros polyline az, ami **a Roomba bekerült** (Kalman-simítva, ha az a kapcsoló be van). Szándékosan lehetnek pár méterre egymástól.
+**HUD vs letárolt track.** Minden frissítés a **nyers** `Location`-t másolja a `lastLocation`-be. A világos lila pontossági kör, az élő szélesség/hosszúság, a forrás és a pontosság ez a nyers fix. A **magasság** ezen az objektumon már geoid feletti MSL (`GpsAltitude.toMsl`; −430…20000 m-en kívül eldobva). A régebbi sorok a letárolt értéket tartják. A **Pontfelhő** ugyanezt a `lastLocation`-t mintavételezi egy memóriabeli ablakba (centroid RMS / CEP95), és nem ír SQLite-ot. Bekapcsoláskor a pontossági jelzés is bekapcsol; kikapcsoláskor csak a felhő tűnik el. A piros polyline az, ami **a Roomba bekerült** (Kalman-simítva, ha az a kapcsoló be van). Szándékosan lehetnek pár méterre egymástól.
+
+**Szűrő az Indításkor.** A pontosság, a Csak GNSS, a Kalman, az álláskori zár, a sűrűség és a usage-előbeállítás az Indítás pillanatában rögzül. Felvétel közbeni módosításuk a következő Indítástól hat. A QNH és a baro-offset közben is élő.
 
 **1. kapu — pontosság és műholdak.** A usage pontosságánál rosszabb (30 m, Fut/túránál és kerékpárnál 45 m) vagy 4-nél kevesebb műholdas fix eldobódik. Nem megy Kalmanba, és nem lesz sor. A HUD ettől még frissül.
 
@@ -544,7 +546,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
 - `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR / műholdlista
 - `engine/.../Skyplot.kt` — polar projekció / kétfrekvenciás összevonás
-- `engine/.../GpsAltitude.kt` — MSL, majd GNSS, majd fused; −430…20000 m-en kívül eldobva
+- `engine/.../GpsAltitude.kt` — új pont EGM2008 MSL; −430…20000 m-en kívül eldobva
 - `engine/.../BaroAltitude.kt` — ISA / QNH méter a `pressureHpa`-ból; `displayedMeters` / `pickDisplayed` (1500 m a GPS-hez képest)
 - `engine/.../OsmMapFile.kt` — Mapsforge mágia + header fájlméret
 - `engine/.../OsmMapCamera.kt` — OSM közép/zoom a `.map` boundsön belül; locate cél

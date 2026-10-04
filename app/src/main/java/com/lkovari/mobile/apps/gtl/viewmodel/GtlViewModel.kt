@@ -8,8 +8,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lkovari.mobile.apps.gtl.GtlApplication
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
+import com.lkovari.mobile.apps.gtl.diagnostics.RecordingInterruptNotice
 import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
 import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
+import com.lkovari.mobile.apps.gtl.data.db.toStoredCard
 import com.lkovari.mobile.apps.gtl.data.maps.OsmCatalog
 import com.lkovari.mobile.apps.gtl.data.maps.OsmDownloadState
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRegion
@@ -31,7 +33,10 @@ import com.lkovari.mobile.apps.gtl.engine.FixCloudBuffer
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
+import com.lkovari.mobile.apps.gtl.engine.GnssSnapshot
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
+import com.lkovari.mobile.apps.gtl.engine.TrackPresentation
+import com.lkovari.mobile.apps.gtl.engine.TrackPresentationKey
 import com.lkovari.mobile.apps.gtl.engine.MapDisplayUsage
 import com.lkovari.mobile.apps.gtl.engine.MapSearch
 import com.lkovari.mobile.apps.gtl.engine.MapSearchHit
@@ -71,6 +76,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -136,6 +142,7 @@ data class GtlUiState(
     val tuhuRenderOptions: TuhuRenderOptions = TuhuRenderOptions.defaults(),
     val tuhuMapDownloaded: Boolean = false,
     val tuhuHillshadingAvailable: Boolean = false,
+    val osmHillshadingAvailable: Boolean = false,
     val speedUsage: UsageType = UsageType.TWO_WHEELERS,
     val speedLegendVisible: Boolean = false,
     val speedRuns: List<SpeedRun> = emptyList(),
@@ -151,9 +158,6 @@ data class GtlUiState(
 
     val tuhuMapInUse: Boolean
         get() = showingOsmMap && TuhuFeature.isTuhuMap(settings.selectedMapFile)
-
-    val osmHillshadingAvailable: Boolean
-        get() = osmFile != null && OsmHillshading.available(osmFile)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -182,6 +186,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     val mapSearch: StateFlow<MapSearchUi> = mapSearchUi.asStateFlow()
     private var searchJob: Job? = null
     private val themeMinute = MutableStateFlow(0L)
+    private val recordingInterruptedState = MutableStateFlow(false)
+    val recordingInterrupted: StateFlow<Boolean> = recordingInterruptedState.asStateFlow()
 
     private val startupSettings: StateFlow<StartupSettings> = app.preferences.settings
         .map { StartupSettings(settings = it, loaded = true) }
@@ -199,6 +205,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             GtlSettings.placeholder()
         )
 
+    val settingsLoaded: StateFlow<Boolean> = startupSettings
+        .map { it.loaded }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     val live: StateFlow<LiveTrackingState> = app.trackingState.state
 
     val savedElevationId: StateFlow<Long?> = savedElevationSessionId
@@ -209,26 +219,32 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     val sessions: StateFlow<List<TrackSessionEntity>> = app.trackRepository.observeSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val savedTrackCards: StateFlow<Map<Long, SavedTrackCard>> = sessions
-        .flatMapLatest { sessionList ->
-            if (sessionList.isEmpty()) {
-                flowOf(emptyMap())
+    val savedTrackCards: StateFlow<Map<Long, SavedTrackCard>> = combine(
+        sessions,
+        live.map { state -> state.logging to state.sessionId }.distinctUntilChanged()
+    ) { sessionList, recording ->
+        sessionList to recording
+    }.flatMapLatest { (sessionList, recording) ->
+        val (loggingNow, openId) = recording
+        val liveId = if (loggingNow) openId else null
+        val closedCards = sessionList.mapNotNull { session ->
+            if (session.id == liveId) {
+                null
             } else {
-                combine(
-                    sessionList.map { session ->
-                        app.trackRepository.observeEvents(session.id).map { events ->
-                            val card = withContext(Dispatchers.Default) {
-                                SavedTrackCards.from(app.trackRepository.toSamples(events))
-                            }
-                            session.id to card
-                        }
-                    }
-                ) { pairs ->
-                    pairs.associate { it }
+                session.toStoredCard()?.let { card -> session.id to card }
+            }
+        }.toMap()
+        if (liveId == null) {
+            flowOf(closedCards)
+        } else {
+            app.trackRepository.observeEvents(liveId).map { events ->
+                val liveCard = withContext(Dispatchers.Default) {
+                    SavedTrackCards.from(app.trackRepository.toSamples(events))
                 }
+                closedCards + (liveId to liveCard)
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init {
         observeLoggingPreview()
@@ -238,6 +254,16 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         observeActiveMapSearch()
         observeThemeClock()
         observeThemeAnchor()
+        viewModelScope.launch(Dispatchers.IO) {
+            recordingInterruptedState.value = RecordingInterruptNotice.pending(app) != null
+        }
+    }
+
+    fun dismissRecordingInterrupted() {
+        viewModelScope.launch(Dispatchers.IO) {
+            RecordingInterruptNotice.clear(app)
+            recordingInterruptedState.value = false
+        }
     }
 
     fun startPreview() {
@@ -452,11 +478,17 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private val activeEvents = combine(live, selectedSessionId, settings, sessions, mapCleared) { liveState, selected, prefs, sessionList, cleared ->
-        liveState.sessionId
+    private val activeEvents = combine(
+        live.map { it.sessionId }.distinctUntilChanged(),
+        selectedSessionId,
+        settings.map { it.showLastTrackOnMap }.distinctUntilChanged(),
+        sessions,
+        mapCleared
+    ) { liveSessionId, selected, showLastTrack, sessionList, cleared ->
+        liveSessionId
             ?: selected
-            ?: if (!cleared && prefs.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
-    }.flatMapLatest { sessionId ->
+            ?: if (!cleared && showLastTrack) sessionList.firstOrNull()?.id else null
+    }.distinctUntilChanged().flatMapLatest { sessionId ->
         if (sessionId == null) {
             flowOf(emptyList())
         } else {
@@ -464,134 +496,156 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    val uiState: StateFlow<GtlUiState> = combine(
-        combine(startupSettings, themeMinute) { startup, _ -> startup },
-        live,
-        activeEvents,
-        sessions,
-        combine(
-            requestedTab,
-            selectedSessionId,
-            fixCloudView,
-            mainTab,
-            combine(
-                mapCleared,
-                app.osmMapStore.observeHasDownloadedMap(),
-                app.tuhuPreferences.options,
-                app.osmMapStore.downloadedRevision.map {
-                    app.tuhuMapStore.downloadedFile() != null
+    private val liveUi = live.distinctUntilChanged { previous, next ->
+        previous.uiTick() == next.uiTick()
+    }
+
+    private val mapFiles: StateFlow<MapFileSnapshot> = combine(
+        settings.map { it.selectedMapFile }.distinctUntilChanged(),
+        app.osmMapStore.downloadedRevision
+    ) { path, _ -> path }
+        .map { path ->
+            withContext(Dispatchers.IO) {
+                val osm = if (path.isNotBlank()) {
+                    File(path).takeIf { OsmMapFile.isReadable(it) }
+                } else {
+                    null
                 }
-            ) { cleared, hasMap, tuhuOptions, tuhuDownloaded ->
-                OsmTuhuBits(
-                    mapCleared = cleared,
-                    hasDownloadedOsmMap = hasMap,
-                    tuhuRenderOptions = tuhuOptions,
-                    tuhuMapDownloaded = tuhuDownloaded
+                val tuhu = app.tuhuMapStore.downloadedFile()
+                MapFileSnapshot(
+                    osmFile = osm,
+                    osmHillshadingAvailable = osm != null && OsmHillshading.available(osm),
+                    tuhuHillshadingAvailable = tuhu != null && OsmHillshading.available(tuhu),
+                    tuhuMapDownloaded = tuhu != null
                 )
             }
-        ) { tab, selected, cloud, persistedTab, osmTuhu ->
-            MapUiBits(
-                requestedTab = tab,
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            MapFileSnapshot(
+                osmFile = null,
+                osmHillshadingAvailable = false,
+                tuhuHillshadingAvailable = false,
+                tuhuMapDownloaded = false
+            )
+        )
+
+    private val trackPresentation: StateFlow<DrawnTrack> = combine(
+        combine(
+            activeEvents,
+            live.map { it.logging to it.sessionId }.distinctUntilChanged(),
+            selectedSessionId,
+            mapCleared
+        ) { events, liveBits, selected, cleared ->
+            TrackDrawHead(
+                events = events,
+                logging = liveBits.first,
+                liveSessionId = liveBits.second,
                 selectedSessionId = selected,
-                fixCloud = cloud,
-                mainTab = persistedTab,
-                mapCleared = osmTuhu.mapCleared,
-                hasDownloadedOsmMap = osmTuhu.hasDownloadedOsmMap,
-                tuhuRenderOptions = osmTuhu.tuhuRenderOptions,
-                tuhuMapDownloaded = osmTuhu.tuhuMapDownloaded
+                mapCleared = cleared
             )
+        },
+        settings.map { it.toTrackSlice() }.distinctUntilChanged(),
+        sessions
+    ) { head, slice, sessionList ->
+        TrackDrawRequest(
+            events = head.events,
+            logging = head.logging,
+            liveSessionId = head.liveSessionId,
+            selectedSessionId = head.selectedSessionId,
+            mapCleared = head.mapCleared,
+            sessionList = sessionList,
+            slice = slice
+        )
+    }.map { request ->
+        request to request.presentationKey()
+    }.distinctUntilChanged { previous, next ->
+        TrackPresentation.same(previous.second, next.second)
+    }.map { (request, _) ->
+        presentTrack(request)
+    }.flowOn(Dispatchers.Default).stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        DrawnTrack(
+            events = emptyList(),
+            stats = TrackStatsCalculator.compute(emptyList()),
+            displayPoints = emptyList(),
+            mapUsageType = UsageType.TWO_WHEELERS,
+            speedUsage = UsageType.TWO_WHEELERS,
+            speedLegendVisible = false,
+            speedRuns = emptyList(),
+            speedSamples = emptyList()
+        )
+    )
+
+    val uiState: StateFlow<GtlUiState> = combine(
+        combine(startupSettings, themeMinute) { startup, _ -> startup },
+        liveUi,
+        trackPresentation,
+        sessions,
+        combine(
+            combine(
+                requestedTab,
+                selectedSessionId,
+                fixCloudView,
+                mainTab,
+                combine(
+                    mapCleared,
+                    app.osmMapStore.observeHasDownloadedMap(),
+                    app.tuhuPreferences.options
+                ) { cleared, hasMap, tuhuOptions ->
+                    OsmTuhuBits(
+                        mapCleared = cleared,
+                        hasDownloadedOsmMap = hasMap,
+                        tuhuRenderOptions = tuhuOptions,
+                        tuhuMapDownloaded = false
+                    )
+                }
+            ) { tab, selected, cloud, persistedTab, osmTuhu ->
+                MapUiBits(
+                    requestedTab = tab,
+                    selectedSessionId = selected,
+                    fixCloud = cloud,
+                    mainTab = persistedTab,
+                    mapCleared = osmTuhu.mapCleared,
+                    hasDownloadedOsmMap = osmTuhu.hasDownloadedOsmMap,
+                    tuhuRenderOptions = osmTuhu.tuhuRenderOptions,
+                    tuhuMapDownloaded = osmTuhu.tuhuMapDownloaded
+                )
+            },
+            mapFiles
+        ) { bits, files ->
+            bits to files
         }
-    ) { startup, liveState, events, sessionList, mapBits ->
+    ) { startup, liveState, drawn, sessionList, bitsAndFiles ->
         val prefs = startup.settings
-        val tab = mapBits.requestedTab
-        val selected = mapBits.selectedSessionId
-        val cloud = mapBits.fixCloud
-        val persistedTab = mapBits.mainTab
-        val cleared = mapBits.mapCleared
-        val followSettings = MapDisplayUsage.followsSettings(liveState.logging, selected)
-        val samples = app.trackRepository.toSamples(events)
-        val routeStats = TrackStatsCalculator.compute(samples)
-        val viewingId = liveState.sessionId
-            ?: selected
-            ?: if (!cleared && prefs.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
-        val viewed = sessionList.find { it.id == viewingId }
-        val mapUsage = MapDisplayUsage.of(
-            logging = liveState.logging,
-            followSettings = followSettings,
-            settingsUsage = prefs.usageType,
-            sessionUsageName = viewed?.usageType
-        )
-        val simplify = MapDisplayUsage.simplify(
-            usage = mapUsage,
-            logging = liveState.logging,
-            followSettings = followSettings,
-            settingsActive = prefs.optimizationActive,
-            settingsTolerance = prefs.optimizationTolerance
-        )
-        val vertices = events.map { event ->
-            TrackVertex(event.latitude, event.longitude, event.altitude, event.speed)
-        }
-        val simplifyOn = simplify.first && vertices.size > 4
-        val keep = if (simplifyOn) {
-            DouglasPeucker.keepIndices(
-                vertices.map { GeoPoint(it.latitude, it.longitude, it.altitude) },
-                DouglasPeucker.clampTolerance(simplify.second)
-            )
-        } else {
-            BooleanArray(vertices.size) { true }
-        }
-        val display = vertices.mapIndexedNotNull { index, vertex ->
-            if (keep.getOrElse(index) { false }) {
-                GeoPoint(vertex.latitude, vertex.longitude, vertex.altitude)
-            } else {
-                null
-            }
-        }
-        val trackVisible = MapTrackVisibility.visible(
-            liveState.logging,
-            prefs.showLastTrackOnMap,
-            selected,
-            cleared
-        )
-        val mapPoints = if (trackVisible) display else emptyList()
-        val speedUsage = viewed?.usageType
-            ?.let { runCatching { UsageType.valueOf(it) }.getOrNull() }
-            ?: prefs.usageType
-        val speedRuns = if (trackVisible) {
-            SpeedTrack.runs(vertices, keep, speedUsage, prefs.measurementSystem)
-        } else {
-            emptyList()
-        }
-        val speedSamples = SpeedSeries.downsample(SpeedSeries.fromVertices(vertices))
-        val osm = if (prefs.selectedMapFile.isNotBlank()) {
-            File(prefs.selectedMapFile).takeIf { OsmMapFile.isReadable(it) }
-        } else {
-            null
-        }
-        val tuhuFile = app.tuhuMapStore.downloadedFile()
+        val mapBits = bitsAndFiles.first
+        val files = bitsAndFiles.second
         GtlUiState(
             settings = prefs,
             settingsLoaded = startup.loaded,
             live = liveState,
-            events = events,
-            stats = routeStats,
-            displayPoints = mapPoints,
+            events = drawn.events,
+            stats = drawn.stats,
+            displayPoints = drawn.displayPoints,
             sessions = sessionList,
             mapsKeyPresent = com.lkovari.mobile.apps.gtl.BuildConfig.MAPS_API_KEY.isNotBlank(),
-            osmFile = osm,
+            osmFile = files.osmFile,
             hasDownloadedOsmMap = mapBits.hasDownloadedOsmMap,
-            requestedTab = tab,
-            selectedSessionId = selected,
-            fixCloud = cloud,
-            mapUsageType = mapUsage,
-            mainTab = persistedTab,
+            requestedTab = mapBits.requestedTab,
+            selectedSessionId = mapBits.selectedSessionId,
+            fixCloud = mapBits.fixCloud,
+            mapUsageType = drawn.mapUsageType,
+            mainTab = mapBits.mainTab,
             tuhuRenderOptions = mapBits.tuhuRenderOptions,
-            tuhuMapDownloaded = mapBits.tuhuMapDownloaded,
-            tuhuHillshadingAvailable = tuhuFile != null && OsmHillshading.available(tuhuFile),
-            speedUsage = speedUsage,
-            speedLegendVisible = trackVisible,
-            speedRuns = speedRuns,
-            speedSamples = speedSamples,
+            tuhuMapDownloaded = files.tuhuMapDownloaded,
+            tuhuHillshadingAvailable = files.tuhuHillshadingAvailable,
+            osmHillshadingAvailable = files.osmHillshadingAvailable,
+            speedUsage = drawn.speedUsage,
+            speedLegendVisible = drawn.speedLegendVisible,
+            speedRuns = drawn.speedRuns,
+            speedSamples = drawn.speedSamples,
             darkTheme = AppTheme.isDark(
                 prefs.themeMode,
                 liveState.lastLocation?.latitude ?: prefs.themeLatitude,
@@ -624,6 +678,77 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     val locationPermissionAsked: StateFlow<Boolean> = app.preferences.locationPermissionAsked
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private fun presentTrack(request: TrackDrawRequest): DrawnTrack {
+        val events = request.events
+        val slice = request.slice
+        val selected = request.selectedSessionId
+        val cleared = request.mapCleared
+        val followSettings = MapDisplayUsage.followsSettings(request.logging, selected)
+        val samples = app.trackRepository.toSamples(events)
+        val routeStats = TrackStatsCalculator.compute(samples)
+        val viewingId = request.liveSessionId
+            ?: selected
+            ?: if (!cleared && slice.showLastTrackOnMap) request.sessionList.firstOrNull()?.id else null
+        val viewed = request.sessionList.find { it.id == viewingId }
+        val mapUsage = MapDisplayUsage.of(
+            logging = request.logging,
+            followSettings = followSettings,
+            settingsUsage = slice.usageType,
+            sessionUsageName = viewed?.usageType
+        )
+        val simplify = MapDisplayUsage.simplify(
+            usage = mapUsage,
+            logging = request.logging,
+            followSettings = followSettings,
+            settingsActive = slice.optimizationActive,
+            settingsTolerance = slice.optimizationTolerance
+        )
+        val vertices = events.map { event ->
+            TrackVertex(event.latitude, event.longitude, event.altitude, event.speed)
+        }
+        val simplifyOn = simplify.first && vertices.size > 4
+        val keep = if (simplifyOn) {
+            DouglasPeucker.keepIndices(
+                vertices.map { GeoPoint(it.latitude, it.longitude, it.altitude) },
+                DouglasPeucker.clampTolerance(simplify.second)
+            )
+        } else {
+            BooleanArray(vertices.size) { true }
+        }
+        val display = vertices.mapIndexedNotNull { index, vertex ->
+            if (keep.getOrElse(index) { false }) {
+                GeoPoint(vertex.latitude, vertex.longitude, vertex.altitude)
+            } else {
+                null
+            }
+        }
+        val trackVisible = MapTrackVisibility.visible(
+            request.logging,
+            slice.showLastTrackOnMap,
+            selected,
+            cleared
+        )
+        val mapPoints = if (trackVisible) display else emptyList()
+        val speedUsage = viewed?.usageType
+            ?.let { runCatching { UsageType.valueOf(it) }.getOrNull() }
+            ?: slice.usageType
+        val speedRuns = if (trackVisible) {
+            SpeedTrack.runs(vertices, keep, speedUsage, slice.measurementSystem)
+        } else {
+            emptyList()
+        }
+        return DrawnTrack(
+            events = events,
+            stats = routeStats,
+            displayPoints = mapPoints,
+            mapUsageType = mapUsage,
+            speedUsage = speedUsage,
+            speedLegendVisible = trackVisible,
+            speedRuns = speedRuns,
+            speedSamples = SpeedSeries.downsample(SpeedSeries.fromVertices(vertices))
+        )
+    }
 
     fun acceptDisclaimer() {
         viewModelScope.launch { app.preferences.setDisclaimerAccepted(true) }
@@ -1277,4 +1402,129 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             )
         )
     }
+}
+
+private data class TrackSettingsSlice(
+    val usageType: UsageType,
+    val optimizationActive: Boolean,
+    val optimizationTolerance: Double,
+    val showLastTrackOnMap: Boolean,
+    val measurementSystem: MeasurementSystem
+)
+
+private data class TrackDrawHead(
+    val events: List<GpsEventEntity>,
+    val logging: Boolean,
+    val liveSessionId: Long?,
+    val selectedSessionId: Long?,
+    val mapCleared: Boolean
+)
+
+private data class TrackDrawRequest(
+    val events: List<GpsEventEntity>,
+    val logging: Boolean,
+    val liveSessionId: Long?,
+    val selectedSessionId: Long?,
+    val mapCleared: Boolean,
+    val sessionList: List<TrackSessionEntity>,
+    val slice: TrackSettingsSlice
+) {
+    fun presentationKey(): TrackPresentationKey {
+        val last = events.lastOrNull()
+        val viewedId = liveSessionId
+            ?: selectedSessionId
+            ?: if (!mapCleared && slice.showLastTrackOnMap) sessionList.firstOrNull()?.id else null
+        val viewedUsage = sessionList.find { it.id == viewedId }?.usageType
+        return TrackPresentation.key(
+            eventCount = events.size,
+            lastEventMillis = last?.timestamp ?: 0L,
+            lastLatitude = last?.latitude ?: 0.0,
+            lastLongitude = last?.longitude ?: 0.0,
+            usageName = slice.usageType.name,
+            toleranceMeters = slice.optimizationTolerance.toDouble(),
+            optimizationActive = slice.optimizationActive,
+            showLastTrackOnMap = slice.showLastTrackOnMap,
+            selectedSessionId = selectedSessionId,
+            viewingSessionId = viewedId,
+            logging = logging,
+            mapCleared = mapCleared,
+            measurementSystemName = slice.measurementSystem.name,
+            sessionUsageName = viewedUsage
+        )
+    }
+}
+
+private data class DrawnTrack(
+    val events: List<GpsEventEntity>,
+    val stats: TrackStats,
+    val displayPoints: List<GeoPoint>,
+    val mapUsageType: UsageType,
+    val speedUsage: UsageType,
+    val speedLegendVisible: Boolean,
+    val speedRuns: List<SpeedRun>,
+    val speedSamples: List<SpeedSample>
+)
+
+private data class MapFileSnapshot(
+    val osmFile: File?,
+    val osmHillshadingAvailable: Boolean,
+    val tuhuHillshadingAvailable: Boolean,
+    val tuhuMapDownloaded: Boolean
+)
+
+private data class LiveUiTick(
+    val logging: Boolean,
+    val sessionId: Long?,
+    val acceptedFixCount: Int,
+    val rejectedFixCount: Int,
+    val poorGps: Boolean,
+    val loggingError: Boolean,
+    val gpsOff: Boolean,
+    val hasLocation: Boolean,
+    val latitude: Double?,
+    val longitude: Double?,
+    val altitude: Double?,
+    val accuracy: Float?,
+    val bearing: Float?,
+    val time: Long?,
+    val displaySpeedMps: Float?,
+    val provider: String?,
+    val gnss: GnssSnapshot?,
+    val temperatureAvailable: Boolean,
+    val pressureAvailable: Boolean
+)
+
+private fun GtlSettings.toTrackSlice(): TrackSettingsSlice {
+    return TrackSettingsSlice(
+        usageType = usageType,
+        optimizationActive = optimizationActive,
+        optimizationTolerance = optimizationTolerance,
+        showLastTrackOnMap = showLastTrackOnMap,
+        measurementSystem = measurementSystem
+    )
+}
+
+private fun LiveTrackingState.uiTick(): LiveUiTick {
+    val location = lastLocation
+    return LiveUiTick(
+        logging = logging,
+        sessionId = sessionId,
+        acceptedFixCount = acceptedFixCount,
+        rejectedFixCount = rejectedFixCount,
+        poorGps = poorGps,
+        loggingError = loggingError,
+        gpsOff = gpsOff,
+        hasLocation = location != null,
+        latitude = location?.latitude,
+        longitude = location?.longitude,
+        altitude = if (location != null && location.hasAltitude()) location.altitude else null,
+        accuracy = if (location != null && location.hasAccuracy()) location.accuracy else null,
+        bearing = if (location != null && location.hasBearing()) location.bearing else null,
+        time = location?.time,
+        displaySpeedMps = displaySpeedMps,
+        provider = provider,
+        gnss = gnss,
+        temperatureAvailable = temperatureAvailable,
+        pressureAvailable = pressureAvailable
+    )
 }

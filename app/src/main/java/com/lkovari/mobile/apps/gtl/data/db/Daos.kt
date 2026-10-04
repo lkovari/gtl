@@ -23,6 +23,9 @@ interface TrackSessionDao {
     @Query("SELECT * FROM track_sessions WHERE stoppedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
     suspend fun getOpenSession(): TrackSessionEntity?
 
+    @Query("SELECT * FROM track_sessions WHERE stoppedAt IS NOT NULL AND previewPolyline IS NULL")
+    suspend fun sessionsNeedingCard(): List<TrackSessionEntity>
+
     @Query("DELETE FROM track_sessions WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

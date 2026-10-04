@@ -3,6 +3,7 @@ package com.lkovari.mobile.apps.gtl
 import android.app.Application
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.data.db.GtlDatabase
+import com.lkovari.mobile.apps.gtl.data.db.TrackCardBackfillWorker
 import com.lkovari.mobile.apps.gtl.data.db.TrackRepository
 import com.lkovari.mobile.apps.gtl.data.gnss.GnssStatusSource
 import com.lkovari.mobile.apps.gtl.data.maps.OsmMapStore
@@ -63,6 +64,7 @@ class GtlApplication : Application() {
         tuhuPreferences = TuhuPreferences(this)
         tuhuMapStore = TuhuMapStore(this, osmMapStore)
         mapSearch = MapSearchRepository(this)
+        TrackCardBackfillWorker.enqueue(this)
         trackingState.update {
             it.copy(
                 temperatureAvailable = ambientTemperatureSource.isAvailable,

@@ -54,7 +54,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Logging
 
-- **Start / Stop** records a session as a visible foreground service with a notification.
+- **Start / Stop** records a session as a visible foreground service with a notification. Recording continues when the app is in the background and when the screen is locked. If the system cannot restart the service after the process dies, the track closes at the last saved point, and the next launch says so once.
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Run/Hike default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
 - Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, Run/Hike. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Run/Hike and bicycle use a looser accuracy filter and a lower pause threshold.
@@ -68,7 +68,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - Polar **skyplot** under SNR (north-up, used vs in view, L5 ring). See [GNSS Skyplot](#gnss-skyplot). Constellation and band primer: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md) (Hungarian).
 - SNR quality (excellent / good / fair / poor / none).
 - Latitude, longitude, accuracy, provider, altitude, logging status. **Baro** when a pressure sensor exists (Settings QNH; [how Baro is calculated](#barometric-altitude-baro)). Ambient temperature.
-- **Altitude** prefers Mean Sea Level, then GNSS ellipsoid, then fused ellipsoid (`GpsAltitude.pick`). Values outside −430…20000 m (fused junk near −1800 m on some phones) are treated as missing.
+- **Altitude** on a new recording is height above the EGM2008 geoid (MSL). A plausible sea-level sample is kept; an ellipsoid height has the local undulation subtracted. A GNSS height older than two seconds is not copied onto a newer fused fix. Values outside −430…20000 m are treated as missing. An older track keeps the altitude that was stored.
 - When **Show fix cloud** is on: n, RMS, CEP95, median reported accuracy, and a standing / moving / wait caption (same in-memory window as the map dots; CEP95 needs 8 samples).
 
 
@@ -131,7 +131,7 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 ### GPX export
 
 - GPX 1.1 core: one `<trk>` / one `<trkseg>` per session (auto-PAUSE does not split the line). A trailing STOP marker is not an extra `<trkpt>`.
-- Each stored point is a `<trkpt>` with `lat`, `lon`, `<ele>` (GPS altitude), `<time>` (UTC). No speed extension, so OsmAnd, Komoot, Garmin Connect, Relive, and QGIS can import it. Baro is not written to GPX; it stays in SQLite and KMZ. See [Barometric altitude (Baro)](#barometric-altitude-baro).
+- Each stored point is a `<trkpt>` with `lat`, `lon`, `<ele>` (GPS altitude), `<time>` (UTC). `lat` and `lon` use seven decimal places, `<ele>` uses one, always a plain decimal and never scientific notation (including near 0°). The same formatting is used for KML `coordinates` and `gx:coord`. No speed extension, so OsmAnd, Komoot, Garmin Connect, Relive, and QGIS can import it. Baro is not written to GPX; it stays in SQLite and KMZ. See [Barometric altitude (Baro)](#barometric-altitude-baro).
 - START / PAUSE / STOP are `<wpt>` named Start, Pause, Stop. The Stop waypoint uses the last path point (same snap as KMZ).
 - Several selected sessions → one `.gpx` with several `<trk>`. Filename `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
 - Saved tracks → select → GPX or KMZ.
@@ -250,9 +250,11 @@ Stop
 
 **Two location streams.** While the app is open and not logging, `GtlViewModel` also listens about once a second so GPS and Map HUDs update before you tap Start. After Start, the ViewModel stops that preview so the HUD matches the service. `TrackingForegroundService` is the only writer. It requests updates at least every 500 ms (`minTimeMillis`, min distance `0`). Spacing is applied later in `FixAcceptance`, not by Android.
 
-**Source.** **Use GNSS only** on → Android `GPS_PROVIDER` (the satellite chip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — the provider name is historical). Off → Play Services fused `PRIORITY_HIGH_ACCURACY` (satellites mixed with Wi-Fi, cell, and IMU). If Use GNSS only is on and GPS is off, there is no fused fallback; the HUD asks you to turn GPS on. Run/Hike default is GNSS only so a 5–10 m on-road loop is not flattened by the phone’s “where is the user?” filter before GTL ever sees it.
+**Source.** **Use GNSS only** on → Android `GPS_PROVIDER` (the satellite chip: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC — the provider name is historical). Off → Play Services fused `PRIORITY_HIGH_ACCURACY` (satellites mixed with Wi-Fi, cell, and IMU). If Use GNSS only is on and GPS is off, there is no fused fallback; the HUD asks you to turn GPS on. The session stays open: after GPS is turned on, points are written into the same recording. Run/Hike default is GNSS only so a 5–10 m on-road loop is not flattened by the phone’s “where is the user?” filter before GTL ever sees it.
 
-**HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The pale purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. **Altitude** on that object is already `GpsAltitude.pick` (GNSS MSL, fused MSL, GNSS ellipsoid, fused ellipsoid; drop outside −430…20000 m). **Show fix cloud** samples the same `lastLocation` into an in-memory window (centroid RMS / CEP95) and does not write SQLite. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
+**HUD vs stored track.** Every update copies the **raw** `Location` to `lastLocation`. The pale purple accuracy circle, live lat/lon, provider, and accuracy are that raw fix. **Altitude** on that object is already geoid height, MSL (`GpsAltitude.toMsl`; drop outside −430…20000 m). Older rows keep the stored value. **Show fix cloud** samples the same `lastLocation` into an in-memory window (centroid RMS / CEP95) and does not write SQLite. Turning the switch on also turns on Show accuracy marker; turning it off only hides the cloud. The red polyline is whatever was **accepted into Room** (Kalman-smoothed when that switch is on). They can sit a few metres apart on purpose.
+
+**Filter at Start.** Accuracy, Use GNSS only, Kalman, hold-still, density, and the usage preset are captured when you tap Start. Changes during a recording apply from the next Start. QNH and the baro offset stay live.
 
 **Gate 1 — accuracy and satellites.** A fix worse than the usage accuracy (30 m, Run/Hike and bicycle 45 m) or with fewer than 4 satellites in the fix is discarded. It never enters Kalman and never becomes a row. The HUD still updates.
 
@@ -544,7 +546,7 @@ Engine entry points worth reading:
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
 - `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR / satellite list
 - `engine/.../Skyplot.kt` — polar projection / dual-frequency merge
-- `engine/.../GpsAltitude.kt` — MSL then GNSS then fused; drop outside −430…20000 m
+- `engine/.../GpsAltitude.kt` — new points stored as EGM2008 MSL; drop outside −430…20000 m
 - `engine/.../BaroAltitude.kt` — ISA / QNH metres from `pressureHpa`; `displayedMeters` / `pickDisplayed` (1500 m vs GPS)
 - `engine/.../OsmMapFile.kt` — Mapsforge magic + header file size
 - `engine/.../OsmMapCamera.kt` — OSM centre/zoom inside the `.map` bounds; locate target

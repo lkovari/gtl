@@ -11,7 +11,12 @@ data class TrackSessionEntity(
     val startedAt: Long,
     val stoppedAt: Long?,
     val usageType: String,
-    val measurementSystem: String
+    val measurementSystem: String,
+    val distanceMeters: Double? = null,
+    val durationMs: Long? = null,
+    val avgSpeedMps: Float? = null,
+    val maxSpeedMps: Float? = null,
+    val previewPolyline: String? = null
 )
 
 @Entity(
@@ -24,7 +29,7 @@ data class TrackSessionEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("sessionId")]
+    indices = [Index(value = ["sessionId", "timestamp"])]
 )
 data class GpsEventEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

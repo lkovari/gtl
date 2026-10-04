@@ -9,8 +9,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [TrackSessionEntity::class, GpsEventEntity::class],
-    version = 6,
-    exportSchema = false
+    version = 7,
+    exportSchema = true
 )
 abstract class GtlDatabase : RoomDatabase() {
     abstract fun trackSessionDao(): TrackSessionDao
@@ -130,12 +130,34 @@ abstract class GtlDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE track_sessions ADD COLUMN distanceMeters REAL")
+                db.execSQL("ALTER TABLE track_sessions ADD COLUMN durationMs INTEGER")
+                db.execSQL("ALTER TABLE track_sessions ADD COLUMN avgSpeedMps REAL")
+                db.execSQL("ALTER TABLE track_sessions ADD COLUMN maxSpeedMps REAL")
+                db.execSQL("ALTER TABLE track_sessions ADD COLUMN previewPolyline TEXT")
+                db.execSQL("DROP INDEX IF EXISTS index_gps_events_sessionId")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_gps_events_sessionId_timestamp` " +
+                        "ON `gps_events` (`sessionId`, `timestamp`)"
+                )
+            }
+        }
+
         fun create(context: Context): GtlDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 GtlDatabase::class.java,
                 "gtl.db"
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7
+            ).build()
         }
     }
 }

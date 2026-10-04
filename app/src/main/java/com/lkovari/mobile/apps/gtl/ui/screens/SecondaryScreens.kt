@@ -622,13 +622,19 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                         labelStyle = chipStyle
                                     )
                                 }
+                                Text(
+                                    text = stringResource(R.string.settings_recording_next_start),
+                                    style = chipStyle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
                     if (state.live.pressureAvailable) {
                         item {
-                            val gpsFix = state.live.lastLocation
-                            val canCalibrate = state.live.pressureHpa != null &&
+                            val sensors by viewModel.live.collectAsStateWithLifecycle()
+                            val gpsFix = sensors.lastLocation
+                            val canCalibrate = sensors.pressureHpa != null &&
                                 gpsFix != null &&
                                 gpsFix.hasAltitude() &&
                                 GpsAltitude.isPlausible(gpsFix.altitude)

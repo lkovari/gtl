@@ -73,7 +73,9 @@ object KmlExporter {
                 }
                 track.points.forEach { vertex ->
                     val p = vertex.point
-                    builder.appendLine("<gx:coord>${p.longitude} ${p.latitude} 0</gx:coord>")
+                    builder.appendLine(
+                        "<gx:coord>${CoordinateFormat.coordinate(p.longitude)} ${CoordinateFormat.coordinate(p.latitude)} ${CoordinateFormat.altitude(0.0)}</gx:coord>"
+                    )
                 }
                 builder.appendLine("<ExtendedData>")
                 builder.appendLine("<SchemaData schemaUrl=\"#trackPoint\">")
@@ -98,7 +100,7 @@ object KmlExporter {
                     if (alt == null) {
                         builder.appendLine("<gx:value>-</gx:value>")
                     } else {
-                        builder.appendLine("<gx:value>$alt</gx:value>")
+                        builder.appendLine("<gx:value>${CoordinateFormat.altitude(alt)}</gx:value>")
                     }
                 }
                 builder.appendLine("</gx:SimpleArrayData>")
@@ -108,7 +110,7 @@ object KmlExporter {
                     if (baro == null) {
                         builder.appendLine("<gx:value>-</gx:value>")
                     } else {
-                        builder.appendLine("<gx:value>$baro</gx:value>")
+                        builder.appendLine("<gx:value>${CoordinateFormat.altitude(baro)}</gx:value>")
                     }
                 }
                 builder.appendLine("</gx:SimpleArrayData>")
@@ -172,8 +174,8 @@ object KmlExporter {
     }
 
     private fun lonLatAlt(longitude: Double, latitude: Double, altitude: Double?): String {
-        val height = if (altitude == null) "0" else altitude.toString()
-        return "$longitude,$latitude,$height"
+        val height = CoordinateFormat.altitude(altitude ?: 0.0)
+        return "${CoordinateFormat.coordinate(longitude)},${CoordinateFormat.coordinate(latitude)},$height"
     }
 
     private fun appendStyles(builder: StringBuilder, color: String, width: Int) {

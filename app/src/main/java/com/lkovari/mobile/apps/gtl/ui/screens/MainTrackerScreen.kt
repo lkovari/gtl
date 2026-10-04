@@ -369,12 +369,13 @@ fun MainTrackerScreen(
                         onTuhuLayers = tuhuLayerActions(viewModel),
                         onSearchQuery = { viewModel.searchPlaces(it) },
                         onClearSearch = { viewModel.clearPlaceSearch() },
-                        mapSearch = viewModel.mapSearch
+                        mapSearch = viewModel.mapSearch,
+                        viewModel = viewModel
                     )
                 }
                 when (tab) {
-                    0 -> GpsPane(state)
-                    1 -> RoutePane(state)
+                    0 -> GpsPane(state, viewModel)
+                    1 -> RoutePane(state, viewModel)
                     2 -> if (!keepOsmMap) {
                         MapPane(
                             state,
@@ -385,16 +386,31 @@ fun MainTrackerScreen(
                             onTuhuLayers = tuhuLayerActions(viewModel),
                             onSearchQuery = { viewModel.searchPlaces(it) },
                             onClearSearch = { viewModel.clearPlaceSearch() },
-                            mapSearch = viewModel.mapSearch
+                            mapSearch = viewModel.mapSearch,
+                            viewModel = viewModel
                         )
                     }
                     else -> CompassPane(
                         state = state,
+                        viewModel = viewModel,
                         onTrueNorth = { viewModel.setCompassTrueNorth(it) }
                     )
                 }
             }
         }
+    }
+    val recordingInterrupted by viewModel.recordingInterrupted.collectAsStateWithLifecycle()
+    if (recordingInterrupted) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissRecordingInterrupted() },
+            title = { Text(stringResource(R.string.recording_interrupted_title)) },
+            text = { Text(stringResource(R.string.recording_interrupted_body)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissRecordingInterrupted() }) {
+                    Text(stringResource(R.string.action_accept))
+                }
+            }
+        )
     }
     if (showPermissionSettings) {
         AlertDialog(
@@ -440,7 +456,8 @@ private fun Context.openAppPermissionSettings() {
 }
 
 @Composable
-private fun GpsPane(state: GtlUiState) {
+private fun GpsPane(state: GtlUiState, viewModel: GtlViewModel) {
+    val sensors by viewModel.live.collectAsStateWithLifecycle()
     val location = state.live.lastLocation
     Column(
         modifier = Modifier
@@ -487,7 +504,7 @@ private fun GpsPane(state: GtlUiState) {
                         "—"
                     }
                 } ?: "—"
-                val baroAltitude = state.live.baroAltitude?.let {
+                val baroAltitude = sensors.baroAltitude?.let {
                     Units.formatAltitude(it, state.settings.measurementSystem)
                 } ?: "—"
                 HudMetric(
@@ -556,7 +573,8 @@ private fun CompactMetric(label: String, value: String, modifier: Modifier = Mod
 }
 
 @Composable
-private fun RoutePane(state: GtlUiState) {
+private fun RoutePane(state: GtlUiState, viewModel: GtlViewModel) {
+    val sensors by viewModel.live.collectAsStateWithLifecycle()
     val stats = state.stats
     val units = state.settings.measurementSystem
     val location = state.live.lastLocation
@@ -695,8 +713,8 @@ private fun RoutePane(state: GtlUiState) {
             HudMetric(
                 stringResource(R.string.gps_temperature),
                 run {
-                    val temp = state.live.temperatureCelsius
-                    if (state.live.temperatureAvailable && temp != null) {
+                    val temp = sensors.temperatureCelsius
+                    if (sensors.temperatureAvailable && temp != null) {
                         Units.formatTemperature(temp, units)
                     } else {
                         "—"
@@ -707,7 +725,7 @@ private fun RoutePane(state: GtlUiState) {
             )
             HudMetric(
                 stringResource(R.string.route_lean),
-                state.live.leanAngle?.let { String.format(Locale.US, "%.0f°", it) } ?: "—",
+                sensors.leanAngle?.let { String.format(Locale.US, "%.0f°", it) } ?: "—",
                 Modifier.weight(1f),
                 compact = true
             )
@@ -746,7 +764,8 @@ private fun RoutePane(state: GtlUiState) {
 }
 
 @Composable
-private fun CompassPane(state: GtlUiState, onTrueNorth: (Boolean) -> Unit) {
+private fun CompassPane(state: GtlUiState, viewModel: GtlViewModel, onTrueNorth: (Boolean) -> Unit) {
+    val sensors by viewModel.live.collectAsStateWithLifecycle()
     val location = state.live.lastLocation
     val declination = remember(
         location?.latitude,
@@ -757,7 +776,7 @@ private fun CompassPane(state: GtlUiState, onTrueNorth: (Boolean) -> Unit) {
         location?.let { GeomagneticDeclination.degrees(it) }
     }
     val shown = CompassHeading.display(
-        magneticDegrees = state.live.azimuthDegrees ?: 0f,
+        magneticDegrees = sensors.azimuthDegrees ?: 0f,
         wantTrue = state.settings.compassTrueNorth,
         declinationDegrees = declination
     )
@@ -801,7 +820,7 @@ private fun CompassPane(state: GtlUiState, onTrueNorth: (Boolean) -> Unit) {
             referenceLabel = reference,
             modifier = Modifier.padding(top = 12.dp)
         )
-        if (CompassHeading.needsFigureEight(state.live.compassAccuracy)) {
+        if (CompassHeading.needsFigureEight(sensors.compassAccuracy)) {
             Text(
                 text = stringResource(R.string.compass_figure_eight),
                 style = MaterialTheme.typography.bodyLarge,

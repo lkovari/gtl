@@ -81,6 +81,18 @@ android {
         buildConfig = true
     }
 
+    sourceSets.named("debug") {
+        assets.directories.add("schemas")
+    }
+    sourceSets.named("androidTest") {
+        assets.directories.add("schemas")
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -137,6 +149,8 @@ dependencies {
     implementation(libs.mapsforge.map.android)
     implementation(libs.mapsforge.themes)
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

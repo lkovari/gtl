@@ -108,6 +108,7 @@ import com.lkovari.mobile.apps.gtl.engine.TrackEndpoints
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.engine.MapAddressLookup
 import com.lkovari.mobile.apps.gtl.engine.MapHudMode
+import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.MapHudVisibility
 import com.lkovari.mobile.apps.gtl.ui.components.MapHud
 import com.lkovari.mobile.apps.gtl.ui.components.SpeedLegend
@@ -132,6 +133,7 @@ import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerControls
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderOptions
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuRenderTheme
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
+import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import com.lkovari.mobile.apps.gtl.viewmodel.MapSearchUi
 import org.mapsforge.core.graphics.Bitmap as ForgeBitmap
 import org.mapsforge.core.graphics.Canvas
@@ -176,7 +178,8 @@ fun MapPane(
     onTuhuLayers: TuhuLayerActions? = null,
     onSearchQuery: (String) -> Unit = {},
     onClearSearch: () -> Unit = {},
-    mapSearch: StateFlow<MapSearchUi>
+    mapSearch: StateFlow<MapSearchUi>,
+    viewModel: GtlViewModel
 ) {
     Box(modifier = modifier) {
         val points = state.displayPoints
@@ -445,23 +448,6 @@ fun MapPane(
                 distancePrefix
             )
         }
-        val targetPointer = if (target != null && liveFix != null && distanceMeters != null) {
-            TargetPointer.resolve(
-                fromLatitude = liveFix.latitude,
-                fromLongitude = liveFix.longitude,
-                toLatitude = target.latitude,
-                toLongitude = target.longitude,
-                distanceMeters = distanceMeters,
-                accuracyMeters = if (liveFix.hasAccuracy()) liveFix.accuracy else null,
-                courseDegrees = if (liveFix.hasBearing()) liveFix.bearing else null,
-                speedMps = if (liveFix.hasSpeed()) liveFix.speed else null,
-                magneticHeading = state.live.azimuthDegrees,
-                declinationDegrees = declinationDegrees,
-                compassAccuracy = state.live.compassAccuracy
-            )
-        } else {
-            null
-        }
         val hudVisible = hudMode != MapHudMode.Hidden || showCloudPaused || distanceText != null
         if (!hudVisible || state.showingOsmMap) {
             SideEffect { mapLogoPadding = 0.dp }
@@ -491,9 +477,10 @@ fun MapPane(
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
-                MapHud(
+                LiveMapHud(
+                    viewModel = viewModel,
                     mode = hudMode,
-                    speedMps = state.live.displaySpeedMps,
+                    speedMps = if (state.live.logging) state.live.displaySpeedMps else 0f,
                     system = state.settings.measurementSystem,
                     odometerMeters = state.stats.odometerMeters,
                     elapsedMillis = state.stats.elapsedMillis,
@@ -501,7 +488,10 @@ fun MapPane(
                     satellitesInFix = state.live.gnss?.satellitesInFix ?: 0,
                     satellitesInView = state.live.gnss?.satellitesInView ?: 0,
                     distanceText = distanceText,
-                    targetPointer = targetPointer,
+                    liveFix = liveFix,
+                    target = target,
+                    distanceMeters = distanceMeters,
+                    declinationDegrees = declinationDegrees,
                     onClearDistance = { distanceTarget = null }
                 )
             }
@@ -601,6 +591,57 @@ private fun TapMenuHost(
 }
 
 @Composable
+private fun LiveMapHud(
+    viewModel: GtlViewModel,
+    mode: MapHudMode,
+    speedMps: Float?,
+    system: MeasurementSystem,
+    odometerMeters: Double,
+    elapsedMillis: Long,
+    accuracyMeters: Float?,
+    satellitesInFix: Int,
+    satellitesInView: Int,
+    distanceText: String?,
+    liveFix: Location?,
+    target: GeoPoint?,
+    distanceMeters: Double?,
+    declinationDegrees: Float?,
+    onClearDistance: () -> Unit
+) {
+    val sensors by viewModel.live.collectAsStateWithLifecycle()
+    val targetPointer = if (target != null && liveFix != null && distanceMeters != null) {
+        TargetPointer.resolve(
+            fromLatitude = liveFix.latitude,
+            fromLongitude = liveFix.longitude,
+            toLatitude = target.latitude,
+            toLongitude = target.longitude,
+            distanceMeters = distanceMeters,
+            accuracyMeters = if (liveFix.hasAccuracy()) liveFix.accuracy else null,
+            courseDegrees = if (liveFix.hasBearing()) liveFix.bearing else null,
+            speedMps = if (liveFix.hasSpeed()) liveFix.speed else null,
+            magneticHeading = sensors.azimuthDegrees,
+            declinationDegrees = declinationDegrees,
+            compassAccuracy = sensors.compassAccuracy
+        )
+    } else {
+        null
+    }
+    MapHud(
+        mode = mode,
+        speedMps = speedMps,
+        system = system,
+        odometerMeters = odometerMeters,
+        elapsedMillis = elapsedMillis,
+        accuracyMeters = accuracyMeters,
+        satellitesInFix = satellitesInFix,
+        satellitesInView = satellitesInView,
+        distanceText = distanceText,
+        targetPointer = targetPointer,
+        onClearDistance = onClearDistance
+    )
+}
+
+@Composable
 private fun GoogleMapContent(
     state: GtlUiState,
     points: List<GeoPoint>,
@@ -620,7 +661,7 @@ private fun GoogleMapContent(
     val camera = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(start, 16f)
     }
-    val latLngs = points.map { LatLng(it.latitude, it.longitude) }
+    val latLngs = remember(points) { points.map { LatLng(it.latitude, it.longitude) } }
     val accuracy = state.live.lastLocation?.accuracy ?: 0f
     val cloudAlpha = if (state.fixCloud.stats.active) 1f else FixCloudPausedAlpha
     val context = LocalContext.current
@@ -1255,6 +1296,71 @@ private class OsmMapOverlays {
     var mapStartZoom: Int? = null
     var lastLocateRequest: Int = 0
     var lastFocusToken: Int = 0
+    var lastDrawKey: OsmDrawKey? = null
+    var drawnPoints: List<GeoPoint>? = null
+    var drawnRuns: List<SpeedRun>? = null
+}
+
+private class OsmDrawKey(
+    val points: List<GeoPoint>,
+    val runs: List<SpeedRun>,
+    val night: Boolean,
+    val logging: Boolean,
+    val latitude: Double?,
+    val longitude: Double?,
+    val accuracy: Float?,
+    val focusToken: Int?,
+    val locateRequest: Int,
+    val cameraHold: Boolean,
+    val mapActive: Boolean,
+    val showAccuracy: Boolean,
+    val showCloud: Boolean,
+    val usage: UsageType,
+    val keepWholeTrack: Boolean,
+    val viewingSaved: Boolean,
+    val render: OsmRenderOptions,
+    val tuhu: TuhuRenderOptions
+) {
+    fun same(other: OsmDrawKey): Boolean {
+        return points === other.points &&
+            runs === other.runs &&
+            night == other.night &&
+            logging == other.logging &&
+            latitude == other.latitude &&
+            longitude == other.longitude &&
+            accuracy == other.accuracy &&
+            focusToken == other.focusToken &&
+            locateRequest == other.locateRequest &&
+            cameraHold == other.cameraHold &&
+            mapActive == other.mapActive &&
+            showAccuracy == other.showAccuracy &&
+            showCloud == other.showCloud &&
+            usage == other.usage &&
+            keepWholeTrack == other.keepWholeTrack &&
+            viewingSaved == other.viewingSaved &&
+            render == other.render &&
+            tuhu == other.tuhu
+    }
+
+    fun needsTiles(previous: OsmDrawKey?): Boolean {
+        if (previous == null) {
+            return true
+        }
+        val cameraMoved = !cameraHold && (
+            latitude != previous.latitude ||
+                longitude != previous.longitude ||
+                logging != previous.logging ||
+                keepWholeTrack != previous.keepWholeTrack ||
+                viewingSaved != previous.viewingSaved
+            )
+        return night != previous.night ||
+            focusToken != previous.focusToken ||
+            locateRequest != previous.locateRequest ||
+            render != previous.render ||
+            tuhu != previous.tuhu ||
+            mapActive != previous.mapActive ||
+            cameraMoved
+    }
 }
 
 private data class MapSearchFocus(
@@ -1330,6 +1436,31 @@ private fun OsmMapView(
                 if (!overlays.layersReady) {
                     return@AndroidView
                 }
+                val drawKey = OsmDrawKey(
+                    points = points,
+                    runs = speedRuns,
+                    night = night,
+                    logging = logging,
+                    latitude = location?.latitude,
+                    longitude = location?.longitude,
+                    accuracy = location?.accuracy,
+                    focusToken = searchFocus?.token,
+                    locateRequest = locateRequest,
+                    cameraHold = cameraHold,
+                    mapActive = mapActive,
+                    showAccuracy = showAccuracyMarker,
+                    showCloud = showFixCloud,
+                    usage = usageType,
+                    keepWholeTrack = keepWholeTrack,
+                    viewingSaved = viewingSaved,
+                    render = osmRenderOptions,
+                    tuhu = tuhuRenderOptions
+                )
+                val previousKey = overlays.lastDrawKey
+                if (previousKey != null && drawKey.same(previousKey)) {
+                    return@AndroidView
+                }
+                overlays.lastDrawKey = drawKey
                 applyOsmRenderOptions(
                     mapView,
                     overlays,
@@ -1385,7 +1516,11 @@ private fun OsmMapView(
                 updateOsmAccuracy(mapView, overlays, location, showAccuracyMarker, night)
                 updateOsmFixCloud(overlays, showFixCloud, fixCloud, night)
                 updateOsmUsage(mapView, overlays, location, points, usageType, usageBitmap)
-                mapView.requestVisibleTiles()
+                if (drawKey.needsTiles(previousKey)) {
+                    mapView.requestVisibleTiles()
+                } else {
+                    mapView.postInvalidate()
+                }
             },
             onRelease = { view ->
                 overlays.usage?.bitmap?.decrementRefCount()
@@ -1635,6 +1770,9 @@ private fun updateOsmTrack(
     dark: Boolean
 ) {
     val casing = overlays.casing ?: return
+    if (overlays.drawnPoints === points && overlays.drawnRuns === runs && overlays.trackDark == dark) {
+        return
+    }
     if (overlays.trackDark != dark) {
         overlays.casingPaint?.setColor(forgeArgb(SpeedBands.casingArgb(dark)))
         overlays.trackDark = dark
@@ -1649,6 +1787,8 @@ private fun updateOsmTrack(
             line.setPoints(run.points.map { LatLong(it.latitude, it.longitude) })
             line.requestRedraw()
         }
+        overlays.drawnPoints = points
+        overlays.drawnRuns = runs
         return
     }
     val layers = mapView.layerManager.layers
@@ -1671,6 +1811,8 @@ private fun updateOsmTrack(
         line.requestRedraw()
     }
     overlays.speedSignature = signature
+    overlays.drawnPoints = points
+    overlays.drawnRuns = runs
 }
 
 private fun forgeArgb(argb: Int): Int {
