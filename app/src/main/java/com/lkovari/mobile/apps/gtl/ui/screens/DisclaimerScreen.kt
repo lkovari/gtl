@@ -18,14 +18,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lkovari.mobile.apps.gtl.R
+import com.lkovari.mobile.apps.gtl.ui.theme.Cockpit
 import com.lkovari.mobile.apps.gtl.ui.theme.gtlWash
 
 @Composable
 fun DisclaimerScreen(onAccept: () -> Unit, onRefuse: () -> Unit) {
+    val dark = MaterialTheme.colorScheme.background == Cockpit
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(gtlWash(false))
+            .background(gtlWash(dark))
             .padding(20.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)

@@ -9,6 +9,19 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Added
+
+- `tools/capture-white.sh` saves the view tree, gfxinfo, logcat, the app error log, and a screenshot from the connected phone while a broken screen is visible. Output goes to the gitignored `captures/`. See README — Debugging on the phone.
+
+### Fixed
+
+- Lean angle in a turn. The stored value and the Route figure no longer come from gravity, which reads about 0° in a steady coordinated turn. They use `atan(v · ω / g)`: the saved point uses speed and the change in stored bearing, and the live figure uses gyroscope yaw rate when the phone has one. Below 3 m/s, or when bearings are too close or more than 5 s apart, the figure is a dash. The lean ribbon is not drawn. Points already saved keep their old gravity value.
+
+### Magyar
+
+- A `tools/capture-white.sh` hibás képernyő közben elmenti a csatlakoztatott telefonról a View-fát, a gfxinfót, a logcatet, az app hibanaplóját és egy képernyőképet. A kimenet a gitignored `captures/` mappába kerül. Lásd README — Hibakeresés a telefonon.
+- Kanyarban a dőlésszög. A letárolt érték és az Útvonal száma többé nem a gravitációból jön, ami egyenletes, koordinált kanyarban kb. 0°-ot mutat. `atan(v · ω / g)`: a mentett pont a sebességet és a letárolt bearing változását használja, az élő szám a giroszkóp yaw rate-et, ha van. 3 m/s alatt, vagy ha a bearingek túl közel vannak vagy 5 s-nél távolabb, gondolatjel. A dőlésszalag nincs megrajzolva. A már mentett pontok a régi gravitációs értéket őrzik.
+
 ## [2.0.19] — 2026-10-03
 
 Play production track **37 (2.0.19)** (signed AAB). Offline maps up to 4 GiB, location-denial Start, download resume.

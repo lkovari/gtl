@@ -36,7 +36,16 @@ data class OsmRenderOptions(
         const val CAT_HILLSHADING = "hillshading"
 
         fun cyclewaysForUsage(usage: UsageType): Boolean {
-            return usage == UsageType.BICYCLE
+            return when (usage) {
+                UsageType.AIRCRAFT,
+                UsageType.WATERCRAFT,
+                UsageType.FOUR_WHEELERS,
+                UsageType.TWO_WHEELERS,
+                UsageType.BICYCLE,
+                UsageType.WALKING_HIKE,
+                UsageType.PEDESTRIAN,
+                UsageType.RUNNER -> false
+            }
         }
 
         fun defaults(usage: UsageType): OsmRenderOptions {

@@ -2,27 +2,42 @@ package com.lkovari.mobile.apps.gtl.data.maps
 
 import android.content.res.AssetManager
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
+import com.lkovari.mobile.apps.gtl.engine.NightRenderTheme
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderCategories
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderThemePath
 import org.mapsforge.map.android.rendertheme.AssetsRenderTheme
+import org.mapsforge.map.rendertheme.ExternalRenderTheme
 import org.mapsforge.map.rendertheme.XmlRenderTheme
 import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback
 import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
 import org.mapsforge.map.rendertheme.internal.MapsforgeThemes
+import java.io.File
 import java.util.HashSet
 
 object OsmRenderTheme {
-    fun create(assets: AssetManager, options: OsmRenderOptions): XmlRenderTheme {
+    fun create(
+        assets: AssetManager,
+        options: OsmRenderOptions,
+        night: Boolean,
+        cacheDir: File
+    ): XmlRenderTheme {
         return try {
-            val theme = AssetsRenderTheme(
-                assets,
-                OsmRenderThemePath.RelativePathPrefix,
-                OsmRenderThemePath.ThemeFile,
-                MenuCallback(options)
-            )
-            theme.renderThemeAsStream.close()
-            theme
+            if (night) {
+                val raw = assets.open(OsmRenderThemePath.assetOpenPath()).bufferedReader().use { it.readText() }
+                val xml = NightRenderTheme.recolor(raw)
+                val file = NightRenderTheme.writeCache(cacheDir, "gtl-night.xml", xml)
+                ExternalRenderTheme(file, MenuCallback(options))
+            } else {
+                val theme = AssetsRenderTheme(
+                    assets,
+                    OsmRenderThemePath.RelativePathPrefix,
+                    OsmRenderThemePath.ThemeFile,
+                    MenuCallback(options)
+                )
+                theme.renderThemeAsStream.close()
+                theme
+            }
         } catch (error: Throwable) {
             AppErrorLog.record("osm.theme", error)
             MapsforgeThemes.DEFAULT

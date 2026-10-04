@@ -53,7 +53,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +70,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.RoundCap
 import com.google.android.gms.maps.model.StyleSpan
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.CameraPositionState
 import com.lkovari.mobile.apps.gtl.data.maps.OsmRenderTheme
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
@@ -112,14 +115,14 @@ import com.lkovari.mobile.apps.gtl.ui.components.MapSearchOverlay
 import com.lkovari.mobile.apps.gtl.ui.components.MapTapOverlay
 import com.lkovari.mobile.apps.gtl.ui.drawLiveFixReticle
 import com.lkovari.mobile.apps.gtl.ui.rememberUsageMarkerBitmap
-import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerBorder
 import com.lkovari.mobile.apps.gtl.ui.theme.AccuracyMarkerFill
+import com.lkovari.mobile.apps.gtl.ui.theme.accuracyMarkerStroke
 import com.lkovari.mobile.apps.gtl.ui.theme.CarmineTrack
 import com.lkovari.mobile.apps.gtl.ui.theme.GnssLime
 import com.lkovari.mobile.apps.gtl.ui.theme.HudCyan
 import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudCepFill
-import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudCepStroke
+import com.lkovari.mobile.apps.gtl.ui.theme.fixCloudCepStroke
 import com.lkovari.mobile.apps.gtl.ui.theme.FixCloudDot
 import com.lkovari.mobile.apps.gtl.ui.theme.UsageMarkerRed
 import com.lkovari.mobile.apps.gtl.ui.usageIcon
@@ -251,6 +254,7 @@ fun MapPane(
                     usageType = state.mapUsageType,
                     osmRenderOptions = state.settings.osmRenderOptions().forMap(state.osmHillshadingAvailable),
                     tuhuRenderOptions = state.tuhuRenderOptions.forMap(state.tuhuHillshadingAvailable),
+                    night = state.darkTheme,
                     mapActive = mapActive,
                     locateRequest = locateRequest,
                     cameraHold = cameraHold,
@@ -489,7 +493,7 @@ fun MapPane(
                 }
                 MapHud(
                     mode = hudMode,
-                    speedMps = state.live.lastLocation?.takeIf { it.hasSpeed() }?.speed,
+                    speedMps = state.live.displaySpeedMps,
                     system = state.settings.measurementSystem,
                     odometerMeters = state.stats.odometerMeters,
                     elapsedMillis = state.stats.elapsedMillis,
@@ -619,11 +623,19 @@ private fun GoogleMapContent(
     val latLngs = points.map { LatLng(it.latitude, it.longitude) }
     val accuracy = state.live.lastLocation?.accuracy ?: 0f
     val cloudAlpha = if (state.fixCloud.stats.active) 1f else FixCloudPausedAlpha
+    val context = LocalContext.current
+    val nightStyle = remember(context) {
+        MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_night)
+    }
+    val nightTiles = state.darkTheme && state.settings.googleMapLayer.usesNightStyle()
     Box(modifier = Modifier.fillMaxSize()) {
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
         cameraPositionState = camera,
-        properties = MapProperties(mapType = state.settings.googleMapLayer.toComposeType()),
+        properties = MapProperties(
+            mapType = state.settings.googleMapLayer.toComposeType(),
+            mapStyleOptions = if (nightTiles) nightStyle else null
+        ),
         contentPadding = PaddingValues(bottom = logoPadding),
         uiSettings = MapUiSettings(
             zoomControlsEnabled = true,
@@ -639,7 +651,7 @@ private fun GoogleMapContent(
         if (latLngs.size >= 2 && speedSegments == latLngs.size - 1) {
             Polyline(
                 points = latLngs,
-                color = Color(SpeedBands.CasingArgb),
+                color = Color(SpeedBands.casingArgb(state.darkTheme)),
                 width = SpeedBands.CasingWidthPx,
                 zIndex = 0f,
                 clickable = false,
@@ -650,7 +662,7 @@ private fun GoogleMapContent(
             Polyline(
                 points = latLngs,
                 spans = speedRuns.map { run ->
-                    StyleSpan(SpeedBands.argb(run.band), (run.points.size - 1).toDouble())
+                    StyleSpan(SpeedBands.argb(run.band, state.darkTheme), (run.points.size - 1).toDouble())
                 },
                 width = SpeedBands.CoreWidthPx,
                 zIndex = 1f,
@@ -713,7 +725,7 @@ private fun GoogleMapContent(
                 center = live,
                 radius = accuracy.toDouble(),
                 fillColor = AccuracyMarkerFill.copy(alpha = AccuracyFillAlpha / 255f),
-                strokeColor = AccuracyMarkerBorder,
+                strokeColor = accuracyMarkerStroke(state.darkTheme),
                 strokeWidth = 2f
             )
         }
@@ -737,7 +749,7 @@ private fun GoogleMapContent(
                     center = centroid,
                     radius = cep,
                     fillColor = FixCloudCepFill.copy(alpha = (AccuracyFillAlpha / 255f) * cloudAlpha),
-                    strokeColor = FixCloudCepStroke.copy(alpha = cloudAlpha),
+                    strokeColor = fixCloudCepStroke(state.darkTheme).copy(alpha = cloudAlpha),
                     strokeWidth = 2f
                 )
                 Circle(
@@ -1229,6 +1241,10 @@ private class OsmMapOverlays {
     var tileCache: TileCache? = null
     var lastRenderOptions: OsmRenderOptions? = null
     var lastTuhuRenderOptions: TuhuRenderOptions? = null
+    var nightTheme: Boolean? = null
+    var casingPaint: ForgePaint? = null
+    var trackDark: Boolean? = null
+    var accuracyDark: Boolean? = null
     var usageBitmapType: UsageType? = null
     var usageLiveFix: Boolean? = null
     var didInitialCenter = false
@@ -1263,6 +1279,7 @@ private fun OsmMapView(
     usageType: UsageType,
     osmRenderOptions: OsmRenderOptions,
     tuhuRenderOptions: TuhuRenderOptions,
+    night: Boolean,
     mapActive: Boolean,
     locateRequest: Int,
     cameraHold: Boolean,
@@ -1285,7 +1302,14 @@ private fun OsmMapView(
                 mapView.setZoomLevelMin(MapFitZoom.Min.toByte())
                 mapView.setZoomLevelMax(MapFitZoom.Max.toByte())
                 try {
-                    attachOsmLayers(mapView, overlays, filePath, osmRenderOptions, tuhuRenderOptions)
+                    attachOsmLayers(
+                        mapView,
+                        overlays,
+                        filePath,
+                        osmRenderOptions,
+                        tuhuRenderOptions,
+                        night
+                    )
                     applyOsmMapCamera(mapView, overlays, location, points)
                     overlays.didInitialCenter = true
                     mapView.post { mapView.requestVisibleTiles() }
@@ -1306,7 +1330,14 @@ private fun OsmMapView(
                 if (!overlays.layersReady) {
                     return@AndroidView
                 }
-                applyOsmRenderOptions(mapView, overlays, filePath, osmRenderOptions, tuhuRenderOptions)
+                applyOsmRenderOptions(
+                    mapView,
+                    overlays,
+                    filePath,
+                    osmRenderOptions,
+                    tuhuRenderOptions,
+                    night
+                )
                 if (!mapActive) {
                     return@AndroidView
                 }
@@ -1349,10 +1380,10 @@ private fun OsmMapView(
                 } else if (!cameraHold && cameraMode == MapCameraMode.FollowLive) {
                     followOsmLiveCamera(mapView, overlays, location, points, logging)
                 }
-                updateOsmTrack(mapView, overlays, points, speedRuns)
+                updateOsmTrack(mapView, overlays, points, speedRuns, night)
                 updateOsmTrackEnds(overlays, points, logging)
-                updateOsmAccuracy(mapView, overlays, location, showAccuracyMarker)
-                updateOsmFixCloud(overlays, showFixCloud, fixCloud)
+                updateOsmAccuracy(mapView, overlays, location, showAccuracyMarker, night)
+                updateOsmFixCloud(overlays, showFixCloud, fixCloud, night)
                 updateOsmUsage(mapView, overlays, location, points, usageType, usageBitmap)
                 mapView.requestVisibleTiles()
             },
@@ -1372,6 +1403,10 @@ private fun OsmMapView(
                 overlays.tileCache = null
                 overlays.lastRenderOptions = null
                 overlays.lastTuhuRenderOptions = null
+                overlays.nightTheme = null
+                overlays.casingPaint = null
+                overlays.trackDark = null
+                overlays.accuracyDark = null
                 overlays.layersReady = false
                 overlays.lastLocateRequest = 0
                 overlays.lastFocusToken = 0
@@ -1390,7 +1425,8 @@ private fun attachOsmLayers(
     overlays: OsmMapOverlays,
     filePath: String,
     options: OsmRenderOptions,
-    tuhuOptions: TuhuRenderOptions
+    tuhuOptions: TuhuRenderOptions,
+    night: Boolean
 ) {
     val tileCache = AndroidUtil.createTileCache(
         mapView.context,
@@ -1406,20 +1442,22 @@ private fun attachOsmLayers(
         mapView.model.mapViewPosition,
         AndroidGraphicFactory.INSTANCE
     )
-    applyOsmXmlTheme(mapView, renderer, filePath, options, tuhuOptions)
+    applyOsmXmlTheme(mapView, renderer, filePath, options, tuhuOptions, night)
     mapView.layerManager.layers.add(renderer)
     overlays.renderer = renderer
     overlays.tileCache = tileCache
     overlays.lastRenderOptions = options
     overlays.lastTuhuRenderOptions = tuhuOptions
+    overlays.nightTheme = night
     val graphic = AndroidGraphicFactory.INSTANCE
-    val casing = ForgePolyline(
-        trackPaint(SpeedBands.CasingArgb, SpeedBands.CasingWidthPx),
-        graphic
-    )
+    val casingPaint = trackPaint(SpeedBands.casingArgb(night), SpeedBands.CasingWidthPx)
+    overlays.casingPaint = casingPaint
+    overlays.trackDark = night
+    val casing = ForgePolyline(casingPaint, graphic)
     mapView.layerManager.layers.add(casing)
     overlays.casing = casing
     val cloud = FixCloudLayer()
+    cloud.night = night
     mapView.layerManager.layers.add(cloud)
     overlays.cloud = cloud
     val ends = TrackEndsLayer()
@@ -1442,17 +1480,21 @@ private fun applyOsmXmlTheme(
     renderer: TileRendererLayer,
     filePath: String,
     options: OsmRenderOptions,
-    tuhuOptions: TuhuRenderOptions
+    tuhuOptions: TuhuRenderOptions,
+    night: Boolean
 ) {
     try {
+        val cacheDir = mapView.context.cacheDir
         val theme = if (TuhuFeature.isActive(filePath)) {
             TuhuRenderTheme.create(
                 mapView.context.assets,
                 tuhuOptions,
-                File(mapView.context.filesDir, "tuhu/theme.xml")
+                File(mapView.context.filesDir, "tuhu/theme.xml"),
+                night,
+                cacheDir
             )
         } else {
-            OsmRenderTheme.create(mapView.context.assets, options)
+            OsmRenderTheme.create(mapView.context.assets, options, night, cacheDir)
         }
         renderer.setXmlRenderTheme(theme)
     } catch (error: Throwable) {
@@ -1466,22 +1508,24 @@ private fun applyOsmRenderOptions(
     overlays: OsmMapOverlays,
     filePath: String,
     options: OsmRenderOptions,
-    tuhuOptions: TuhuRenderOptions
+    tuhuOptions: TuhuRenderOptions,
+    night: Boolean
 ) {
     val renderer = overlays.renderer ?: return
     val tuhuActive = TuhuFeature.isActive(filePath)
-    val unchanged = if (tuhuActive) {
+    val layersUnchanged = if (tuhuActive) {
         overlays.lastTuhuRenderOptions == tuhuOptions
     } else {
         overlays.lastRenderOptions == options
     }
-    if (unchanged) {
+    if (layersUnchanged && overlays.nightTheme == night) {
         return
     }
-    applyOsmXmlTheme(mapView, renderer, filePath, options, tuhuOptions)
+    applyOsmXmlTheme(mapView, renderer, filePath, options, tuhuOptions, night)
     overlays.tileCache?.purge()
     overlays.lastRenderOptions = options
     overlays.lastTuhuRenderOptions = tuhuOptions
+    overlays.nightTheme = night
     mapView.requestVisibleTiles()
 }
 
@@ -1587,9 +1631,15 @@ private fun updateOsmTrack(
     mapView: GtlOsmMapView,
     overlays: OsmMapOverlays,
     points: List<GeoPoint>,
-    runs: List<SpeedRun>
+    runs: List<SpeedRun>,
+    dark: Boolean
 ) {
     val casing = overlays.casing ?: return
+    if (overlays.trackDark != dark) {
+        overlays.casingPaint?.setColor(forgeArgb(SpeedBands.casingArgb(dark)))
+        overlays.trackDark = dark
+        overlays.speedSignature = emptyList()
+    }
     casing.setPoints(points.map { LatLong(it.latitude, it.longitude) })
     casing.requestRedraw()
     val signature = runs.map { it.band to it.points.size }
@@ -1611,7 +1661,7 @@ private fun updateOsmTrack(
     }
     runs.forEach { run ->
         val line = ForgePolyline(
-            trackPaint(SpeedBands.argb(run.band), SpeedBands.CoreWidthPx),
+            trackPaint(SpeedBands.argb(run.band, dark), SpeedBands.CoreWidthPx),
             graphic
         )
         line.setPoints(run.points.map { LatLong(it.latitude, it.longitude) })
@@ -1623,17 +1673,20 @@ private fun updateOsmTrack(
     overlays.speedSignature = signature
 }
 
+private fun forgeArgb(argb: Int): Int {
+    val graphic = AndroidGraphicFactory.INSTANCE
+    return graphic.createColor(
+        (argb ushr 24) and 0xFF,
+        (argb ushr 16) and 0xFF,
+        (argb ushr 8) and 0xFF,
+        argb and 0xFF
+    )
+}
+
 private fun trackPaint(argb: Int, width: Float): ForgePaint {
     val graphic = AndroidGraphicFactory.INSTANCE
     val paint = graphic.createPaint()
-    paint.setColor(
-        graphic.createColor(
-            (argb ushr 24) and 0xFF,
-            (argb ushr 16) and 0xFF,
-            (argb ushr 8) and 0xFF,
-            argb and 0xFF
-        )
-    )
+    paint.setColor(forgeArgb(argb))
     paint.setStyle(Style.STROKE)
     paint.strokeWidth = width
     paint.setStrokeCap(Cap.ROUND)
@@ -1656,7 +1709,8 @@ private fun updateOsmAccuracy(
     mapView: MapView,
     overlays: OsmMapOverlays,
     location: Location?,
-    showAccuracyMarker: Boolean
+    showAccuracyMarker: Boolean,
+    dark: Boolean
 ) {
     if (location == null || !showAccuracyMarker || location.accuracy <= 0f) {
         overlays.accuracy?.isVisible = false
@@ -1671,17 +1725,26 @@ private fun updateOsmAccuracy(
         fill.setColor(graphic.createColor(AccuracyFillAlpha, 0x66, 0x66, 0xFF))
         fill.setStyle(Style.FILL)
         val stroke = graphic.createPaint()
-        stroke.setColor(graphic.createColor(255, 0x14, 0x14, 0xFC))
+        stroke.setColor(forgeArgb(accuracyMarkerStroke(dark).toArgb()))
         stroke.setStyle(Style.STROKE)
         stroke.strokeWidth = 2f
         val accuracyCircle = ForgeCircle(latLong, location.accuracy, fill, stroke)
         mapView.layerManager.layers.add(accuracyCircle)
         overlays.accuracy = accuracyCircle
+        overlays.accuracyDark = dark
         overlays.usage?.let { usage ->
             mapView.layerManager.layers.remove(usage)
             mapView.layerManager.layers.add(usage)
         }
     } else {
+        if (overlays.accuracyDark != dark) {
+            val stroke = AndroidGraphicFactory.INSTANCE.createPaint()
+            stroke.setColor(forgeArgb(accuracyMarkerStroke(dark).toArgb()))
+            stroke.setStyle(Style.STROKE)
+            stroke.strokeWidth = 2f
+            accuracy.setPaintStroke(stroke)
+            overlays.accuracyDark = dark
+        }
         accuracy.setLatLong(latLong)
         accuracy.setRadius(location.accuracy)
         accuracy.isVisible = true
@@ -1692,10 +1755,12 @@ private fun updateOsmAccuracy(
 private fun updateOsmFixCloud(
     overlays: OsmMapOverlays,
     showFixCloud: Boolean,
-    snapshot: FixCloudSnapshot
+    snapshot: FixCloudSnapshot,
+    night: Boolean
 ) {
     val layer = overlays.cloud ?: return
     layer.enabled = showFixCloud
+    layer.night = night
     layer.samples = snapshot.samples
     layer.stats = snapshot.stats
     layer.requestRedraw()
@@ -1829,6 +1894,7 @@ private class TrackEndsLayer : Layer() {
 
 private class FixCloudLayer : Layer() {
     var enabled: Boolean = false
+    var night: Boolean = false
     var samples: List<FixCloudSample> = emptyList()
     var stats: FixCloudStats = FixCloudStats.Empty
 
@@ -1868,7 +1934,15 @@ private class FixCloudLayer : Layer() {
             cepFill.setColor(graphic.createColor((AccuracyFillAlpha * alpha) / 255, 0xE9, 0x1E, 0x63))
             cepFill.setStyle(Style.FILL)
             val cepStroke = graphic.createPaint()
-            cepStroke.setColor(graphic.createColor(alpha, 0xC2, 0x18, 0x5B))
+            val cepArgb = fixCloudCepStroke(night).toArgb()
+            cepStroke.setColor(
+                graphic.createColor(
+                    alpha,
+                    (cepArgb shr 16) and 0xFF,
+                    (cepArgb shr 8) and 0xFF,
+                    cepArgb and 0xFF
+                )
+            )
             cepStroke.setStyle(Style.STROKE)
             cepStroke.strokeWidth = 2f
             drawMetersCircle(

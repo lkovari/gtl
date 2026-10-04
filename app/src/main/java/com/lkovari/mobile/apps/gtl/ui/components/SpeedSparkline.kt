@@ -3,6 +3,7 @@ package com.lkovari.mobile.apps.gtl.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -13,6 +14,7 @@ import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.SpeedBands
 import com.lkovari.mobile.apps.gtl.engine.SpeedSample
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.ui.theme.Cockpit
 
 @Composable
 fun SpeedSparkline(
@@ -27,6 +29,7 @@ fun SpeedSparkline(
     }
     val maxDistance = samples.last().distanceMeters.coerceAtLeast(1.0)
     val maxSpeed = samples.mapNotNull { it.speedMps }.maxOrNull()?.coerceAtLeast(0.1f) ?: return
+    val dark = MaterialTheme.colorScheme.background == Cockpit
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -42,7 +45,7 @@ fun SpeedSparkline(
             val y0 = size.height - (previousSpeed / maxSpeed) * size.height
             val y1 = size.height - (currentSpeed / maxSpeed) * size.height
             drawLine(
-                color = Color(SpeedBands.argb(SpeedBands.of(currentSpeed, usage, system))),
+                color = Color(SpeedBands.argb(SpeedBands.of(currentSpeed, usage, system), dark)),
                 start = Offset(x0, y0),
                 end = Offset(x1, y1),
                 strokeWidth = 4f,

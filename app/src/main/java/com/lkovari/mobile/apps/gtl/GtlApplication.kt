@@ -13,7 +13,6 @@ import com.lkovari.mobile.apps.gtl.tuhu.TuhuPreferences
 import com.lkovari.mobile.apps.gtl.data.sensor.AccelerometerSource
 import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
-import com.lkovari.mobile.apps.gtl.data.sensor.GravitySource
 import com.lkovari.mobile.apps.gtl.data.sensor.PressureSource
 import com.lkovari.mobile.apps.gtl.data.sync.NoOpRemoteTrackSync
 import com.lkovari.mobile.apps.gtl.service.TrackingStateHolder
@@ -33,8 +32,6 @@ class GtlApplication : Application() {
     lateinit var ambientTemperatureSource: AmbientTemperatureSource
         private set
     lateinit var accelerometerSource: AccelerometerSource
-        private set
-    lateinit var gravitySource: GravitySource
         private set
     lateinit var compassSource: CompassSource
         private set
@@ -60,7 +57,6 @@ class GtlApplication : Application() {
         gnssStatusSource = GnssStatusSource(this)
         ambientTemperatureSource = AmbientTemperatureSource(this)
         accelerometerSource = AccelerometerSource(this)
-        gravitySource = GravitySource(this)
         compassSource = CompassSource(this)
         pressureSource = PressureSource(this)
         osmMapStore = OsmMapStore(this)

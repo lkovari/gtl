@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Status:** Product plan after 2.0.19 (versionCode 37), updated 2026-10-04. The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, OSM file/camera guards, the map line coloured by usage speed bands (with a legend), the large live speed with a sparkline on Route, and saved-track cards.  
+**Status:** Product plan after 2.0.19 (versionCode 37), updated 2026-10-04. The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, OSM file/camera guards, the map line coloured by usage speed bands (with a legend), the large live speed with a sparkline on Route, saved-track cards, the dark map with a position-based theme (1), and standing speed on the HUD (2).  
 **Not a code spec:** this document records *why* the order is this order, and the release waves. Write a short brief / test list for the wave you actually start.  
 **Effort:** calendar days for one developer who already knows this repo (not person-months, not a team week).
 
@@ -12,9 +12,9 @@ Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [DB
 
 ## How to read this
 
-GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.19 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line), **GPS altitude** pick, OSM **file validation**, **speed-coloured** map tracks, and **saved-track cards**.
+GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.19 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line), **GPS altitude** pick, OSM **file validation**, **speed-coloured** map tracks, **saved-track cards**, a **dark map** with a position-based theme, and **standing speed** on the HUD.
 
-The remaining gap is **night use, a live map that turns with the ride, and the motorbike log**: tiles stay daylight, the map always faces north, the lean stored on every point shows as one number, and the notification is static. The Play feature graphic promises a dark cockpit and a glowing track; HUD, skyplot, and speed colour already match, dark tiles do not.
+The remaining gap is **a live map that turns with the ride, a live notification, and the motorbike log**: the map always faces north, the lean stored on every point shows as one number, and the notification is static. The Play feature graphic promises a dark cockpit and a glowing track; HUD, skyplot, speed colour, and dark tiles are in the code, and the listing image is still the old crop.
 
 Items are ordered by **value** (retention × Play conversion × leverage of data you already store), not by easy wins. Effort is secondary; when two items are close in value, the cheaper one moves earlier inside the same wave. The front of the list is what you see **on every recording**; the end is what you look at once after a trip.
 
@@ -57,18 +57,18 @@ Every new feature should strengthen that, or **unlock** it (dark map: you can se
 - Elevation profile (GPS × distance; dashed baro, QNH 900–1100 hPa; 1500 m GPS guard)
 - OSM Mapsforge and Turistautak; `OsmMapFile` checks; Google Maps when `MAPS_API_KEY` is set
 - Green **S** / red **E** on the drawn track; usage silhouette at your position
-- Compose palette: light sage/paper, dark **Cockpit** (`Theme.kt`); dark follows the system theme
+- Compose palette: light sage/paper, dark **Cockpit** (`Theme.kt`); in Automatic, dark follows civil twilight at your position
+- Dark map (1): Settings **Theme** — Automatic / Light / Dark. Google night JSON on normal and terrain; OSM and Turistautak Mapsforge recolour. Dark speed bands, lighter accuracy and CEP strokes. Splash stays black
+- Standing speed (2): `DisplaySpeed` on the map HUD and the Route instant speed. Speed accuracy or displacement, two-sample hysteresis. The stored track is unchanged
+- Lean angle (5): fixed 2026-10-04. A new point and the Route figure are `atan(v · ω / g)`. The band is not built
 
 ### What is weak for listing and for use
 
-- **Map at night:** HUD is there, tiles stay daylight. The speed colour has never been seen on dark tiles; on white, the light bands wash out.
 - **The map does not turn:** the Google silhouette is `rotation = 0f`, and the OSM layers drop the `draw(..., _rotation)` parameter. While riding, a bend runs sideways across the screen, not ahead. Every fix already carries a `bearing`.
-- **Standing speed:** the map HUD rounds the chip’s raw Doppler to a whole km/h. Indoors, with the pin not moving, it still shows ~5 km/h. Speed accuracy is never read.
-- **Lean:** `leanAngle` is stored on every point, and the UI shows one number. Its source is also `TYPE_GRAVITY` (fallback: accelerometer), which in a steady turn measures apparent gravity lying in the bike’s plane, so it reads **close to 0° in a turn**. See 5.
+- **Lean:** the gravity source that lied in a turn is **fixed**. Stored `leanAngle` and the one Route figure are `atan(v · ω / g)`. The ribbon, the max left/right card, and the colouring are not built. See 5.
 - **Saved tracks:** the card exists. An optional file name is still missing; average and max are recomputed from the points on every open.
-- **Theme:** no in-app System / Light / Dark control, and `themes.xml` keeps a light status bar.
-- **Notification:** static title + text + Stop (`TrackingForegroundService.buildNotification`). No live speed / distance.
-- **Play feature graphic** (`docs/play-console/feature-graphic.png`): dark dash, glowing track, skyplot. Dark tiles are still missing.
+- **Notification:** static title + text + Stop (`TrackingForegroundService.buildNotification`). No live speed / distance. The gate from 2 is on the HUD; the notification does not call it yet.
+- **Play feature graphic** (`docs/play-console/feature-graphic.png`): dark dash, glowing track, skyplot. Dark tiles are in the code; the listing image is still the old crop.
 
 ### Intentionally absent (keep it that way)
 
@@ -95,16 +95,17 @@ IMEI, live lat/lng upload, follow-me web, remote unlock, Google Directions, app-
 
 ## Eye-catcher principle
 
-Do not “restyle it as generic Material 3”. Teal, carmine, magenta, and cockpit already distinguish the brand. HUD, skyplot, and the speed-coloured line exist. The problem is a **daylight map at night**, a map that **always faces north** while riding, and stored lean that **does not show**.
+Do not “restyle it as generic Material 3”. Teal, carmine, magenta, and cockpit already distinguish the brand. HUD, skyplot, the speed-coloured line, and dark tiles exist. The problem is a map that **always faces north** while riding, and stored lean that **does not show**.
 
 What makes the feature graphic honest:
 
 1. Live **map HUD** — done
 2. **Skyplot** on the GPS tab — done
 3. **Speed-coloured** line — done
-4. The same on **dark tiles**, with a camera that turns with the ride and a comet tail — the next visual
+4. The same on **dark tiles** — done
+5. A camera that turns with the ride, and a comet tail — the next visual
 
-Recapture a logging HUD Map and replace the feature graphic with a **real UI crop** once dark tiles ship.
+Recapture a logging HUD Map and replace the feature graphic with a **real UI crop**. Dark tiles are in the tree.
 
 Default usage is motorbike: the eye-catcher must work **day and night, in gloves, at a glance** (large digits, few taps, dark map, the road ahead pointing up).
 
@@ -116,36 +117,44 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ### 1. Dark map + in-app theme
 
+**Status:** done (2026-10-04, in the tree)  
 **Value:** high — brand, night riding, listing match; speed colour and the comet tail only shine on dark  
 **Effort:** 2–3 days  
 **Wave:** 1
 
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow.
+
 **Why.** At night the white map glares and the speed colour washes out. Less unique than the other items, still strong in use, and the visuals of 3, 5, and 6 rest on it.
 
-**Today.** `GtlTheme(darkTheme = isSystemInDarkTheme())`. `gtlWash` gradient. `values/themes.xml`: teal status bar, paper nav bar, light. No DataStore theme key. No `MapStyleOptions`.
+**Today.** `ThemeMode` in DataStore (`AUTOMATIC` / `LIGHT` / `DARK`); a missing key is Automatic. Dark is civil twilight at your position (−6°), not the system theme and not a fixed clock. Google `MapStyleOptions` night JSON on normal and terrain. Mapsforge recolored at night (OSM and Turistautak). Splash stays black.
 
-**Build.**
+**Shipped.**
 
-- Setting: **System / Light / Dark** (DataStore)
+- Setting: **Automatic / Light / Dark** (DataStore). Automatic follows civil twilight where you are, not a fixed clock
 - Two styles: Google Maps `MapStyleOptions` night JSON, and a Mapsforge dark render theme (OSM and Turistautak), on the same switch
 - `Theme.Gtl` status/nav bars follow the theme; splash can stay black
 - HUD, polyline, fix-cloud contrast on dark tiles (lighter stroke for the purple circle); a dark variant of the speed bands if the deep-green / black band disappears
 
 **Do not.** A third “high contrast” palette.
 
-**Test.** System / Light / Dark; Google, OSM, and Turistautak; HUD, speed bands, and fix cloud readable on dark tiles.
+**Test.** Automatic / Light / Dark; Google, OSM, and Turistautak; HUD, speed bands, and fix cloud readable on dark tiles.
 
 ---
 
 ### 2. Standing speed on the HUD
 
+**Status:** done (2026-10-04, in the tree)  
 **Value:** high — the instrument shows motion while you are still; the same gate drives the course in 3  
 **Effort:** ~1 day  
 **Wave:** 1
 
-**Why.** Indoors, with the pin not moving, the map HUD reads ~5 km/h (raw Doppler, `Units.hudSpeedNumber`). The Route tab already shows 0 while idle (`RouteTabSpeeds`). A fixed km/h cutoff would hide slow walking and still let a larger indoor spike through.
+**Permission:** none new. `Location.getSpeedAccuracyMetersPerSecond` is on the fix you already get with `ACCESS_FINE_LOCATION`. Do not add `ACTIVITY_RECOGNITION`.
 
-**Build.** One pure engine function; the map HUD, the Route instant speed, and the notification (4) call it.
+**Why.** Indoors, with the pin not moving, the map HUD used to read ~5 km/h (raw Doppler, `Units.hudSpeedNumber`). The Route tab already shows 0 while idle (`RouteTabSpeeds`). A fixed km/h cutoff would hide slow walking and still let a larger indoor spike through.
+
+**Today.** `DisplaySpeed` runs on preview and logging through `acceptFix`. The map HUD (`displaySpeedMps`) and the Route instant speed show it. The notification (4) still posts the static text.
+
+**Shipped.** The map HUD and the Route instant speed call it. The notification (4) does not yet.
 
 - No speed field: “—”.
 - Speed accuracy present (`getSpeedAccuracyMetersPerSecond`; `LocationCompat` on minSdk 24): when speed ≤ its accuracy, the display is **0**.
@@ -164,6 +173,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** high — shows on every recording; the road runs ahead on screen  
 **Effort:** 3–4 days (Google ~0.5 day; OSM is the work)  
 **Wave:** 2
+
+**Permission:** none new. Course comes from the existing GPS fix `bearing`. Android has no compass permission; do not add `BODY_SENSORS`.
 
 **Why.** In live follow the camera turns with the course, so a bend points ahead, not sideways. The bearing is already on the fix; no new data.
 
@@ -190,6 +201,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** 1–2 days  
 **Wave:** 1
 
+**Permission:** none new for a plain updating notification. `POST_NOTIFICATIONS` and `foregroundServiceType="location"` are already in the manifest; Start already requests the runtime grant. The promoted ongoing style (Live Update; the promotion API is 36.1), and only that style, needs a new install-time `uses-permission`: `android.permission.POST_PROMOTED_NOTIFICATIONS`. That needs compileSdk 36.1. It is not dangerous and has no extra system dialog. Play sees it from the manifest. No separate sensitive-permission declaration, and Data safety does not change: the same local speed and distance, with no upload. No new foreground-service type.
+
 **Why.** Riders, runners, and hikers are not staring at the screen. Same numbers as the map HUD, on the lock screen / shade.
 
 **Today.** `NOTIFICATION_ID = 17`, `IMPORTANCE_LOW`, Stop action, static strings.
@@ -202,25 +215,27 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 
 ### 5. Lean band (riding log)
 
+**Status:** the lean angle in a turn is fixed (2026-10-04, in the tree). Stored `leanAngle` and the Route figure are `atan(v · ω / g)`, not gravity. The band, the max left/right card, and the colouring are not built.  
 **Value:** high for the default motorbike usage — a mountain road becomes a riding log  
 **Effort:** 3–4 days  
 **Wave:** 2
 
+**Permission:** none new. Gyroscope, gravity, and the accelerometer are not permission-gated. Do not add `BODY_SENSORS`, `ACTIVITY_RECOGNITION`, or `HIGH_SAMPLING_RATE_SENSORS`. Optional manifest mark if live ω comes from the gyroscope: `uses-feature` `android.hardware.sensor.gyroscope` with `required="false"`. That is hardware, not a Play permission, and the saved band from bearing works without it.
+
 **Why.** Lean is on the phone for every point; the UI shows one number. A left/right lean band along the line, a live lean gauge, max left / max right on the card.
 
-**Risk — the current source lies in a turn.** `BikeLeanAngle.fromGravity` uses the `TYPE_GRAVITY` vector (fallback: accelerometer). In a steady, coordinated turn the apparent gravity (g + centripetal) lies in the bike’s plane, so a tank-mounted phone reads **~0°**. Gyro-fused gravity shows something briefly and pulls back in a longer turn. In a pocket, gravity lies outright.
+**Risk — fixed.** `TYPE_GRAVITY` lean stored about 0° in a turn. A new point’s `leanAngle` and the Route figure are now `atan(v · ω / g)`. The row’s ω is the change in stored bearing over time. Live, ω is the rotation-vector yaw rate when a gyroscope is present, otherwise the bearing. No value below 3 m/s, or when bearings are under 0.2 s or over 5 s apart. Rows already saved keep the old gravity number; the band will compute from bearing, not from that old column.
 
-**Build.**
+**Build.** The kinematic lean is done. What remains is the band, not the number.
 
-- Engine: lean from **kinematics**: `lean ≈ atan(v · ω / g)`, where `v` is speed and `ω` the turn rate. On a saved track `ω` is the change of the stored `bearing` over time, so it works **retroactively on every existing motorbike track** and does not depend on how the phone is mounted. Live, `ω` comes from the gyroscope (rotation vector yaw rate) when present.
-- No band at low speed (e.g. < 3 m/s) or across sparse points (bearing noise dominates).
+- No band at low speed (e.g. < 3 m/s) or across sparse points (bearing noise dominates). The number uses the same gate.
 - Draw on both engines: a band beside the line, or a selectable colouring (speed / lean), separate shades for left and right; legend in degrees.
 - Saved card: max left / max right.
 - **Hidden on Run/Hike**, optional on bicycle.
 
 **Not in v1.** Drawing the `TYPE_GRAVITY` lean as the band. A mount-calibration wizard.
 
-**Test.** Engine: a synthetic arc at a given speed → known lean. Straight: ~0°. Standing: no band. A real mountain-road track: left/right sign correct.
+**Test.** Engine **done**: a synthetic arc at a given speed → known lean. Straight: ~0°. Standing: no value. A synthetic mountain road: left/right sign correct. A real recorded mountain-road track stays with the band.
 
 ---
 
@@ -229,6 +244,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** medium — cheap, adds motion while riding  
 **Effort:** ~1 day  
 **Wave:** 2
+
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow.
 
 **Why.** While logging, the last minute is thicker and full colour, the older line is quieter. It sits on the existing coloured line; no new data.
 
@@ -244,6 +261,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** 1–2 days  
 **Wave:** 3
 
+**Permission:** none new. Sharing goes through the existing `FileProvider`. Do not add a storage permission.
+
 **Why.** The KMZ already hands Earth the line at stored GPS altitude; a `gx:Tour` flies the camera along it in Google Earth. Most of the “local flyover” (12) visual at a fraction of the cost.
 
 **Build.** `KmzExporter`: `gx:Tour` / `gx:Playlist` with `gx:FlyTo` steps on the thinned path (heading from the course, fixed tilt, range by speed), optional in the share menu. Pure engine test on the KML.
@@ -255,6 +274,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** medium — the card exists; the name and speeds stored on the session are missing  
 **Effort:** 1–2 days  
 **Wave:** 3
+
+**Permission:** none new. Room migration; Play Data safety types do not grow.
 
 **Still to build.**
 
@@ -268,6 +289,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** medium — social eye-catcher with no server  
 **Effort:** 3–5 days  
 **Wave:** 3
+
+**Permission:** none new. The PNG goes to cache and the existing `FileProvider` shares it. Do not add `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED`, `READ_EXTERNAL_STORAGE`, or `WRITE_EXTERNAL_STORAGE`: Play’s photo and video policy asks for a separate declaration if you do.
 
 **Why.** A glowing, speed-coloured line on dark, distance, time, an elevation strip, GTL stamp, PNG on the share sheet. No upload. Also a listing source.
 
@@ -283,6 +306,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** 2–3 days  
 **Wave:** 3
 
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow.
+
 **Why.** “Left 38°, 72 km/h”: the strongest bends of a saved track, from the bearing jump and the lean; a tap jumps the map there. Worth it after the band (5), because it uses the same engine computation.
 
 ---
@@ -292,6 +317,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** medium  
 **Effort:** 2–3 days  
 **Wave:** 4
+
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow.
 
 **Why.** `PAUSE` today is a speed threshold. You cannot hold the log at a red light or a fuel stop without Stop (new session).
 
@@ -304,6 +331,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** medium — a strong film, but you watch it once after the trip  
 **Effort:** 5–8 days  
 **Wave:** 4
+
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow.
 
 **Why.** The saved track draws itself, a leaning silhouette rides along it, and the HUD shows that point’s numbers. A good Play video.
 
@@ -319,6 +348,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** 5–8 days  
 **Wave:** 4
 
+**Permission:** none new. If landscape ships, remove `android:screenOrientation="portrait"` from the activity. That is orientation, not a permission, and it does not touch the Play permission form.
+
 **Why.** The app is `portrait`. On a tank mount, huge digits in landscape are readable. The portrait HUD already delivers ~80% of that benefit.
 
 **Watch.** Mapsforge `MapView` + Compose rotation; test together with the course-up camera from 3.
@@ -331,7 +362,9 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Effort:** ~1 day  
 **Wave:** any time
 
-**Why.** Start from the shade wearing gloves. `TileService`, same permissions as the Start button. Not a listing visual.
+**Permission:** no new `uses-permission`, and the Play sensitive-permission form does not grow. On the tile service set `android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"`, `android:exported="true"`, and the `android.service.quicksettings.action.QS_TILE` intent filter. Do not copy that into `uses-permission`: it is a signature permission the app cannot hold, and Play would list it for nothing. Start still uses the existing location permission and the `FOREGROUND_SERVICE_LOCATION` type. No new foreground-service type.
+
+**Why.** Start from the shade wearing gloves. `TileService`. The runtime permission is the same as the Start button. Not a listing visual.
 
 ---
 
@@ -340,6 +373,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** low — pretty on a pass or a flight, flat on a city ride  
 **Effort:** 3–5 days  
 **Wave:** later
+
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow. A later HGT download, if it ever ships, stays under the existing `INTERNET` permission.
 
 **Why so far back.** The KMZ already hands this to Google Earth (`absolute` altitude), and 7 adds a flight on top. An in-app 2.5D drawing only pays off for mountain or aircraft usage.
 
@@ -350,6 +385,8 @@ Effort is one developer-day. “Files” are natural entry points, not an exhaus
 **Value:** low — archive  
 **Effort:** 2–3 days  
 **Wave:** later
+
+**Permission:** none new. The manifest `uses-permission` list and the Play Console permission forms do not grow.
 
 **Why so far back.** Two selected saved tracks on one map in different colours. The eye catches on the difference, but the picture while riding does not change, and it is rarely used.
 
@@ -363,11 +400,12 @@ Version numbers are **suggestions**.
 
 | # | Item | Effort |
 | - | ---- | ------ |
-| 1 | Dark map + System/Light/Dark | 2–3 days |
-| 2 | Standing speed on the HUD | ~1 day |
+| 1 | Dark map + Automatic/Light/Dark — **done** | 2–3 days |
+| 2 | Standing speed on the HUD — **done** | ~1 day |
 | 4 | Notification with live numbers | 1–2 days |
 | — | Play screenshots + feature graphic from the **real** dark HUD map | 0.5 day |
 
+**Today:** 1 and 2 are in the tree. Still open: the live notification and the listing image.  
 **Done when:** dark mode uses dark tiles (Google, OSM, Turistautak); a standing indoor fix shows 0 km/h; the notification shows the same number as the HUD; the new listing shot is the dark HUD Map.
 
 ### Wave 2 — “the map is alive while you ride” (about 7–9 days)
@@ -375,7 +413,7 @@ Version numbers are **suggestions**.
 | # | Item | Effort |
 | - | ---- | ------ |
 | 3 | Gated course-up following + silhouette toward the course | 3–4 days |
-| 5 | Lean band (kinematic lean) | 3–4 days |
+| 5 | Lean band — kinematic lean is **done**, the band is not | 3–4 days |
 | 6 | Comet tail | ~1 day |
 
 **Done when:** at a red light the camera does not spin, in a bend it looks ahead; a saved track faces north; a saved mountain-road track shows left/right lean, old tracks too; while logging the last minute stands out.
@@ -404,15 +442,31 @@ Version numbers are **suggestions**.
 
 ---
 
+## Permissions
+
+Of the 16 items, one new Play-visible permission exists, and it is conditional.
+
+| Item | New `uses-permission` | Play Console | Manifest entry that is not a permission |
+| ---- | --------------------- | ------------ | --------------------------------------- |
+| 1–3, 6–8, 10–12, 15–16 | none | the form does not grow | — |
+| 4 plain `notify()` | none | does not grow | existing `POST_NOTIFICATIONS` and location FGS are enough |
+| 4 promoted Live Update | `POST_PROMOTED_NOTIFICATIONS` (install-time; promotion API 36.1) | visible from the manifest; no sensitive-permission declaration | compileSdk 36.1 |
+| 5 | none | does not grow | optional `uses-feature` gyroscope, `required="false"` |
+| 9 | none; do not add a media permission | photo/video declaration only if you add one anyway | existing `FileProvider` |
+| 13 | none | does not grow | remove `screenOrientation="portrait"` |
+| 14 | none; `BIND_QUICK_SETTINGS_TILE` must not be a `uses-permission` | does not grow | service `android:permission` attribute and the `QS_TILE` filter |
+
+Data safety types do not grow on any item: no new server, no background location (`ACCESS_BACKGROUND_LOCATION`), no SMS, call log, or all-files access. The rejected naive headingUp and the temperature band need no permission either.
+
 ## Summary table
 
 | Rank | Feature | Value | Effort | Wave |
 | ---- | ------- | ----- | ------ | ---- |
-| 1 | Dark map + theme control | high | 2–3 days | 1 |
-| 2 | Standing speed on the HUD | high | ~1 day | 1 |
+| 1 | Dark map + automatic twilight — **done** | high | 2–3 days | 1 |
+| 2 | Standing speed on the HUD — **done** | high | ~1 day | 1 |
 | 3 | Gated course-up following + silhouette toward the course | high | 3–4 days | 2 |
 | 4 | Live notification | medium–high | 1–2 days | 1 |
-| 5 | Lean band (kinematic) | high (motorbike) | 3–4 days | 2 |
+| 5 | Lean band — kinematic lean **done**, band not built | high (motorbike) | 3–4 days | 2 |
 | 6 | Comet tail | medium | ~1 day | 2 |
 | 7 | KMZ `gx:Tour` for Google Earth | medium | 1–2 days | 3 |
 | 8 | Saved-track file name + stored stats | medium | 1–2 days | 3 |
@@ -427,8 +481,8 @@ Version numbers are **suggestions**.
 | — | Naive headingUp | rejected | — | — |
 | — | Temperature band | rejected | — | — |
 
-If you can only ship **two** items: **dark map + gated course-up following**. The first shows at night, the second on every recording.  
-If you target riders: the third is the **lean band**, with kinematic lean.
+Dark map and standing speed are done. If you can only ship **two** of what remains: **gated course-up following + live notification**. The first shows on every recording, the second on a locked screen.  
+If you target riders: the next one is the **lean band**, with kinematic lean.
 
 ---
 
@@ -446,17 +500,19 @@ Not optional wrap-up:
 
 ---
 
-## Open decisions (before implementation, per wave)
+## Decisions
 
-Wave 1:
+### Wave 1 — closed
 
-- Google night JSON: stock style or a custom one around cockpit teal/carmine?
-- Mapsforge dark theme: own XML or a recolour of the built-in one? Does Turistautak need its own?
+- Google night JSON: a custom style, `res/raw/map_style_night.json`, on normal and terrain only. Satellite and hybrid stay photos.
+- Mapsforge: recolour of the existing `gtl.xml` and `tuhu.xml` (`NightRenderTheme`), not a second hand-written theme. Turistautak uses the same function, including an external `theme.xml`.
+
+### Open (before implementation)
 
 Wave 2:
 
 - Course-up default per usage (on for motorbike/car, off for Run/Hike?)
 - Lean: a band beside the line, or a speed / lean colouring switch?
-- Live lean: gyroscope yaw rate, or only the GPS bearing change (lags ~1 fix)?
+- Live lean: **closed** — gyroscope yaw rate when present; otherwise the GPS bearing change. The stored row always uses the bearing.
 
 Lock those in the wave brief; this roadmap deliberately does not freeze pixel layout.

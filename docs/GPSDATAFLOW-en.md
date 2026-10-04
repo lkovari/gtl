@@ -13,7 +13,6 @@ flowchart TD
     FGS --> Gnss["GnssStatusSource"]
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
-    FGS --> Grav["GravitySource"]
     FGS --> Press["PressureSource"]
     FGS --> Comp["CompassSource"]
 
@@ -21,7 +20,8 @@ flowchart TD
     Gnss --> LiveGnss["LiveTrackingState.gnss"]
     Temp --> LiveTemp["temperatureCelsius"]
     Acc --> LiveAcc["accel"]
-    Grav --> LiveLean["leanAngle"]
+    Loc --> LiveLean["leanAngle<br/>gyro yaw if present, else bearing"]
+    Comp --> LiveLean
     Press --> LiveBaro["baroAltitude pressureHpa"]
     Comp --> LiveAz["azimuthDegrees HUD only"]
 
@@ -49,7 +49,7 @@ flowchart TD
     KindMove -->|"below pause speed"| KindPause["PAUSE"]
     KindMove -->|"moving"| KindGo["MOVE"]
 
-    KindStart --> Row["GpsEventEntity<br/>+ live temp, accel, lean, usageType, baro"]
+    KindStart --> Row["GpsEventEntity<br/>+ temp, accel, kinematic lean, usageType, baro"]
     KindPause --> Row
     KindGo --> Row
 
@@ -82,7 +82,7 @@ flowchart TD
 | `GnssStatusSource` | Satellite counts and SNR for the GPS tab; per-satellite azimuth/elevation on `GnssSnapshot.satellites` for the polar skyplot; `satellitesInFix` on each stored row. The constellation mix and skyplot are memory-only. See [Skyplot circles](#skyplot-circles-gps-tab). |
 | `AmbientTemperatureSource` | Optional; copied onto the row if the sensor exists. |
 | `AccelerometerSource` | Optional; last XYZ on the row. |
-| `GravitySource` | Optional; `TYPE_GRAVITY` (else accelerometer) → lean angle on the row and Route HUD. |
+| Lean | `BikeLeanAngle`: `atan(v · ω / g)`. The stored row uses the previous stored bearing over time. The Route HUD uses rotation-vector yaw rate when the gyroscope is present, otherwise the same bearing change. Below 3 m/s, or when the bearing gap is under 0.2 s or over 5 s, the value is empty. Positive degrees are a right turn. |
 | `PressureSource` | Optional; `TYPE_PRESSURE` → raw `pressureHpa` and `baroAltitude` from `SensorManager.getAltitude` (`AndroidBaroAltitude`) using the current Settings QNH minus the DataStore pressure offset (900–1100 hPa QNH, default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25; offset ±10 hPa, default 0). Live HUD, Route/Saved elevation, and KMZ recompute with `displayedMeters`; if that height is more than 1500 m from the point’s GPS altitude, stored insert-time `baroAltitude` is used, or baro is omitted (`pickDisplayed`). Formula: [README-en.md — Barometric altitude (Baro)](../README-en.md#barometric-altitude-baro). |
 | `CompassSource` | Compass tab only; **not** written to SQLite. MAG is the rotation-vector heading. TRUE adds `GeomagneticField.declination` from the last GPS fix. |
 

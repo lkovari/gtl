@@ -1,11 +1,17 @@
 package com.lkovari.mobile.apps.gtl.ui.theme
 
+import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val ColorOutlineLight = Color(0xFFB7C7BE)
 private val ColorOutlineDark = Color(0xFF35505A)
@@ -56,6 +62,19 @@ fun gtlWash(dark: Boolean): Brush {
 
 @Composable
 fun GtlTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
+    val view = LocalView.current
+    val context = LocalContext.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val activity = context as? Activity ?: return@SideEffect
+            val window = activity.window
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = !darkTheme
+            window.statusBarColor = (if (darkTheme) Cockpit else HudTeal).toArgb()
+            window.navigationBarColor = (if (darkTheme) Cockpit else PaperGrid).toArgb()
+        }
+    }
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
         typography = Typography,

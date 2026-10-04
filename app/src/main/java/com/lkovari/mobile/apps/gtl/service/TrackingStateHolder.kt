@@ -1,6 +1,9 @@
 package com.lkovari.mobile.apps.gtl.service
 
 import android.location.Location
+import com.lkovari.mobile.apps.gtl.data.location.toDisplaySpeedFix
+import com.lkovari.mobile.apps.gtl.engine.DisplaySpeed
+import com.lkovari.mobile.apps.gtl.engine.DisplaySpeedState
 import com.lkovari.mobile.apps.gtl.engine.GnssSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,11 +18,14 @@ data class LiveTrackingState(
     val loggingError: Boolean = false,
     val gpsOff: Boolean = false,
     val lastLocation: Location? = null,
+    val displaySpeed: DisplaySpeedState = DisplaySpeedState(),
+    val displaySpeedMps: Float? = null,
     val gnss: GnssSnapshot? = null,
     val temperatureCelsius: Float? = null,
     val temperatureAvailable: Boolean = false,
     val accel: FloatArray? = null,
     val leanAngle: Float? = null,
+    val yawRateRadPerSec: Float? = null,
     val azimuthDegrees: Float? = null,
     val compassAccuracy: Int = 2,
     val provider: String? = null,
@@ -34,5 +40,16 @@ class TrackingStateHolder {
 
     fun update(transform: (LiveTrackingState) -> LiveTrackingState) {
         mutableState.value = transform(mutableState.value)
+    }
+
+    fun acceptFix(location: Location, transform: (LiveTrackingState) -> LiveTrackingState) {
+        update { current ->
+            val decision = DisplaySpeed.apply(current.displaySpeed, location.toDisplaySpeedFix())
+            transform(current).copy(
+                lastLocation = location,
+                displaySpeed = decision.state,
+                displaySpeedMps = decision.metersPerSecond
+            )
+        }
     }
 }

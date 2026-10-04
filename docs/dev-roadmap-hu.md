@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Állapot:** termékterv a 2.0.19 (versionCode 37) után, frissítve 2026-10-04. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás, az OSM fájl/kamera védelem, a usage szerinti sebességsávokkal színezett térképvonal (jelmagyarázattal), az Útvonal nagy élő sebessége sparkline-nal és a mentett-útvonal kártyák.  
+**Állapot:** termékterv a 2.0.19 (versionCode 37) után, frissítve 2026-10-04. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás, az OSM fájl/kamera védelem, a usage szerinti sebességsávokkal színezett térképvonal (jelmagyarázattal), az Útvonal nagy élő sebessége sparkline-nal, a mentett-útvonal kártyák, a sötét térkép helyzet szerinti témával (1.) és az álló sebesség a HUD-on (2.).  
 **Nem kódspec:** ez a sorrend *miértjét* és a hullámokat rögzíti. Implementáció előtt a kiválasztott hullámra külön brief / tesztlista kell.  
 **Effort:** egy, a kódbázist ismerő fejlesztő naptári napja (nem emberhónap, nem naptári hét csapatra).
 
@@ -12,9 +12,9 @@ Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md)
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.19 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás, az OSM **fájlellenőrzés**, a **sebesség szerint színezett** térképvonal és a **mentett-útvonal kártyák** is megvan.
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.19 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás, az OSM **fájlellenőrzés**, a **sebesség szerint színezett** térképvonal, a **mentett-útvonal kártyák**, a **sötét térkép** helyzet szerinti témával és az **álló sebesség** a HUD-on is megvan.
 
-A következő hiány **éjszakai használat, egy élő, menettel forduló térkép és a motornapló**: a csempe nappali marad, a térkép mindig északra néz, a minden ponton tárolt dőlésből a felület egy fokot mutat, az értesítés statikus. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD, a skyplot és a sebesség-szín már egyezik, a sötét csempe még nem.
+A következő hiány **egy élő, menettel forduló térkép, az élő értesítés és a motornapló**: a térkép mindig északra néz, a minden ponton tárolt dőlésből a felület egy fokot mutat, az értesítés statikus. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD, a skyplot, a sebesség-szín és a sötét csempe a kódban megvan, a listing képe még a régi kivágás.
 
 A sorrend **érték szerint** van (megtartás × Play-konverzió × a már tárolt adat kiaknázása), nem könnyű győzelem szerint. Az effort másodlagos, de ahol két tétel közel azonos értékű, az olcsóbb előrébb kerül a hullámban. A lista eleje az, amit **minden felvételen** látsz; a vége az, amit egy túra után egyszer nézel meg.
 
@@ -57,18 +57,18 @@ Minden új feature-nek ezt kell erősítenie, vagy **kibontania** (sötét térk
 - Magasságprofil (GPS × táv; szaggatott baro, QNH 900–1100 hPa; 1500 m GPS-őr)
 - OSM Mapsforge és Turistautak; `OsmMapFile` ellenőrzés; Google Maps, ha van `MAPS_API_KEY`
 - Zöld **S** / piros **E** a kirajzolt tracken; usage-sziluett a helyeden
-- Compose paletta: világos sage/papír, sötét **Cockpit** (`Theme.kt`); a sötét a rendszer témáját követi
+- Compose paletta: világos sage/papír, sötét **Cockpit** (`Theme.kt`); Automatikus módban a sötét a helyzet szerinti polgári szürkületet követi
+- Sötét térkép (1.): Beállítások **Téma** — Automatikus / Világos / Sötét. Google night JSON a normál és terep rétegen; OSM és Turistautak Mapsforge átszínezés. Sötét sebességsáv, világosabb pontossági és CEP vonal. Splash fekete
+- Álló sebesség (2.): `DisplaySpeed` a térkép HUD-on és az Útvonal pillanatnyi sebességén. Sebességpontosság vagy elmozdulás, két mintás hiszterézis. A letárolt track változatlan
+- Dőlésszög (5.): javítva 2026-10-04. Az új pont és az Útvonal száma `atan(v · ω / g)`. A szalag nincs meg
 
 ### Ami gyenge a listinghez és a használathoz
 
-- **Térkép éjjel:** HUD van, a csempe nappali. Sötét csempén a sebességszín még nem látszott; fehéren a világos sávok kiégnek.
 - **A térkép nem fordul:** a Google sziluett `rotation = 0f`, az OSM rétegek a `draw(..., _rotation)` paramétert eldobják. Menet közben a kanyar a képernyőn oldalra fut, nem előre. A fix `bearing`-je minden ponton megvan.
-- **Álló sebesség:** a térkép HUD a chip nyers Dopplerét kerekíti egész km/h-ra. Bent, mozdulatlan pin mellett is kijön ~5 km/h. A sebességpontosság nincs kiolvasva.
-- **Dőlés:** a `leanAngle` minden ponton tárolódik, a felület egy fokot mutat. Ráadásul a forrás `TYPE_GRAVITY` (tartalék: gyorsulásmérő), ami egyenletes kanyarban a motor síkjába eső látszólagos gravitációt méri, ezért **kanyarban ~0°** közelébe húz. Lásd 5.
+- **Dőlés:** a kanyarban hazug gravitációs forrás **javítva**. A letárolt `leanAngle` és az Útvonal egy foka `atan(v · ω / g)`. A szalag, a max bal/jobb kártya és a színezés még nincs. Lásd 5.
 - **Mentett útvonalak:** kártya van. Hátravan az opcionális fájlnév; az átlag és a max minden megnyitáskor a pontokból számol.
-- **Téma:** nincs in-app Rendszer / Világos / Sötét, a `themes.xml` status bar light.
-- **Értesítés:** statikus cím + szöveg + Leállít (`TrackingForegroundService.buildNotification`). Nincs élő sebesség / út.
-- **Play feature graphic** (`docs/play-console/feature-graphic.png`): sötét műszerfal, izzó track, skyplot. A sötét csempe még hiányzik.
+- **Értesítés:** statikus cím + szöveg + Leállít (`TrackingForegroundService.buildNotification`). Nincs élő sebesség / út. A 2. kapuja a HUD-on megvan, az értesítés még nem hívja.
+- **Play feature graphic** (`docs/play-console/feature-graphic.png`): sötét műszerfal, izzó track, skyplot. A sötét csempe a kódban megvan; a listing képe még a régi kivágás.
 
 ### Szándékosan nincs (és maradjon így)
 
@@ -95,16 +95,17 @@ IMEI, élő lat/lng feltöltés, follow-me web, távoli feloldás, Google Direct
 
 ## Eye-catcher elv
 
-Ne „fésüld át Material 3-mal”. A paletta (teal, carmine, magenta, cockpit) már megkülönböztet. A HUD, a skyplot és a sebesség-színezett vonal megvan. A gond a **nappali térkép éjjel**, a **mindig északra néző** térkép menet közben, és hogy a tárolt dőlés **nem látszik**.
+Ne „fésüld át Material 3-mal”. A paletta (teal, carmine, magenta, cockpit) már megkülönböztet. A HUD, a skyplot, a sebesség-színezett vonal és a sötét csempe megvan. A gond a **mindig északra néző** térkép menet közben, és hogy a tárolt dőlés **nem látszik**.
 
 Ami a feature graphicot igazzá teszi:
 
 1. Élő **térkép HUD** — kész
 2. **Skyplot** a GPS fülön — kész
 3. **Sebesség-színezett** vonal — kész
-4. Ugyanez **sötét csempén**, menettel forduló kamerával és üstökösfarokkal — következő látvány
+4. Ugyanez **sötét csempén** — kész
+5. Menettel forduló kamera és üstökösfarok — következő látvány
 
-Vegyél HUD-os Térképet naplózás közben, és cseréld a feature graphicot **valódi UI-kivágásra**, ha a sötét csempe kész.
+Vegyél HUD-os Térképet naplózás közben, és cseréld a feature graphicot **valódi UI-kivágásra**. A sötét csempe a fában megvan.
 
 Motor az alap usage: az eye-catchernek **nappal és éjjel, kesztyűben, villantásra** is működnie kell (nagy szám, kevés koppintás, sötét térkép, előre néző út).
 
@@ -116,36 +117,44 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 
 ### 1. Sötét térkép + in-app téma
 
+**Állapot:** kész (2026-10-04, a fában)  
 **Érték:** magas — brand, éjszakai motor, listing-egyezés, a sebességszín és az üstökösfarok sötéten ad látványt  
 **Effort:** 2–3 nap  
 **Hullám:** 1
 
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül.
+
 **Miért.** Éjjel a fehér térkép vakít, a sebességszín kiég. Kevésbé egyedi, mint a többi tétel, a használatnak mégis erős, és a 3., 5., 6. tétel látványa erre ül.
 
-**Ma.** `GtlTheme(darkTheme = isSystemInDarkTheme())`. `gtlWash` gradient. `values/themes.xml`: teal status bar, paper nav bar, light. Nincs DataStore-kulcs a témára. Nincs `MapStyleOptions`.
+**Ma.** `ThemeMode` a DataStore-ban (`AUTOMATIC` / `LIGHT` / `DARK`), hiányzó kulcs = Automatikus. A sötét a helyzet szerinti polgári szürkület (−6°), nem a rendszer téma és nem egy fix óra. Google `MapStyleOptions` night JSON a normál és terep rétegen. Mapsforge éjjel átszínezve (OSM és Turistautak). Splash fekete.
 
-**Mit építs.**
+**Megvan.**
 
-- Beállítás: **Rendszer / Világos / Sötét** (DataStore)
+- Beállítás: **Automatikus / Világos / Sötét** (DataStore). Az automatikus a helyzet szerinti polgári szürkület, nem egy fix óra
 - Két stílus: Google Maps `MapStyleOptions` night JSON, Mapsforge sötét render theme (OSM és Turistautak), ugyanarra a kapcsolóra
 - `Theme.Gtl` status/nav bar a témához; splash maradhat fekete
 - HUD, polyline, pontfelhő kontrasztja sötét csempén (a lila körhöz világosabb stroke); a sebességsávok sötét változata, ha a mélyzöld / fekete sáv eltűnik
 
 **Ne.** Harmadik „high contrast” paletta.
 
-**Teszt.** Rendszer / Világos / Sötét; Google, OSM és Turistautak; HUD, sebességsáv és pontfelhő olvasható sötét csempén.
+**Teszt.** Automatikus / Világos / Sötét; Google, OSM és Turistautak; HUD, sebességsáv és pontfelhő olvasható sötét csempén.
 
 ---
 
 ### 2. Álló sebesség a HUD-on
 
+**Állapot:** kész (2026-10-04, a fában)  
 **Érték:** magas — a műszer állva is mozogni mutat; ugyanez a kapu kell a 3. irányához  
 **Effort:** ~1 nap  
 **Hullám:** 1
 
-**Miért.** Bent, mozdulatlan pin mellett a térkép HUD ~5 km/h-t ír (nyers Doppler, `Units.hudSpeedNumber`). A Route lap idle-ben már 0 (`RouteTabSpeeds`). Fix km/h-küszöb a lassú gyaloglást vágná, egy nagyobb benti tüskét átengedne.
+**Engedély:** nincs új. A `Location.getSpeedAccuracyMetersPerSecond` a meglévő `ACCESS_FINE_LOCATION` fixjén van. `ACTIVITY_RECOGNITION` ne kerüljön be.
 
-**Mit építs.** Egy tiszta engine-függvény; a térkép HUD, a Route pillanatnyi sebesség és az értesítés (4.) ezt hívja.
+**Miért.** Bent, mozdulatlan pin mellett a térkép HUD ~5 km/h-t írt (nyers Doppler, `Units.hudSpeedNumber`). A Route lap idle-ben már 0 (`RouteTabSpeeds`). Fix km/h-küszöb a lassú gyaloglást vágná, egy nagyobb benti tüskét átengedne.
+
+**Ma.** `DisplaySpeed` az előnézet és a naplózás `acceptFix` útján. A térkép HUD (`displaySpeedMps`) és az Útvonal pillanatnyi sebessége ezt mutatja. Az értesítés (4.) még a statikus szöveget írja.
+
+**Megvan.** A térkép HUD és a Route pillanatnyi sebesség ezt hívja. Az értesítés (4.) még nem.
 
 - Nincs sebességmező: „—”.
 - Van sebességpontosság (`getSpeedAccuracyMetersPerSecond`; minSdk 24-en `LocationCompat`): ha a sebesség ≤ a pontossága, a kijelző **0**.
@@ -164,6 +173,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** magas — minden felvételen látszik, az út előre fut a képernyőn  
 **Effort:** 3–4 nap (Google ~0,5 nap; az OSM a munka)  
 **Hullám:** 2
+
+**Engedély:** nincs új. A pálya a meglévő GPS-fix `bearing`-je. Iránytű-engedély Androidon nincs; `BODY_SENSORS` ne kerüljön be.
 
 **Miért.** Élő követéskor a kamera a pályával fordul, így a kanyar előre néz, nem oldalra. A bearing már a fixen van, új adat nem kell.
 
@@ -190,6 +201,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** 1–2 nap  
 **Hullám:** 1
 
+**Engedély:** a sima frissülő értesítéshez nincs új. `POST_NOTIFICATIONS` és a `foregroundServiceType="location"` már a manifestben van; az Indít a runtime kérést megteszi. Kiemelt, folyamatban lévő stílushoz (Live Update; a promotion API 36.1) és csak ahhoz kell új, install-time `uses-permission`: `android.permission.POST_PROMOTED_NOTIFICATIONS`. Ehhez a compileSdk 36.1. Nem dangerous, nincs külön rendszerdialógus. A Play a manifestből látja. Külön érzékeny-engedély nyilatkozat nem kell, a Data safety nem változik: ugyanaz a helyi sebesség és út, feltöltés nélkül. Új foreground-service típus nem kell.
+
 **Miért.** Motoros, futó, túrázó nem nézi a képernyőt. Ugyanazok a számok, mint a térkép HUD-on, lock screenen / shade-en.
 
 **Ma.** `NOTIFICATION_ID = 17`, `IMPORTANCE_LOW`, Stop action, statikus stringek.
@@ -202,25 +215,27 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 
 ### 5. Dőlésszalag (motornapló)
 
+**Állapot:** a kanyarbeli dőlésszög javítva (2026-10-04, a fában). A letárolt `leanAngle` és az Útvonal száma `atan(v · ω / g)`, nem a gravitáció. A szalag, a max bal/jobb kártya és a színezés nincs meg.  
 **Érték:** magas a motoros alap usage-nek — a szerpentin ettől motornapló  
 **Effort:** 3–4 nap  
 **Hullám:** 2
 
+**Engedély:** nincs új. A giroszkóp, a gravitáció és a gyorsulásmérő nem engedélyköteles. `BODY_SENSORS`, `ACTIVITY_RECOGNITION` és `HIGH_SAMPLING_RATE_SENSORS` ne kerüljön be. Opcionális manifest-jelölés, ha az élő ω giroszkópból jön: `uses-feature` `android.hardware.sensor.gyroscope` `required="false"`. Ez hardver, nem Play-engedély, és a bearingből számolt mentett szalag nélküle is megvan.
+
 **Miért.** A dőlés minden ponton a telefonon van, a felület egy fokot mutat. Bal/jobb dőlés szerinti szalag a vonal mentén, élő dőlésmérő, max bal / max jobb a kártyán.
 
-**Kockázat — a mostani forrás kanyarban hazudik.** A `BikeLeanAngle.fromGravity` a `TYPE_GRAVITY` (tartalék: gyorsulásmérő) vektorából számol. Egyenletes, koordinált kanyarban a látszólagos gravitáció (g + centripetális) a motor síkjába esik, tehát egy tankra szerelt telefon **~0°-ot** lát. A gyro-fúziós gravitáció rövid ideig mutat valamit, hosszabb kanyarban visszahúz. Zsebben a gravitáció végképp hazudik.
+**Kockázat — javítva.** A `TYPE_GRAVITY` dőlés kanyarban ~0°-ot rögzített. Az új pont `leanAngle` értéke és az Útvonal száma most `atan(v · ω / g)`. A sor ω-ja a letárolt bearing változása / idő. Élőben ω a rotation-vector yaw rate, ha van giroszkóp, különben a bearing. 3 m/s alatt, 0,2 s-nél sűrűbb vagy 5 s-nél ritkább bearingnél nincs érték. A már mentett sorok a régi gravitációs számot őrzik; a szalag majd a bearingből számol, nem a régi oszlopból.
 
-**Mit építs.**
+**Mit építs.** A kinematikai dőlés kész. Hátra a szalag, nem a szám.
 
-- Engine: dőlés a **kinematikából**: `lean ≈ atan(v · ω / g)`, ahol `v` a sebesség, `ω` a forduló szögsebessége. Mentett tracken `ω` a letárolt `bearing` változásából / idő, tehát **visszamenőleg minden meglévő motoros trackre** működik, és nem függ a telefon rögzítésétől. Élőben `ω` a giroszkópból (rotation vector yaw rate), ha van.
-- Alacsony sebességen (pl. < 3 m/s) és ritka pontoknál nincs szalag (a bearing-zaj dominál).
+- Alacsony sebességen (pl. < 3 m/s) és ritka pontoknál nincs szalag (a bearing-zaj dominál). A szám ugyanezt a kaput használja.
 - Rajzolás mindkét motoron: szalag a vonal mellett vagy választható színezés (sebesség / dőlés), bal és jobb külön árnyalattal; jelmagyarázat fokban.
 - Mentett kártya: max bal / max jobb.
 - **Fut/túrán rejtve**, kerékpáron opcionális.
 
 **Ne elsőre.** A `TYPE_GRAVITY` dőlés szalagra rajzolása. Kalibrációs varázsló a tartóhoz.
 
-**Teszt.** Engine: szintetikus körív adott sebességgel → ismert dőlés. Egyenes: ~0°. Álló: nincs szalag. Valódi szerpentin track: bal/jobb előjel helyes.
+**Teszt.** Engine **kész**: szintetikus körív adott sebességgel → ismert dőlés. Egyenes: ~0°. Álló: nincs érték. Szintetikus szerpentin: bal/jobb előjel helyes. Valódi szerpentin track a szalaggal együtt marad.
 
 ---
 
@@ -229,6 +244,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** közepes — olcsó, menet közben mozgást ad  
 **Effort:** ~1 nap  
 **Hullám:** 2
+
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül.
 
 **Miért.** Naplózáskor az utolsó perc vastagabb és teljes színű, a régebbi vonal halkabb. A meglévő színezett vonalra ül, új adat nem kell.
 
@@ -244,6 +261,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** 1–2 nap  
 **Hullám:** 3
 
+**Engedély:** nincs új. A megosztás a meglévő `FileProvider`en megy. Tároló-engedély ne kerüljön be.
+
 **Miért.** A KMZ már a letárolt GPS-magasságon adja át a vonalat; egy `gx:Tour` a vonal mentén végigrepíti a kamerát a Google Earth-ben. A „helyi flyover” (12.) látványának nagy része, a költsége töredékéért.
 
 **Mit építs.** `KmzExporter`: `gx:Tour` / `gx:Playlist` `gx:FlyTo` lépésekkel a ritkított pályán (heading a pálya irányából, tilt fix, range a sebességhez), opcionálisan a megosztási menüben. Tiszta engine-teszt a KML-re.
@@ -255,6 +274,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** közepes — a kártya megvan; a név és a sessionben tárolt sebesség hiányzik  
 **Effort:** 1–2 nap  
 **Hullám:** 3
+
+**Engedély:** nincs új. Room-migráció, a Play Data safety típusai nem bővülnek.
 
 **Hátravan.**
 
@@ -268,6 +289,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** közepes — social eye-catcher szerver nélkül  
 **Effort:** 3–5 nap  
 **Hullám:** 3
+
+**Engedély:** nincs új. A PNG a cache-be megy, a meglévő `FileProvider` osztja a share sheeten. `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED`, `READ_EXTERNAL_STORAGE` és `WRITE_EXTERNAL_STORAGE` ne kerüljön be: a Play fotó- és videószabálya ezekre külön nyilatkozatot kér.
 
 **Miért.** Sötét alapon izzó, sebesség-színezett vonal, táv, idő, magasságcsík, GTL pecsét, PNG a share sheetre. Nincs feltöltés. Jó listing-forrás.
 
@@ -283,6 +306,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** 2–3 nap  
 **Hullám:** 3
 
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül.
+
 **Miért.** „Bal 38°, 72 km/h”: a mentett track legerősebb kanyarjai a bearing ugrásából és a dőlésből, koppintásra a térkép oda ugrik. A szalag (5.) után érdemes, mert ugyanazt az engine-számítást használja.
 
 ---
@@ -292,6 +317,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** közepes  
 **Effort:** 2–3 nap  
 **Hullám:** 4
+
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül.
 
 **Miért.** A `PAUSE` ma sebességküszöb. Pirosnál, benzinkútnál nem lehet szüneteltetni Leállítás (új session) nélkül.
 
@@ -304,6 +331,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** közepes — erős film, de a túra után egyszer nézed meg  
 **Effort:** 5–8 nap  
 **Hullám:** 4
+
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül.
 
 **Miért.** A mentett track kirajzolódik, a dőlő sziluett végigmegy rajta, a HUD az adott pont számait mutatja. Jó Play-videó.
 
@@ -319,6 +348,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** 5–8 nap  
 **Hullám:** 4
 
+**Engedély:** nincs új. Ha a fekvő mód éles, az activity `android:screenOrientation="portrait"` jön le a manifestből. Ez orientáció, nem permission, és a Play engedélyűrlapját nem érinti.
+
 **Miért.** Az app `portrait`. Tankra rakva a nagy számjegy fekvőben olvasható. A portrait HUD a haszon ~80%-át adja.
 
 **Figyelem.** Mapsforge `MapView` + Compose rotáció; a 3. menetirányú kamerával együtt tesztelendő.
@@ -331,7 +362,9 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Effort:** ~1 nap  
 **Hullám:** bármikor
 
-**Miért.** Shade-ből indítás kesztyűben. `TileService`, ugyanazok az engedélyek, mint az Indít gomb. Nem listing-téma.
+**Engedély:** nincs új `uses-permission`, és a Play érzékeny-engedély űrlapja nem bővül. A csempe service-én `android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"`, `android:exported="true"`, és az `android.service.quicksettings.action.QS_TILE` intent-filter. Ezt a `uses-permission` listába ne másold: signature engedély, az app nem kapja meg, a Play pedig fölöslegesen kiírná. Az Indít továbbra is a meglévő helyengedélyt és a `FOREGROUND_SERVICE_LOCATION` típust használja. Új foreground-service típus nem kell.
+
+**Miért.** Shade-ből indítás kesztyűben. `TileService`. A runtime engedély ugyanaz, mint az Indít gombon. Nem listing-téma.
 
 ---
 
@@ -340,6 +373,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** alacsony — hágón és repülőúton szép, városi motoron lapos  
 **Effort:** 3–5 nap  
 **Hullám:** később
+
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül. A domborzat-HGT, ha később mégis letöltés, a meglévő `INTERNET` alá esik.
 
 **Miért ilyen hátul.** A KMZ ezt a Google Earthnek már átadja (`absolute` magasság), a 7. pedig repülést is ad hozzá. Appon belüli 2,5D rajz csak hegyi / repülős usage-nél ér valamit.
 
@@ -350,6 +385,8 @@ Az effort egy fejlesztő napja. A „fájlok” a természetes belépők, nem ki
 **Érték:** alacsony — archívum  
 **Effort:** 2–3 nap  
 **Hullám:** később
+
+**Engedély:** nincs új. Sem a manifest `uses-permission` listája, sem a Play Console engedélyűrlapja nem bővül.
 
 **Miért ilyen hátul.** Két kijelölt mentett track egy térképen, eltérő színnel. A szem a különbségen akad meg, de a menet közbeni kép nem változik, és ritkán használt.
 
@@ -363,11 +400,12 @@ A verziószámok **javaslatok**.
 
 | # | Tétel | Effort |
 | - | ----- | ------ |
-| 1 | Sötét térkép + Rendszer/Világos/Sötét | 2–3 nap |
-| 2 | Álló sebesség a HUD-on | ~1 nap |
+| 1 | Sötét térkép + Automatikus/Világos/Sötét — **kész** | 2–3 nap |
+| 2 | Álló sebesség a HUD-on — **kész** | ~1 nap |
 | 4 | Értesítés élő számokkal | 1–2 nap |
 | — | Play screenshot + feature graphic a **valódi** HUD-os, sötét térképről | 0,5 nap |
 
+**Ma:** az 1. és a 2. a fában megvan. Hátra az élő értesítés és a listing kép.  
 **Kész, ha:** sötét módban a csempe sötét (Google, OSM, Turistautak); álló benti fixen a HUD 0 km/h; az értesítésben ugyanaz a szám, mint a HUD-on; a listing új képe a sötét HUD-os Térkép.
 
 ### Hullám 2 — „menet közben él a térkép” (kb. 7–9 nap)
@@ -375,7 +413,7 @@ A verziószámok **javaslatok**.
 | # | Tétel | Effort |
 | - | ----- | ------ |
 | 3 | Kapuzott menetirányú követés + sziluett a pálya felé | 3–4 nap |
-| 5 | Dőlésszalag (kinematikai dőlés) | 3–4 nap |
+| 5 | Dőlésszalag — a kinematikai dőlés **kész**, a szalag nincs | 3–4 nap |
 | 6 | Üstökösfarok | ~1 nap |
 
 **Kész, ha:** pirosnál a kamera nem pörög, kanyarban előre néz; mentett track északra áll; egy szerpentin mentett tracken bal/jobb dőlés látszik, régi trackeken is; naplózáskor az utolsó perc kiemelt.
@@ -404,15 +442,31 @@ A 12. és 13. a drágák: csak akkor, ha a hullám 1–3 után még ez a panasz.
 
 ---
 
+## Engedélyek
+
+A 16 pont közül egyetlen új Play-látható engedély van, és az is feltételes.
+
+| Pont | Új `uses-permission` | Play Console | Manifest, ami nem engedély |
+| ---- | -------------------- | ------------ | -------------------------- |
+| 1–3, 6–8, 10–12, 15–16 | nincs | az űrlap nem bővül | — |
+| 4 sima `notify()` | nincs | nem bővül | a meglévő `POST_NOTIFICATIONS` és `location` FGS elég |
+| 4 kiemelt Live Update | `POST_PROMOTED_NOTIFICATIONS` (install-time; promotion API 36.1) | a manifestből látszik; érzékeny-engedély nyilatkozat nincs | compileSdk 36.1 |
+| 5 | nincs | nem bővül | opcionális `uses-feature` giroszkóp, `required="false"` |
+| 9 | nincs; média-engedélyt ne adj hozzá | fotó/videó nyilatkozat csak akkor, ha mégis hozzáadod | meglévő `FileProvider` |
+| 13 | nincs | nem bővül | `screenOrientation="portrait"` levétele |
+| 14 | nincs; `BIND_QUICK_SETTINGS_TILE` ne legyen `uses-permission` | nem bővül | a service `android:permission` attribútuma és a `QS_TILE` filter |
+
+A Data safety típusai egyik pontnál sem bővülnek: nincs új szerver, nincs háttérhely (`ACCESS_BACKGROUND_LOCATION`), nincs SMS, hívásnapló vagy összes-fájl hozzáférés. Az elvetett naiv headingUp és a hőszalag sem kér engedélyt.
+
 ## Összesítő tábla
 
 | Rang | Feature | Érték | Effort | Hullám |
 | ---- | ------- | ----- | ------ | ------ |
-| 1 | Sötét térkép + téma-választó | magas | 2–3 nap | 1 |
-| 2 | Álló sebesség a HUD-on | magas | ~1 nap | 1 |
+| 1 | Sötét térkép + automatikus szürkület — **kész** | magas | 2–3 nap | 1 |
+| 2 | Álló sebesség a HUD-on — **kész** | magas | ~1 nap | 1 |
 | 3 | Kapuzott menetirányú követés + sziluett a pálya felé | magas | 3–4 nap | 2 |
 | 4 | Élő értesítés | közepes–magas | 1–2 nap | 1 |
-| 5 | Dőlésszalag (kinematikai) | magas (motor) | 3–4 nap | 2 |
+| 5 | Dőlésszalag — kinematikai dőlés **kész**, szalag nincs | magas (motor) | 3–4 nap | 2 |
 | 6 | Üstökösfarok | közepes | ~1 nap | 2 |
 | 7 | KMZ `gx:Tour` Google Earth-höz | közepes | 1–2 nap | 3 |
 | 8 | Mentett track fájlnév + tárolt statok | közepes | 1–2 nap | 3 |
@@ -427,8 +481,8 @@ A 12. és 13. a drágák: csak akkor, ha a hullám 1–3 után még ez a panasz.
 | — | Naiv headingUp | elvetve | — | — |
 | — | Hőszalag | elvetve | — | — |
 
-Ha csak **kettőt** lehet: **sötét térkép + kapuzott menetirányú követés**. Az első éjjel, a második minden felvételen látszik.  
-Ha a motoros közönségre lősz: a harmadik a **dőlésszalag**, kinematikai dőléssel.
+A sötét térkép és az álló sebesség kész. Ha a hátralévőből csak **kettőt** lehet: **kapuzott menetirányú követés + élő értesítés**. Az első minden felvételen látszik, a második zárolt képernyőn.  
+Ha a motoros közönségre lősz: a következő a **dőlésszalag**, kinematikai dőléssel.
 
 ---
 
@@ -446,17 +500,19 @@ A [GPSDATAFLOW](GPSDATAFLOW-hu.md) csak akkor változik, ha a lánc írása vál
 
 ---
 
-## Nyitott döntések (implementáció előtt, hullámonként)
+## Döntések
 
-Hullám 1:
+### Hullám 1 — lezárva
 
-- Google night JSON: beépített stílus vagy saját, a cockpit teal/carmine köré?
-- Mapsforge sötét téma: saját XML vagy a beépített téma átszínezése? A Turistautak témához külön kell?
+- Google night JSON: saját stílus, `res/raw/map_style_night.json`, csak a normál és a terep rétegen. Műhold és hibrid fotó marad.
+- Mapsforge: a meglévő `gtl.xml` és `tuhu.xml` átszínezése (`NightRenderTheme`), nem második kézi téma. A Turistautak ugyanezt kapja, a külső `theme.xml` is.
+
+### Nyitott (implementáció előtt)
 
 Hullám 2:
 
 - Menetirányú kamera alapértéke usage-enként (motor/autó be, Fut/túra ki?)
 - Dőlés: szalag a vonal mellett, vagy sebesség / dőlés színezés-választó?
-- Élő dőlés: giroszkóp yaw rate vagy csak a GPS bearing változása (késik ~1 fixet)?
+- Élő dőlés: **lezárva** — giroszkóp yaw rate, ha van; különben a GPS bearing változása. A letárolt sor mindig a bearing.
 
 Ezeket a hullám briefjében rögzítsd; a roadmap szándékosan nem fagyasztja a pixel-layoutot.

@@ -13,7 +13,6 @@ flowchart TD
     FGS --> Gnss["GnssStatusSource"]
     FGS --> Temp["AmbientTemperatureSource"]
     FGS --> Acc["AccelerometerSource"]
-    FGS --> Grav["GravitySource"]
     FGS --> Press["PressureSource"]
     FGS --> Comp["CompassSource"]
 
@@ -21,7 +20,8 @@ flowchart TD
     Gnss --> LiveGnss["LiveTrackingState.gnss"]
     Temp --> LiveTemp["temperatureCelsius"]
     Acc --> LiveAcc["accel"]
-    Grav --> LiveLean["leanAngle"]
+    Loc --> LiveLean["leanAngle<br/>gyro yaw, ha van, különben bearing"]
+    Comp --> LiveLean
     Press --> LiveBaro["baroAltitude pressureHpa"]
     Comp --> LiveAz["azimuthDegrees csak HUD"]
 
@@ -82,7 +82,7 @@ flowchart TD
 | `GnssStatusSource` | Műholdszám és SNR a GPS fülre; műholdankénti azimut/eleváció a `GnssSnapshot.satellites`-en a polar skyplothoz; `satellitesInFix` a letárolt soron. A konstelláció-mix és a skyplot csak memória. Lásd [Skyplot körök](#skyplot-körök-gps-fül). |
 | `AmbientTemperatureSource` | Opcionális; a sorra másolódik, ha van szenzor. |
 | `AccelerometerSource` | Opcionális; utolsó XYZ a soron. |
-| `GravitySource` | Opcionális; `TYPE_GRAVITY` (különben gyorsulásmérő) → dőlésszög a soron és a Route HUD-on. |
+| Dőlés | `BikeLeanAngle`: `atan(v · ω / g)`. A letárolt sor az előző letárolt bearing és az idő különbségéből számol. Az Útvonal HUD a rotation-vector yaw rate-et használja, ha van giroszkóp, különben ugyanazt a bearing-változást. 3 m/s alatt, vagy ha a bearing-hézag 0,2 s-nél rövidebb vagy 5 s-nél hosszabb, az érték üres. A pozitív fok jobb kanyar. |
 | `PressureSource` | Opcionális; `TYPE_PRESSURE` → nyers `pressureHpa` és `baroAltitude` a `SensorManager.getAltitude` szerint (`AndroidBaroAltitude`), a jelenlegi Beállítások QNH-val mínusz a DataStore nyomás-offset (QNH 900–1100 hPa, alap `PRESSURE_STANDARD_ATMOSPHERE` 1013,25; offset ±10 hPa, alap 0). Az élő HUD, az Útvonal/Mentett magasságprofil és a KMZ a `displayedMeters`-szel számol újra; ha ez több mint 1500 m-re van a pont GPS-magasságától, a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad (`pickDisplayed`). Képlet: [README-hu.md — Barometrikus magasság (Baro)](../README-hu.md#barometrikus-magasság-baro). |
 | `CompassSource` | Csak Compass fül; **nem** kerül SQLite-ba. MAG a rotation-vector heading. TRUE a last GPS-fix `GeomagneticField.declination` értékét adja hozzá. |
 

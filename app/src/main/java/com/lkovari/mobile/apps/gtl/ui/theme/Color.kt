@@ -16,6 +16,14 @@ val AccuracyMarkerBorder = Color(0xFF1414FC)
 val FixCloudDot = Color(0xFFF48FB1)
 val FixCloudCepStroke = Color(0xFFC2185B)
 val FixCloudCepFill = Color(0xFFE91E63)
+
+fun accuracyMarkerStroke(dark: Boolean): Color {
+    return if (dark) Color(0xFFB7B7FF) else AccuracyMarkerBorder
+}
+
+fun fixCloudCepStroke(dark: Boolean): Color {
+    return if (dark) Color(0xFFFF8AB3) else FixCloudCepStroke
+}
 val UsageMarkerRed = Color(0xFFE53935)
 val StartBlue = Color(0xFF1565C0)
 val TrackingOrange = Color(0xFFEF6C00)

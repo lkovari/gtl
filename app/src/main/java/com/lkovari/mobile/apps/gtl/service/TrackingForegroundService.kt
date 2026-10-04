@@ -43,6 +43,7 @@ class TrackingForegroundService : LifecycleService() {
     private var locationJob: Job? = null
     private var activeSessionId: Long? = null
     private var lastAccepted: TrackFix? = null
+    private var lastHeading: TrackFix? = null
     private var lastFiltered: TrackFix? = null
     private var lastKind: EventKind = EventKind.START
     private var lastStoredAltitude: Double? = null
@@ -108,6 +109,7 @@ class TrackingForegroundService : LifecycleService() {
                 lastAcceptElapsed = if (latest == null) 0L else sessionStartElapsed
                 kalman = KalmanTrackFilter()
                 lastFiltered = null
+                lastHeading = null
                 autoCalibratedThisSession = false
                 pendingCalibrationAltitude = null
                 val accepted = lastAccepted
@@ -150,18 +152,19 @@ class TrackingForegroundService : LifecycleService() {
                         }
                     }
                     launch {
-                        app.gravitySource.gravity().collectLatest { value ->
-                            app.trackingState.update {
-                                it.copy(leanAngle = BikeLeanAngle.fromGravity(value[0], value[1], value[2]))
-                            }
-                        }
-                    }
-                    launch {
                         app.compassSource.samples().collectLatest { sample ->
                             app.trackingState.update {
+                                val yaw = sample.yawRateRadPerSec
+                                val lean = if (yaw != null) {
+                                    BikeLeanAngle.fromYawRate(it.displaySpeedMps, yaw)
+                                } else {
+                                    it.leanAngle
+                                }
                                 it.copy(
                                     azimuthDegrees = sample.azimuthDegrees,
-                                    compassAccuracy = sample.accuracy
+                                    compassAccuracy = sample.accuracy,
+                                    yawRateRadPerSec = yaw,
+                                    leanAngle = lean
                                 )
                             }
                         }
@@ -221,8 +224,8 @@ class TrackingForegroundService : LifecycleService() {
                 satellitesInFix = gnss?.satellitesInFix ?: 0
             )
             val wasGpsOff = app.trackingState.state.value.gpsOff
-            app.trackingState.update {
-                it.copy(lastLocation = location, provider = location.provider, gpsOff = false)
+            app.trackingState.acceptFix(location) {
+                it.copy(provider = location.provider, gpsOff = false)
             }
             if (wasGpsOff) {
                 refreshNotification()
@@ -240,6 +243,7 @@ class TrackingForegroundService : LifecycleService() {
                 noteRejected(app)
                 return@collect
             }
+            publishLiveLean(app, fix, location.hasBearing())
             if (location.hasAltitude()) {
                 maybeAutoCalibrateBaro(app, settings, fix.altitude)
             }
@@ -292,7 +296,7 @@ class TrackingForegroundService : LifecycleService() {
                             accelX = live.accel?.getOrNull(0),
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
-                            leanAngle = live.leanAngle,
+                            leanAngle = storedLean(lastAccepted, forStore),
                             usageType = usageTypeName,
                             isPlacemark = kind != EventKind.MOVE,
                             eventKind = kind.name,
@@ -331,6 +335,39 @@ class TrackingForegroundService : LifecycleService() {
             app.trackingState.update { it.copy(poorGps = poor) }
             refreshNotification()
         }
+    }
+
+    private fun publishLiveLean(app: GtlApplication, fix: TrackFix, hasBearing: Boolean) {
+        val previous = lastHeading
+        val speed = app.trackingState.state.value.displaySpeedMps ?: fix.speedMps
+        val bearingLean = if (previous != null && hasBearing) {
+            BikeLeanAngle.fromBearingChange(
+                speed,
+                previous.bearing,
+                fix.bearing,
+                fix.timestampMillis - previous.timestampMillis
+            )
+        } else {
+            null
+        }
+        if (hasBearing) {
+            lastHeading = fix
+        }
+        val yaw = app.trackingState.state.value.yawRateRadPerSec
+        val lean = BikeLeanAngle.liveDegrees(speed, yaw, bearingLean)
+        app.trackingState.update { it.copy(leanAngle = lean) }
+    }
+
+    private fun storedLean(previous: TrackFix?, current: TrackFix): Float? {
+        if (previous == null) {
+            return null
+        }
+        return BikeLeanAngle.fromBearingChange(
+            current.speedMps,
+            previous.bearing,
+            current.bearing,
+            current.timestampMillis - previous.timestampMillis
+        )
     }
 
     private fun noteRejected(app: GtlApplication) {
@@ -407,7 +444,7 @@ class TrackingForegroundService : LifecycleService() {
                                     accelX = live.accel?.getOrNull(0),
                                     accelY = live.accel?.getOrNull(1),
                                     accelZ = live.accel?.getOrNull(2),
-                                    leanAngle = live.leanAngle,
+                                    leanAngle = storedLean(lastAccepted, stopFix),
                                     usageType = usageTypeName,
                                     isPlacemark = true,
                                     eventKind = EventKind.STOP.name,
@@ -489,6 +526,9 @@ class TrackingForegroundService : LifecycleService() {
     }
 
     private fun createChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return
+        }
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,

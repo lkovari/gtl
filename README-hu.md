@@ -41,6 +41,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - [Beüzemelés](#beüzemelés)
   - [Fordítás](#fordítás)
   - [Tesztek](#tesztek)
+  - [Hibakeresés a telefonon](#hibakeresés-a-telefonon)
   - [Stack](#stack)
 - [Technikai dokumentumok](#technikai-dokumentumok)
 - [Play listing képernyőképek](#play-listing-képernyőképek)
@@ -57,7 +58,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - A fixek csak akkor tárolódnak, ha átmennek a pontossági és műholdszám-kapun. Opcionális **Kalman**-simítás utána elmozdítja a pontot. Az **Okos** vagy **Minden jó fix** sűrűség dönti el, hogy beíródik-e (lásd Beállítások). Fut/túránál az alap: **Csak GNSS** (műholdchip, nem fused hely) simítás nélkül, hogy a kis úttest-alakzatok megmaradjanak a tracklogban. Teljes lánc: [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - Eseménytípusok: `START`, `MOVE`, `PAUSE` (a usage pauza-sebesség alatt), `STOP`.
 - Használati módok: repülő, hajó, autó, motor (alap), kerékpár, Fut/túra. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A Fut/túra és a kerékpár lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
-- Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), barometrikus magasság (`TYPE_PRESSURE`; lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro)), gyorsulásmérő-minták és dőlésszög (gravitáció, tankra szerelve) minden letárolt ponton.
+- Opcionális környezeti hőmérséklet (`TYPE_AMBIENT_TEMPERATURE`), barometrikus magasság (`TYPE_PRESSURE`; lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro)), gyorsulásmérő-minták és dőlésszög minden letárolt ponton. A dőlés `atan(v · ω / g)`: a sebesség és a letárolt bearing időbeli változása (a pozitív érték jobb kanyar). 3 m/s alatt üres, és akkor is, ha a bearingek között 0,2 s-nél kevesebb vagy 5 s-nél több telik el. Az Útvonalon látható szám giroszkóp yaw rate, ha a telefonon van giroszkóp.
 
 
 
@@ -74,7 +75,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Útvonal fül
 
-Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, magasság, irány, dőlésszög (telefon síkban a motortankon), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A nagy szám naplózáskor az élő sebesség, alatta sebesség-sparkline; mentett vagy utolsó sessionnél az átlag, a kártyán a max. sebesség. Pont nélkül gondolatjel. A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
+Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképen): eltelt idő, út, mozgás ideje, várakozás ideje, magasság, irány, dőlésszög (sebesség és kanyarodás; a pozitív jobb kanyar; gondolatjel állva vagy 3 m/s alatt), hőmérséklet-tartomány, ha van szenzor, és GPS magasságprofil (szaggatott baro vonal, ha van nyomásminta). A nagy szám naplózáskor az élő sebesség, alatta sebesség-sparkline; mentett vagy utolsó sessionnél az átlag, a kártyán a max. sebesség. Pont nélkül gondolatjel. A tengely min/max a GPS és a baro együtt, legalább 50 m. A jelmagyarázat az utolsó GPS- és baro-értéket mutatja. A baro a Beállítások QNH-ját és a [Barometrikus magasság (Baro)](#barometrikus-magasság-baro) szabályait használja.
 
 ### Térkép fül
 
@@ -174,7 +175,7 @@ Lassútól a usage teteje felé: teal `#0B6B66`, ibolya `#5B2D86`, borostyán `#
 - **Használat** — tevékenység típusa. Újratölti a fenti táblát és a 2017-es pontossági / műhold kapukat (Fut/túra és kerékpár 45 m, többiek 30 m). Repülőnél és hajónál a mértékegység ICAO-ra vált; a többi használat metrikusra.
 - **Mértékegység** — metrikus, angolszász vagy ICAO az Útvonalon (km/h és méter; mph és láb/mérföld; csomó, tengeri mérföld és láb). A letárolt koordinátákat nem mozgatja.
 - **QNH** — tengerszinti nyomás a barométerhez, **900–1100 hPa** (alap `PRESSURE_STANDARD_ATMOSPHERE` 1013,25). Csak akkor látszik, ha a telefonnak van nyomásszenzora. Az élő baro, a magasságprofil szaggatott vonala és a KMZ `Baro:` / ExtendedData `baro` a `getAltitude(QNH, nyomás − offset)` (KMZ **megosztáskor**). Ha ez a magasság több mint 1500 m-re van a pont GPS-magasságától, a letárolt íráskori `baroAltitude` marad, vagy a baro kimarad. A letárolt `pressureHpa` nyers; a `baroAltitude` íráskor az akkor érvényes QNH-t és offsetet használja. Valós tengerszinti QNH-t METAR-ból, ATIS-ból vagy reptéri időjárásból nézz (nem állomásnyomás). **Kalibrálás GPS-ből** (állj, jó GPS-magasság) a chip offsetjét a DataStore-ba írja (±10 hPa), a QNH csúszkát nem; **Baro visszaállítás** törli. **Automatikus kalibrálás induláskor** (alapból be) ugyanezt a kalibrálást futtatja le automatikusan, amint minden felvétel indulása után két egymást követő GPS-fix 15 méteren belül egyezik a magasságban, hogy ezt ne neked kelljen megnyomnod. Részletek: [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
-- **Letöltött OSM térkép használata** — letöltésig ki van kapcsolva és nem állítható. Bekapcsolva a **Használatban** lévő Mapsforge fájl; kikapcsolva a Térkép Google Térképet mutat. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót. A Beállításokban az **OSM térkép** kártya csak OSM-régió **Használatban** állapotánál látszik (nem Turistautak), a **Turistautak.hu** kártya csak annak **Használatban** állapotánál. A Térkép fül réteg gombja (ugyanott, ahol a Google rétegek) a megfelelő kapcsolókat nyitja. OSM: Épületek (alapból be), **POI** (ki; boltok, éttermek, parkolók, kutak 14-es zoomtól — nem buszmegálló), Tömegközlekedés (ki; vasút/villamos/állomás és buszmegálló), Kerékpárutak kiemelése (Kerékpár usage-nél be; magenta overlay 12-es zoomtól; a külön `highway=cycleway` kék marad; usage-váltás visszaállítja), Védett terület / park (be), Domborzat (ki). A kapcsoló a csempét újrarajzolja, a kamera nem mozog. A hivatalos Mapsforge fájlban bármely országnál csak a külön `highway=cycleway` van, úttesti sáv nincs. A Domborzat ki marad, kivéve ha HGT fájlok vannak a `.map` mellett vagy a `hills/` mappában (a hivatalos Mapsforge-letöltésekben általában nincs).
+- **Letöltött OSM térkép használata** — letöltésig ki van kapcsolva és nem állítható. Bekapcsolva a **Használatban** lévő Mapsforge fájl; kikapcsolva a Térkép Google Térképet mutat. Hiányzó vagy érvénytelen `.map` kikapcsolja a kapcsolót. A Beállításokban az **OSM térkép** kártya csak OSM-régió **Használatban** állapotánál látszik (nem Turistautak), a **Turistautak.hu** kártya csak annak **Használatban** állapotánál. A Térkép fül réteg gombja (ugyanott, ahol a Google rétegek) a megfelelő kapcsolókat nyitja. OSM: Épületek (alapból be), **POI** (ki; boltok, éttermek, parkolók, kutak 14-es zoomtól — nem buszmegálló), Tömegközlekedés (ki; vasút/villamos/állomás és buszmegálló), Kerékpárutak kiemelése (ki; magenta overlay 12-es zoomtól; a külön `highway=cycleway` kék marad; usage-váltás ki-ra állítja vissza), Védett terület / park (be), Domborzat (ki). A kapcsoló a csempét újrarajzolja, a kamera nem mozog. A hivatalos Mapsforge fájlban bármely országnál csak a külön `highway=cycleway` van, úttesti sáv nincs. A Domborzat ki marad, kivéve ha HGT fájlok vannak a `.map` mellett vagy a `hills/` mappában (a hivatalos Mapsforge-letöltésekben általában nincs).
 - **Útvonal egyszerűsítése a térképen** — kevesebb csúcs csak a Térképen. A kapcsoló bekapcsolva **1–20 m** csúszka (1 m-es lépés). A KMZ és az odométer minden letárolt pontot megtart.
 - **Utolsó naplózott útvonal a térképen** — Leállítás után az utolsó (vagy kijelölt) track a Térképen marad. A seprő leveszi a kirajzolt mentett tracket, a logot nem törli.
 - **Teljes útvonal a képernyőn** — naplózáskor minden GPS-frissítés a teljes nyomvonalat a képernyőre illeszti. A nagyítás és mozgatás a következő fixig megengedett.
@@ -265,7 +266,7 @@ Leállít
 - A csúszka köztes állásai az Okos térközt keverik a Minden-jó padlóval; a min-idő / kanyar út akkor is elfogadhat egy pontot.
 - Ha a GPS `bearing` 0 (kocogáskor gyakori), a kanyardetekció a szomszédos pozíciókból számolt irányszöget is használhatja.
 
-**Eseménytípus.** Írás után: `START` az első ponton; `PAUSE`, ha a sebesség a usage pauza-küszöb alatt van (0,25 m/s Fut/túra, 0,4 m/s járművek); különben `MOVE`. Opcionális környezeti hőmérséklet, utolsó gyorsulásmérő XYZ, dőlésszög (gravitáció, tankra szerelve), nyers `pressureHpa` és íráskori `baroAltitude` a sorra másolódik. Az iránytű azimutja csak HUD, nem tárolódik. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
+**Eseménytípus.** Írás után: `START` az első ponton; `PAUSE`, ha a sebesség a usage pauza-küszöb alatt van (0,25 m/s Fut/túra, 0,4 m/s járművek); különben `MOVE`. Opcionális környezeti hőmérséklet, utolsó gyorsulásmérő XYZ, kinematikai dőlésszög (a pont sebességéből és az előző letárolt bearingből; nem a telefon dőlése), nyers `pressureHpa` és íráskori `baroAltitude` a sorra másolódik. Az iránytű azimutja csak HUD, nem tárolódik. A korábban mentett sorokban még a régi, gravitációs dőlés lehet. Lásd [Barometrikus magasság (Baro)](#barometrikus-magasság-baro).
 
 **Leállítás.** Mindig ír egy `STOP` sort (`isPlacemark` true), még ha a sűrűség eldobná is a pontot. A koordináta az utolsó **elfogadott** letárolt fix (nem a nyers HUD-fix, ami pár méterre lehet a logtól). A KMZ/GPX a Stop ikont erre az utolsó path-csúcsra teszi.
 
@@ -484,6 +485,25 @@ Az eszközön tárolt hibanapló alkalmazástesztjei (`./gradlew :app:testDebugU
 - `ErrorLogStoreTest` — egy bejegyzésben megvan az UTC időbélyeg, a művelet, egy veremkeret és a `Caused by` sor. A plafon fölötti írás `errors.log.1` névre nevezi a fájlt, és újat kezd; az olvasás előbb a régebbi fájlt adja. A **Törlés** mindkét fájlt törli. A sikertelen írás nem dob kivételt.
 - `ErrorLogExceptionsTest` — az `IOException`, az `SQLException`, az üzenet nélküli `IllegalArgumentException`, az `IllegalStateException` okozati lánca (`IOException`, alatta `IllegalArgumentException`) és az `OutOfMemoryError` megtartja az üzenetet és a teljes vermet. Több bejegyzés az írási sorrendben marad. Az aszinkron `record` út kiírja az `IOException`t.
 - `ErrorLogTapTest` — a hetedik érintés két másodpercen belül megnyitja a naplót; a hosszabb szünet nullázza a számlálót.
+
+### Hibakeresés a telefonon
+
+Ha a telefonon hibás képernyő látszik (például fehér képernyő), hagyd úgy, ne zárd be az appot, és USB-n csatlakoztatott telefonnál futtasd Terminálból:
+
+```bash
+./tools/capture-white.sh             # alap: captures/white-HHMMSS/
+./tools/capture-white.sh ~/Desktop/hiba
+```
+
+A szkript egy mappába menti:
+
+- `activity-top.txt` — a View-fa méretekkel (`dumpsys activity top`); ebből látszik, hogy egy nézet 0×0-s-e, vagy csak nem rajzol
+- `gfxinfo.txt` — rajzolási statisztika (`dumpsys gfxinfo`)
+- `logcat.txt` — a teljes logcat (main, system, crash, events)
+- `errors.log` — az app saját hibanaplója (`files/diagnostics/errors.log`, `run-as`-szal, ezért csak debug buildnél)
+- `screen.png` — képernyőkép
+
+Az `adb`-t az `ANDROID_HOME`-ban, a `~/Library/Android/sdk`-ban, majd a `PATH`-on keresi; telefon nélkül hibaüzenettel áll le. A `captures/` gitignored, a mentés nem kerül commitba. Gyorsan futtasd: a logcat puffer pár perc alatt kifordul, és az újratelepítés törli az `errors.log`-ot.
 
 ### Stack
 

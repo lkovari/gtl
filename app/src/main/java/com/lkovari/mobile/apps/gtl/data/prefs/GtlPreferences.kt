@@ -19,6 +19,8 @@ import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
 import com.lkovari.mobile.apps.gtl.engine.RecordingDensity
 import com.lkovari.mobile.apps.gtl.engine.SmoothingStrength
+import com.lkovari.mobile.apps.gtl.engine.ThemeMode
+import com.lkovari.mobile.apps.gtl.engine.ThemePosition
 import com.lkovari.mobile.apps.gtl.engine.UsageSmoothingDefaults
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +40,10 @@ enum class GoogleMapLayer {
                 valueOf(raw ?: NORMAL.name)
             }.getOrDefault(NORMAL)
         }
+    }
+
+    fun usesNightStyle(): Boolean {
+        return this == NORMAL || this == TERRAIN
     }
 }
 
@@ -76,7 +82,10 @@ data class GtlSettings(
     val osmTransit: Boolean,
     val osmCycleways: Boolean,
     val osmParks: Boolean,
-    val osmHillshading: Boolean
+    val osmHillshading: Boolean,
+    val themeMode: ThemeMode,
+    val themeLatitude: Double?,
+    val themeLongitude: Double?
 ) {
     fun osmRenderOptions(): OsmRenderOptions {
         return OsmRenderOptions(
@@ -136,7 +145,10 @@ data class GtlSettings(
                 osmTransit = false,
                 osmCycleways = OsmRenderOptions.cyclewaysForUsage(UsageType.TWO_WHEELERS),
                 osmParks = true,
-                osmHillshading = false
+                osmHillshading = false,
+                themeMode = ThemeMode.AUTOMATIC,
+                themeLatitude = null,
+                themeLongitude = null
             )
         }
     }
@@ -277,6 +289,25 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.googleMapLayer] = value.name }
     }
 
+    suspend fun setThemeMode(value: ThemeMode) {
+        dataStore.edit { it[Keys.themeMode] = value.name }
+    }
+
+    suspend fun rememberThemePosition(latitude: Double, longitude: Double) {
+        if (!latitude.isFinite() || !longitude.isFinite()) {
+            return
+        }
+        dataStore.edit { prefs ->
+            val storedLatitude = prefs[Keys.themeLatitude]?.toDouble()
+            val storedLongitude = prefs[Keys.themeLongitude]?.toDouble()
+            if (!ThemePosition.shouldStore(storedLatitude, storedLongitude, latitude, longitude)) {
+                return@edit
+            }
+            prefs[Keys.themeLatitude] = latitude.toFloat()
+            prefs[Keys.themeLongitude] = longitude.toFloat()
+        }
+    }
+
     suspend fun setOsmBuildings(value: Boolean) {
         dataStore.edit { it[Keys.osmBuildings] = value }
     }
@@ -395,8 +426,18 @@ class GtlPreferences(context: Context) {
             osmTransit = prefs[Keys.osmTransit] ?: false,
             osmCycleways = prefs[Keys.osmCycleways] ?: OsmRenderOptions.cyclewaysForUsage(usage),
             osmParks = prefs[Keys.osmParks] ?: true,
-            osmHillshading = prefs[Keys.osmHillshading] ?: false
+            osmHillshading = prefs[Keys.osmHillshading] ?: false,
+            themeMode = ThemeMode.fromStored(prefs[Keys.themeMode]),
+            themeLatitude = themeCoordinate(prefs[Keys.themeLatitude], prefs[Keys.themeLongitude]),
+            themeLongitude = themeCoordinate(prefs[Keys.themeLongitude], prefs[Keys.themeLatitude])
         )
+    }
+
+    private fun themeCoordinate(value: Float?, pair: Float?): Double? {
+        if (value == null || pair == null) {
+            return null
+        }
+        return value.toDouble()
     }
 
     private fun readSmoothingStrength(prefs: Preferences, smoothing: UsageSmoothingDefaults): Float {
@@ -471,6 +512,9 @@ class GtlPreferences(context: Context) {
         val osmCycleways = booleanPreferencesKey("osm_cycleways")
         val osmParks = booleanPreferencesKey("osm_parks")
         val osmHillshading = booleanPreferencesKey("osm_hillshading")
+        val themeMode = stringPreferencesKey("theme_mode")
+        val themeLatitude = floatPreferencesKey("theme_latitude")
+        val themeLongitude = floatPreferencesKey("theme_longitude")
         val locationPermissionAsked = booleanPreferencesKey("location_permission_asked")
     }
 

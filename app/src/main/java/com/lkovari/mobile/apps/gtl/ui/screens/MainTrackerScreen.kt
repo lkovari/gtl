@@ -565,7 +565,7 @@ private fun RoutePane(state: GtlUiState) {
     val heroMps = when {
         logging -> RouteTabSpeeds.instantMps(
             true,
-            location?.takeIf { it.hasSpeed() }?.speed
+            state.live.displaySpeedMps
         )
         hasTrack -> stats.averageSpeedMps
         else -> null
@@ -578,7 +578,7 @@ private fun RoutePane(state: GtlUiState) {
     val heroColor = if (heroMps == null) {
         MaterialTheme.colorScheme.onSurface
     } else {
-        Color(SpeedBands.argb(SpeedBands.of(heroMps, state.speedUsage, units)))
+        Color(SpeedBands.argb(SpeedBands.of(heroMps, state.speedUsage, units), state.darkTheme))
     }
     val secondarySpeedLabel = if (logging || !hasTrack) {
         stringResource(R.string.route_avg_speed)

@@ -109,6 +109,7 @@ import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
 import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
+import com.lkovari.mobile.apps.gtl.engine.ThemeMode
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.ui.rememberMapDownloadStart
@@ -329,6 +330,66 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                     },
                                     modifier = Modifier.heightIn(max = chipHeight)
                                 )
+                            }
+                        }
+                    }
+                    item {
+                        var themeOpen by rememberSaveable { mutableStateOf(false) }
+                        AccordionSection(
+                            title = stringResource(R.string.settings_group_theme),
+                            expanded = themeOpen,
+                            onToggle = { themeOpen = !themeOpen },
+                            titleStyle = titleStyle
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                SettingSwitch(
+                                    stringResource(R.string.settings_theme_automatic),
+                                    state.settings.themeMode == ThemeMode.AUTOMATIC,
+                                    labelStyle,
+                                    switchScale
+                                ) { enabled ->
+                                    viewModel.setThemeAutomatic(enabled)
+                                }
+                                Text(
+                                    text = stringResource(R.string.settings_theme_automatic_hint),
+                                    style = chipStyle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (state.settings.themeMode != ThemeMode.AUTOMATIC) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        FilterChip(
+                                            selected = state.settings.themeMode == ThemeMode.LIGHT,
+                                            onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) },
+                                            label = {
+                                                Text(
+                                                    stringResource(R.string.settings_theme_light),
+                                                    style = chipStyle,
+                                                    maxLines = 1
+                                                )
+                                            },
+                                            modifier = Modifier.heightIn(max = chipHeight)
+                                        )
+                                        FilterChip(
+                                            selected = state.settings.themeMode == ThemeMode.DARK,
+                                            onClick = { viewModel.setThemeMode(ThemeMode.DARK) },
+                                            label = {
+                                                Text(
+                                                    stringResource(R.string.settings_theme_dark),
+                                                    style = chipStyle,
+                                                    maxLines = 1
+                                                )
+                                            },
+                                            modifier = Modifier.heightIn(max = chipHeight)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

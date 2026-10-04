@@ -16,6 +16,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.lkovari.mobile.apps.gtl.engine.DisplaySpeedFix
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -212,6 +213,21 @@ private fun mslOrNull(location: Location?): Double? {
         return null
     }
     return LocationCompat.getMslAltitudeMeters(location)
+}
+
+fun Location.toDisplaySpeedFix(): DisplaySpeedFix {
+    val speedAccuracy = if (LocationCompat.hasSpeedAccuracy(this)) {
+        LocationCompat.getSpeedAccuracyMetersPerSecond(this)
+    } else {
+        null
+    }
+    return DisplaySpeedFix(
+        speedMps = if (hasSpeed()) speed else null,
+        speedAccuracyMps = speedAccuracy,
+        latitude = latitude,
+        longitude = longitude,
+        horizontalAccuracyMeters = if (hasAccuracy()) accuracy else null
+    )
 }
 
 private fun ellipsoidOrNull(location: Location?): Double? {

@@ -26,6 +26,8 @@ import com.lkovari.mobile.apps.gtl.engine.SpeedBand
 import com.lkovari.mobile.apps.gtl.engine.SpeedBands
 import com.lkovari.mobile.apps.gtl.engine.Units
 import com.lkovari.mobile.apps.gtl.engine.UsageType
+import com.lkovari.mobile.apps.gtl.ui.theme.Cockpit
+import com.lkovari.mobile.apps.gtl.ui.theme.MoonCream
 import com.lkovari.mobile.apps.gtl.ui.theme.NightInk
 
 @Composable
@@ -55,10 +57,12 @@ fun SpeedLegend(
         }
         band to label
     }
+    val dark = MaterialTheme.colorScheme.background == Cockpit
+    val labelColor = if (dark) MoonCream else NightInk
     val casing = modifier
         .semantics { contentDescription = description }
         .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier)
-        .background(Color(SpeedBands.CasingArgb).copy(alpha = 0.86f), RoundedCornerShape(8.dp))
+        .background(Color(SpeedBands.casingArgb(dark)).copy(alpha = 0.86f), RoundedCornerShape(8.dp))
         .padding(horizontal = 8.dp, vertical = 6.dp)
     if (expanded) {
         Column(
@@ -73,19 +77,19 @@ fun SpeedLegend(
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(Color(SpeedBands.argb(band)), CircleShape)
+                            .background(Color(SpeedBands.argb(band, dark)), CircleShape)
                     )
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
-                        color = NightInk
+                        color = labelColor
                     )
                 }
             }
             Text(
                 text = Units.hudSpeedUnit(system),
                 style = MaterialTheme.typography.labelSmall,
-                color = NightInk,
+                color = labelColor,
                 modifier = Modifier.padding(start = 16.dp)
             )
         }
@@ -99,7 +103,7 @@ fun SpeedLegend(
                 Box(
                     modifier = Modifier
                         .size(10.dp)
-                        .background(Color(SpeedBands.argb(band)), CircleShape)
+                        .background(Color(SpeedBands.argb(band, dark)), CircleShape)
                 )
             }
         }

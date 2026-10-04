@@ -41,6 +41,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - [Setup](#setup)
   - [Build](#build)
   - [Tests](#tests)
+  - [Debugging on the phone](#debugging-on-the-phone)
   - [Stack](#stack)
 - [Technical documents](#technical-documents)
 - [Play listing screenshots](#play-listing-screenshots)
@@ -57,7 +58,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Run/Hike default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
 - Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, Run/Hike. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Run/Hike and bicycle use a looser accuracy filter and a lower pause threshold.
-- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), barometric altitude (`TYPE_PRESSURE`; see [Barometric altitude (Baro)](#barometric-altitude-baro)), accelerometer samples, and lean angle (gravity, tank-mount) on each stored point.
+- Optional ambient temperature (`TYPE_AMBIENT_TEMPERATURE`), barometric altitude (`TYPE_PRESSURE`; see [Barometric altitude (Baro)](#barometric-altitude-baro)), accelerometer samples, and lean angle on each stored point. Lean is `atan(v · ω / g)` from speed and the change in stored bearing over time (positive is a right turn). It is empty below 3 m/s, or when the gap between bearings is under 0.2 s or over 5 s. The Route number uses gyroscope yaw rate when the phone has one.
 
 
 
@@ -74,7 +75,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Route tab
 
-Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, altitude, bearing, lean angle (phone flat on a motorbike tank), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). The large figure is live speed while logging, with a speed sparkline under it; a saved or last session shows average speed there and max speed in the cards. With no points the figure is a dash. Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
+Session totals after Start (and for a saved / last session on Map): elapsed time, odometer, time moving, time waiting, altitude, bearing, lean angle (speed and turn rate; positive is right; dash when stopped or below 3 m/s), temperature range when a sensor exists, and a GPS elevation profile (dashed barometric line when pressure samples exist). The large figure is live speed while logging, with a speed sparkline under it; a saved or last session shows average speed there and max speed in the cards. With no points the figure is a dash. Axis min/max is GPS and baro together, at least 50 m. The legend shows the last GPS and baro values. Baro uses Settings QNH and the same rules as [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 ### Map tab
 
@@ -174,7 +175,7 @@ From slow to the top of the usage: teal `#0B6B66`, violet `#5B2D86`, amber `#7A5
 - **Usage** — activity type. Reloads the table above plus the 2017 accuracy / satellite gates (Run/Hike and bicycle 45 m, others 30 m). Aircraft and watercraft also switch units to ICAO; other usages switch to metric.
 - **Units** — Metric, Imperial, or ICAO on Route (km/h and metres; mph and feet/miles; knots, nautical miles, and feet). Does not move stored coordinates.
 - **QNH** — sea-level pressure for the barometer, **900–1100 hPa** (default `PRESSURE_STANDARD_ATMOSPHERE` 1013.25). Shown only when the phone has a pressure sensor. Live baro, the elevation dashed line, and KMZ `Baro:` / ExtendedData `baro` use `getAltitude(QNH, pressure − offset)` (KMZ at **share** time). If that height is more than 1500 m from the point’s GPS altitude, the stored insert-time `baroAltitude` is used instead, or baro is omitted. Stored `pressureHpa` is raw; `baroAltitude` at insert uses the QNH and offset in force then. Look up a real sea-level QNH from METAR, ATIS, or airport weather (not station pressure). **Calibrate from GPS** (stand still, good GPS altitude) stores a chip offset in DataStore (±10 hPa) without changing the QNH slider; **Reset baro** clears it. **Auto-calibrate at start** (default on) runs that same calibration automatically once two consecutive GPS fixes agree on altitude (within 15 m) after each recording starts, so you don't have to tap Calibrate yourself. Full write-up: [Barometric altitude (Baro)](#barometric-altitude-baro).
-- **Use downloaded OSM map** — off and disabled until a region is downloaded. On uses the Mapsforge file currently **In Use**; turning it off shows Google Maps. A missing or invalid `.map` turns the switch off. Settings shows **OSM map** only while an OSM region is **In Use** (not Turistautak), and **Turistautak.hu** only while that map is **In Use**. The Map tab layers button (same spot as Google layers) opens the matching switches. OSM: Buildings (default on), **POI** (off; shops, restaurants, parking, fuel from zoom 14 — not bus stops), Public transport (off; rail/tram/stations and bus stops), Highlight cycleways (on for Bicycle; magenta overlay from zoom 12; dedicated `highway=cycleway` stays blue; changing usage resets this), Parks and protected areas (on), Terrain relief (off). Toggling a switch redraws OSM tiles without moving the camera. Official Mapsforge files for any country store dedicated `highway=cycleway` only (not on-road lanes). Terrain relief stays disabled unless HGT files sit next to the `.map` or in a `hills/` folder (official Mapsforge downloads usually have none).
+- **Use downloaded OSM map** — off and disabled until a region is downloaded. On uses the Mapsforge file currently **In Use**; turning it off shows Google Maps. A missing or invalid `.map` turns the switch off. Settings shows **OSM map** only while an OSM region is **In Use** (not Turistautak), and **Turistautak.hu** only while that map is **In Use**. The Map tab layers button (same spot as Google layers) opens the matching switches. OSM: Buildings (default on), **POI** (off; shops, restaurants, parking, fuel from zoom 14 — not bus stops), Public transport (off; rail/tram/stations and bus stops), Highlight cycleways (off; magenta overlay from zoom 12; dedicated `highway=cycleway` stays blue; changing usage resets this to off), Parks and protected areas (on), Terrain relief (off). Toggling a switch redraws OSM tiles without moving the camera. Official Mapsforge files for any country store dedicated `highway=cycleway` only (not on-road lanes). Terrain relief stays disabled unless HGT files sit next to the `.map` or in a `hills/` folder (official Mapsforge downloads usually have none).
 - **Simplify track on map** — fewer vertices on Map only. Slider **1–20 m** (1 m steps) when the switch is on. KMZ and odometer keep every stored point.
 - **Show last logged route on map** — after Stop, the last (or selected) track stays on Map. The Map broom hides a shown saved track without deleting the log.
 - **Keep whole track on the screen** — while logging, each GPS refresh fits the whole track. Pan and zoom stay allowed until the next fix.
@@ -265,7 +266,7 @@ Stop
 - Slider positions between the ends mix Smart spacing with the Every-good floor; the min-time / curve path can still accept a point.
 - If GPS `bearing` is 0 (common when jogging), curve detection can use heading from consecutive positions.
 
-**Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s Run/Hike, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, lean angle (gravity, tank-mount), raw `pressureHpa`, and insert-time `baroAltitude` are copied onto the row. Compass azimuth is HUD-only and is not stored. See [Barometric altitude (Baro)](#barometric-altitude-baro).
+**Event kind.** After a write: `START` on the first point; `PAUSE` if speed is below the usage pause threshold (0.25 m/s Run/Hike, 0.4 m/s vehicles); otherwise `MOVE`. Optional ambient temperature, last accelerometer XYZ, kinematic lean angle (from this point’s speed and the previous stored bearing; not the phone’s tilt), raw `pressureHpa`, and insert-time `baroAltitude` are copied onto the row. Compass azimuth is HUD-only and is not stored. Rows saved before this change can still contain the old gravity lean. See [Barometric altitude (Baro)](#barometric-altitude-baro).
 
 **Stop.** Always writes a `STOP` row (`isPlacemark` true) even if density would have dropped the point. Coordinates are the last **accepted** stored fix (not the raw HUD fix, which can sit a few metres off the log). KMZ/GPX then place the Stop icon on that last path vertex.
 
@@ -484,6 +485,25 @@ App unit tests for the on-device error log (`./gradlew :app:testDebugUnitTest`):
 - `ErrorLogStoreTest` — one record has the UTC timestamp, the action, a stack frame, and the `Caused by` line. A write past the cap renames the file to `errors.log.1` and starts a new one; reading returns the older file first. **Clear** deletes both files. A failed write does not throw.
 - `ErrorLogExceptionsTest` — `IOException`, `SQLException`, an `IllegalArgumentException` with no message, an `IllegalStateException` cause chain (`IOException`, then `IllegalArgumentException`), and `OutOfMemoryError` each keep their message and full stack. Several records stay in write order. The async `record` path writes the `IOException`.
 - `ErrorLogTapTest` — the seventh tap within two seconds opens the log; a later gap resets the counter.
+
+### Debugging on the phone
+
+When the phone shows a broken screen (for example a white screen), leave the app as it is, do not close it, and with the phone on USB run from Terminal:
+
+```bash
+./tools/capture-white.sh             # default: captures/white-HHMMSS/
+./tools/capture-white.sh ~/Desktop/bug
+```
+
+The script saves into one folder:
+
+- `activity-top.txt` — the view tree with sizes (`dumpsys activity top`); shows whether a view is 0×0 or just not drawing
+- `gfxinfo.txt` — rendering stats (`dumpsys gfxinfo`)
+- `logcat.txt` — the full logcat (main, system, crash, events)
+- `errors.log` — the app’s own error log (`files/diagnostics/errors.log`, through `run-as`, so debug builds only)
+- `screen.png` — a screenshot
+
+It looks for `adb` in `ANDROID_HOME`, then `~/Library/Android/sdk`, then `PATH`, and stops with a message when no phone is connected. `captures/` is gitignored, so a capture never lands in a commit. Run it quickly: the logcat buffer rolls over within minutes, and a reinstall deletes `errors.log`.
 
 ### Stack
 

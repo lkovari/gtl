@@ -12,9 +12,12 @@ enum class SpeedBand {
 }
 
 object SpeedBands {
-    val CasingArgb: Int = 0xFFF4F1EA.toInt()
     const val CasingWidthPx: Float = 14f
     const val CoreWidthPx: Float = 8f
+
+    fun casingArgb(dark: Boolean = false): Int {
+        return if (dark) 0xFF0E1A22.toInt() else 0xFFF4F1EA.toInt()
+    }
 
     private const val MpsPerKmh = 3.6f
     private const val MpsPerMph = 2.2369363f
@@ -41,7 +44,19 @@ object SpeedBands {
         return SpeedBand.Max
     }
 
-    fun argb(band: SpeedBand): Int {
+    fun argb(band: SpeedBand, dark: Boolean = false): Int {
+        if (dark) {
+            return when (band) {
+                SpeedBand.Slow -> 0xFF3ECFCF.toInt()
+                SpeedBand.High -> 0xFF66BB6A.toInt()
+                SpeedBand.Max -> 0xFFE7F0EA.toInt()
+                else -> lightArgb(band)
+            }
+        }
+        return lightArgb(band)
+    }
+
+    private fun lightArgb(band: SpeedBand): Int {
         return when (band) {
             SpeedBand.Slow -> 0xFF0B6B66.toInt()
             SpeedBand.Brisk -> 0xFF5B2D86.toInt()

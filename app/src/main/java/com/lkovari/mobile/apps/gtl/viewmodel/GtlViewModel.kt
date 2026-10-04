@@ -20,6 +20,7 @@ import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFailure
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
+import com.lkovari.mobile.apps.gtl.engine.AppTheme
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
@@ -52,6 +53,8 @@ import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
 import com.lkovari.mobile.apps.gtl.engine.SavedTrackCards
 import com.lkovari.mobile.apps.gtl.engine.TrackStats
 import com.lkovari.mobile.apps.gtl.engine.TrackStatsCalculator
+import com.lkovari.mobile.apps.gtl.engine.ThemeMode
+import com.lkovari.mobile.apps.gtl.engine.ThemePosition
 import com.lkovari.mobile.apps.gtl.engine.UsageType
 import com.lkovari.mobile.apps.gtl.service.LiveTrackingState
 import com.lkovari.mobile.apps.gtl.service.TrackingForegroundService
@@ -80,6 +83,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.time.Instant
 
 private data class OsmTuhuBits(
     val mapCleared: Boolean,
@@ -135,7 +139,8 @@ data class GtlUiState(
     val speedUsage: UsageType = UsageType.TWO_WHEELERS,
     val speedLegendVisible: Boolean = false,
     val speedRuns: List<SpeedRun> = emptyList(),
-    val speedSamples: List<SpeedSample> = emptyList()
+    val speedSamples: List<SpeedSample> = emptyList(),
+    val darkTheme: Boolean = false
 ) {
     val showingOsmMap: Boolean
         get() = OsmOfflineAvailability.effectiveUseOffline(settings.useOfflineMap, hasDownloadedOsmMap) &&
@@ -164,7 +169,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private var locationJob: Job? = null
     private var compassJob: Job? = null
     private var temperatureJob: Job? = null
-    private var gravityJob: Job? = null
+    private var previewBearing: Float? = null
+    private var previewBearingAtMillis: Long = 0L
     private var pressureJob: Job? = null
     private val fixCloudBuffer = FixCloudBuffer()
     private val fixCloudView = MutableStateFlow(FixCloudSnapshot.Empty)
@@ -175,6 +181,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private val mapSearchUi = MutableStateFlow(MapSearchUi())
     val mapSearch: StateFlow<MapSearchUi> = mapSearchUi.asStateFlow()
     private var searchJob: Job? = null
+    private val themeMinute = MutableStateFlow(0L)
 
     private val startupSettings: StateFlow<StartupSettings> = app.preferences.settings
         .map { StartupSettings(settings = it, loaded = true) }
@@ -229,6 +236,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         observeSavedElevationQnh()
         observeOsmDownloadAvailability()
         observeActiveMapSearch()
+        observeThemeClock()
+        observeThemeAnchor()
     }
 
     fun startPreview() {
@@ -239,7 +248,6 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         listenLocation()
         listenCompass()
         listenTemperature()
-        listenGravity()
         listenPressure()
     }
 
@@ -252,8 +260,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         compassJob = null
         temperatureJob?.cancel()
         temperatureJob = null
-        gravityJob?.cancel()
-        gravityJob = null
+        previewBearing = null
+        previewBearingAtMillis = 0L
         pressureJob?.cancel()
         pressureJob = null
     }
@@ -285,9 +293,27 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             settings.map { it.gnssOnly }.distinctUntilChanged().collectLatest { gnssOnly ->
                 val client = com.lkovari.mobile.apps.gtl.data.location.LocationClient(app)
                 client.locations(1000L, 0f, gnssOnly, recording = false).collect { location ->
-                    app.trackingState.update {
-                        it.copy(lastLocation = location, provider = location.provider)
+                    app.trackingState.acceptFix(location) {
+                        it.copy(provider = location.provider)
                     }
+                    val current = app.trackingState.state.value
+                    val speed = current.displaySpeedMps ?: 0f
+                    val bearingLean = if (location.hasBearing() && previewBearing != null) {
+                        BikeLeanAngle.fromBearingChange(
+                            speed,
+                            previewBearing ?: 0f,
+                            location.bearing,
+                            location.time - previewBearingAtMillis
+                        )
+                    } else {
+                        null
+                    }
+                    if (location.hasBearing()) {
+                        previewBearing = location.bearing
+                        previewBearingAtMillis = location.time
+                    }
+                    val lean = BikeLeanAngle.liveDegrees(speed, current.yawRateRadPerSec, bearingLean)
+                    app.trackingState.update { it.copy(leanAngle = lean) }
                 }
             }
         }
@@ -298,21 +324,18 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         compassJob = viewModelScope.launch {
             app.compassSource.samples().collectLatest { sample ->
                 app.trackingState.update {
+                    val yaw = sample.yawRateRadPerSec
+                    val lean = if (yaw != null) {
+                        BikeLeanAngle.fromYawRate(it.displaySpeedMps, yaw)
+                    } else {
+                        it.leanAngle
+                    }
                     it.copy(
                         azimuthDegrees = sample.azimuthDegrees,
-                        compassAccuracy = sample.accuracy
+                        compassAccuracy = sample.accuracy,
+                        yawRateRadPerSec = yaw,
+                        leanAngle = lean
                     )
-                }
-            }
-        }
-    }
-
-    private fun listenGravity() {
-        gravityJob?.cancel()
-        gravityJob = viewModelScope.launch {
-            app.gravitySource.gravity().collectLatest { value ->
-                app.trackingState.update {
-                    it.copy(leanAngle = BikeLeanAngle.fromGravity(value[0], value[1], value[2]))
                 }
             }
         }
@@ -442,7 +465,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     val uiState: StateFlow<GtlUiState> = combine(
-        startupSettings,
+        combine(startupSettings, themeMinute) { startup, _ -> startup },
         live,
         activeEvents,
         sessions,
@@ -568,7 +591,13 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             speedUsage = speedUsage,
             speedLegendVisible = trackVisible,
             speedRuns = speedRuns,
-            speedSamples = speedSamples
+            speedSamples = speedSamples,
+            darkTheme = AppTheme.isDark(
+                prefs.themeMode,
+                liveState.lastLocation?.latitude ?: prefs.themeLatitude,
+                liveState.lastLocation?.longitude ?: prefs.themeLongitude,
+                Instant.now()
+            )
         )
     }.stateIn(
         viewModelScope,
@@ -862,6 +891,23 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setGoogleMapLayer(value) }
     }
 
+    fun setThemeAutomatic(enabled: Boolean) {
+        viewModelScope.launch {
+            val mode = if (enabled) {
+                ThemeMode.AUTOMATIC
+            } else if (uiState.value.darkTheme) {
+                ThemeMode.DARK
+            } else {
+                ThemeMode.LIGHT
+            }
+            app.preferences.setThemeMode(mode)
+        }
+    }
+
+    fun setThemeMode(value: ThemeMode) {
+        viewModelScope.launch { app.preferences.setThemeMode(value) }
+    }
+
     fun setOsmBuildings(value: Boolean) {
         viewModelScope.launch { app.preferences.setOsmBuildings(value) }
     }
@@ -1036,6 +1082,39 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                         truncated = status.truncated
                     )
                 }
+            }
+        }
+    }
+
+    private fun observeThemeClock() {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(60_000)
+                themeMinute.value = themeMinute.value + 1
+            }
+        }
+    }
+
+    private fun observeThemeAnchor() {
+        viewModelScope.launch {
+            live.map { state ->
+                val location = state.lastLocation
+                location?.latitude to location?.longitude
+            }.distinctUntilChanged().collect { (latitude, longitude) ->
+                if (latitude == null || longitude == null) {
+                    return@collect
+                }
+                val prefs = settings.value
+                if (!ThemePosition.shouldStore(
+                        prefs.themeLatitude,
+                        prefs.themeLongitude,
+                        latitude,
+                        longitude
+                    )
+                ) {
+                    return@collect
+                }
+                app.preferences.rememberThemePosition(latitude, longitude)
             }
         }
     }

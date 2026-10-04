@@ -70,7 +70,7 @@ One row = one accepted fix (or the Stop placemark). Polyline, Route totals, Help
 | `satellitesInFix` | GNSS snapshot at insert |
 | `ambientTemperature` | °C if `TYPE_AMBIENT_TEMPERATURE` exists |
 | `accelX` / `accelY` / `accelZ` | last accelerometer sample |
-| `leanAngle` | motorbike lean degrees (gravity, tank mount); nullable |
+| `leanAngle` | lean degrees from `atan(v · ω / g)`, ω from the previous stored bearing over time; positive is right; null below 3 m/s or when the bearing gap is unusable. Older rows may still hold the former gravity value |
 | `usageType` | `AIRCRAFT`, `WATERCRAFT`, `FOUR_WHEELERS`, `TWO_WHEELERS`, `BICYCLE`, `RUNNER` copied at insert (session usage); backfilled from `track_sessions` on migrate 2→3 |
 | `isPlacemark` | `true` for START / PAUSE / STOP (KMZ icons) |
 | `eventKind` | `START`, `MOVE`, `PAUSE`, `STOP` |

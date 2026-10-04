@@ -44,7 +44,7 @@ data class TuhuRenderOptions(
         fun defaults(): TuhuRenderOptions {
             return TuhuRenderOptions(
                 blazes = true,
-                paths = true,
+                paths = false,
                 contours = true,
                 contoursMinor = false,
                 hikePoi = true,

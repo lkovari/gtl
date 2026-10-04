@@ -2,6 +2,7 @@ package com.lkovari.mobile.apps.gtl.tuhu
 
 import android.content.res.AssetManager
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
+import com.lkovari.mobile.apps.gtl.engine.NightRenderTheme
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderCategories
 import org.mapsforge.map.android.rendertheme.AssetsRenderTheme
 import org.mapsforge.map.rendertheme.XmlRenderTheme
@@ -13,20 +14,37 @@ import java.io.File
 import java.util.HashSet
 
 object TuhuRenderTheme {
-    fun create(assets: AssetManager, options: TuhuRenderOptions, externalTheme: File?): XmlRenderTheme {
+    fun create(
+        assets: AssetManager,
+        options: TuhuRenderOptions,
+        externalTheme: File?,
+        night: Boolean,
+        cacheDir: File
+    ): XmlRenderTheme {
         return try {
             val callback = MenuCallback(options)
-            if (externalTheme != null && externalTheme.isFile) {
-                ExternalRenderTheme(externalTheme, callback)
+            if (!night) {
+                if (externalTheme != null && externalTheme.isFile) {
+                    ExternalRenderTheme(externalTheme, callback)
+                } else {
+                    val theme = AssetsRenderTheme(
+                        assets,
+                        "",
+                        TuhuCatalog.THEME_ASSET,
+                        callback
+                    )
+                    theme.renderThemeAsStream.close()
+                    theme
+                }
             } else {
-                val theme = AssetsRenderTheme(
-                    assets,
-                    "",
-                    TuhuCatalog.THEME_ASSET,
-                    callback
-                )
-                theme.renderThemeAsStream.close()
-                theme
+                val raw = if (externalTheme != null && externalTheme.isFile) {
+                    externalTheme.readText()
+                } else {
+                    assets.open(TuhuCatalog.THEME_ASSET).bufferedReader().use { it.readText() }
+                }
+                val xml = NightRenderTheme.recolor(raw)
+                val file = NightRenderTheme.writeCache(cacheDir, "tuhu-night.xml", xml)
+                ExternalRenderTheme(file, callback)
             }
         } catch (error: Throwable) {
             AppErrorLog.record("tuhu.theme", error)

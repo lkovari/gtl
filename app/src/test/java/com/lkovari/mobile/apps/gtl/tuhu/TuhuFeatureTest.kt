@@ -62,7 +62,7 @@ class TuhuRenderOptionsTest {
     fun defaultsMatchProductSwitches() {
         val options = TuhuRenderOptions.defaults()
         assertTrue(options.blazes)
-        assertTrue(options.paths)
+        assertFalse(options.paths)
         assertTrue(options.contours)
         assertFalse(options.contoursMinor)
         assertTrue(options.hikePoi)
@@ -106,7 +106,12 @@ class TuhuRenderOptionsTest {
 
     @Test
     fun forMapWithoutElevationKeepsOtherLayerSwitches() {
-        val all = TuhuRenderOptions.defaults().copy(parks = true, urbanPoi = true, hillshading = true)
+        val all = TuhuRenderOptions.defaults().copy(
+            paths = true,
+            parks = true,
+            urbanPoi = true,
+            hillshading = true
+        )
         val forMap = all.forMap(hillshadingAvailable = false)
         assertTrue(forMap.blazes)
         assertTrue(forMap.paths)

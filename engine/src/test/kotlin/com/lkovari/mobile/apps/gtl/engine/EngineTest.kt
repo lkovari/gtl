@@ -1911,20 +1911,100 @@ class TrackCameraBoundsTest {
 
 class BikeLeanAngleTest {
     @Test
-    fun uprightIsZero() {
-        assertEquals(0f, BikeLeanAngle.fromGravity(0f, 0f, 9.81f), 0.01f)
+    fun arcAtConstantSpeedMatchesCoordinatedLean() {
+        val speedMps = 20f
+        val radiusMeters = 50.0
+        val yawRate = speedMps / radiusMeters
+        val expected = Math.toDegrees(kotlin.math.atan(speedMps * yawRate / BikeLeanAngle.StandardGravity)).toFloat()
+        val stepMillis = 1_000L
+        val stepDegrees = Math.toDegrees(yawRate).toFloat()
+        val startBearing = 10f
+        val nextBearing = startBearing + stepDegrees
+        val lean = BikeLeanAngle.fromBearingChange(speedMps, startBearing, nextBearing, stepMillis)
+        assertEquals(expected, lean ?: Float.NaN, 0.2f)
+        assertTrue(lean!! > 0f)
     }
 
     @Test
-    fun fortyFiveDegreesRight() {
-        val component = (9.81 / kotlin.math.sqrt(2.0)).toFloat()
-        assertEquals(45f, BikeLeanAngle.fromGravity(-component, 0f, component), 0.5f)
+    fun leftArcIsNegativeAndSameMagnitude() {
+        val speedMps = 20f
+        val radiusMeters = 50.0
+        val yawRate = speedMps / radiusMeters
+        val expected = Math.toDegrees(kotlin.math.atan(speedMps * yawRate / BikeLeanAngle.StandardGravity)).toFloat()
+        val stepMillis = 1_000L
+        val stepDegrees = Math.toDegrees(yawRate).toFloat()
+        val lean = BikeLeanAngle.fromBearingChange(speedMps, 40f, 40f - stepDegrees, stepMillis)
+        assertEquals(-expected, lean ?: Float.NaN, 0.2f)
     }
 
     @Test
-    fun fortyFiveDegreesLeft() {
-        val component = (9.81 / kotlin.math.sqrt(2.0)).toFloat()
-        assertEquals(-45f, BikeLeanAngle.fromGravity(component, 0f, component), 0.5f)
+    fun straightIsNearZero() {
+        val lean = BikeLeanAngle.fromBearingChange(15f, 90f, 90f, 1_000L)
+        assertEquals(0f, lean ?: Float.NaN, 0.01f)
+    }
+
+    @Test
+    fun standingHasNoLean() {
+        assertNull(BikeLeanAngle.fromBearingChange(0f, 10f, 40f, 1_000L))
+        assertNull(BikeLeanAngle.fromBearingChange(2.9f, 10f, 40f, 1_000L))
+        assertNull(BikeLeanAngle.fromYawRate(0f, 0.4f))
+    }
+
+    @Test
+    fun sparseOrTinyIntervalHasNoLean() {
+        assertNull(BikeLeanAngle.fromBearingChange(20f, 10f, 40f, 8_000L))
+        assertNull(BikeLeanAngle.fromBearingChange(20f, 10f, 40f, 50L))
+        assertNull(BikeLeanAngle.fromBearingChange(20f, 10f, 40f, 0L))
+    }
+
+    @Test
+    fun bearingWrapAcrossNorthIsARightTurn() {
+        val lean = BikeLeanAngle.fromBearingChange(18f, 350f, 10f, 1_000L)
+        assertTrue(lean != null && lean > 0f)
+    }
+
+    @Test
+    fun serpentineKeepsLeftAndRightSign() {
+        val speedMps = 16f
+        val left = BikeLeanAngle.fromBearingChange(speedMps, 80f, 50f, 1_000L)
+        val right = BikeLeanAngle.fromBearingChange(speedMps, 50f, 90f, 1_000L)
+        assertTrue(left != null && left < 0f)
+        assertTrue(right != null && right > 0f)
+    }
+
+    @Test
+    fun liveYawRateBeatsBearingWhenPresent() {
+        val fromYaw = BikeLeanAngle.liveDegrees(20f, 0.4f, -12f)
+        val expected = BikeLeanAngle.fromYawRate(20f, 0.4f)
+        assertEquals(expected ?: Float.NaN, fromYaw ?: Float.NaN, 0.01f)
+        assertTrue((fromYaw ?: 0f) > 0f)
+    }
+
+    @Test
+    fun liveFallsBackToBearingLeanWithoutYaw() {
+        assertEquals(11f, BikeLeanAngle.liveDegrees(12f, null, 11f) ?: Float.NaN, 0.01f)
+        assertNull(BikeLeanAngle.liveDegrees(1f, 0.5f, 11f))
+    }
+}
+
+class HeadingYawRateTest {
+    @Test
+    fun waitsForAWindowThenReportsTurnRate() {
+        val tracker = HeadingYawRate()
+        assertNull(tracker.sample(0f, 0L))
+        assertNull(tracker.sample(1f, 100L))
+        val rate = tracker.sample(10f, 500L)
+        val expected = Math.toRadians(10.0) / 0.5
+        assertEquals(expected, (rate ?: Double.NaN).toDouble(), 0.01)
+        assertEquals(rate ?: Float.NaN, tracker.sample(12f, 600L) ?: Float.NaN, 0.0001f)
+    }
+
+    @Test
+    fun longGapDropsTheRate() {
+        val tracker = HeadingYawRate()
+        tracker.sample(0f, 0L)
+        assertTrue(tracker.sample(5f, 400L) != null)
+        assertNull(tracker.sample(90f, 400L + 5_000L))
     }
 }
 
@@ -3311,9 +3391,8 @@ class OfflineMapUseTest {
 
 class OsmRenderOptionsTest {
     @Test
-    fun cyclewaysFollowBicycleUsageOnly() {
-        assertTrue(OsmRenderOptions.cyclewaysForUsage(UsageType.BICYCLE))
-        UsageType.selectable.filter { it != UsageType.BICYCLE }.forEach { usage ->
+    fun cyclewaysStayOffForEveryUsage() {
+        UsageType.entries.forEach { usage ->
             assertFalse(OsmRenderOptions.cyclewaysForUsage(usage))
         }
     }
@@ -3330,9 +3409,9 @@ class OsmRenderOptionsTest {
     }
 
     @Test
-    fun bicycleDefaultTurnsCyclewaysOn() {
+    fun bicycleDefaultKeepsCyclewaysOff() {
         val options = OsmRenderOptions.defaults(UsageType.BICYCLE)
-        assertTrue(options.cycleways)
+        assertFalse(options.cycleways)
         assertTrue(options.buildings)
         assertFalse(options.poi)
     }
@@ -4525,6 +4604,15 @@ class SpeedTrackTest {
         assertEquals(SpeedBand.Slow, SpeedBands.of(-1f, UsageType.FOUR_WHEELERS, MeasurementSystem.METRIC))
         assertEquals(0xFF0B6B66.toInt(), SpeedBands.argb(SpeedBand.Slow))
         assertEquals(0xFF5C6B73.toInt(), SpeedBands.argb(SpeedBand.Unknown))
+        assertTrue(SpeedBands.argb(SpeedBand.Slow, dark = true) != SpeedBands.argb(SpeedBand.Slow))
+        assertTrue(SpeedBands.argb(SpeedBand.High, dark = true) != SpeedBands.argb(SpeedBand.High))
+        assertTrue(SpeedBands.argb(SpeedBand.Max, dark = true) != SpeedBands.argb(SpeedBand.Max))
+        assertTrue(luminance(SpeedBands.argb(SpeedBand.Slow, dark = true)) > luminance(SpeedBands.argb(SpeedBand.Slow)))
+        assertTrue(luminance(SpeedBands.argb(SpeedBand.High, dark = true)) > luminance(SpeedBands.argb(SpeedBand.High)))
+        assertTrue(luminance(SpeedBands.argb(SpeedBand.Max, dark = true)) > luminance(SpeedBands.argb(SpeedBand.Max)))
+        assertEquals(SpeedBands.argb(SpeedBand.Brisk), SpeedBands.argb(SpeedBand.Brisk, dark = true))
+        assertEquals(SpeedBands.argb(SpeedBand.Fast), SpeedBands.argb(SpeedBand.Fast, dark = true))
+        assertEquals(0xFF0E1A22.toInt(), SpeedBands.casingArgb(dark = true))
     }
 
     @Test
@@ -4591,4 +4679,11 @@ class SpeedTrackTest {
     private fun mph(value: Float): Float = value / 2.2369363f
 
     private fun kt(value: Float): Float = value / 1.9438445f
+
+    private fun luminance(argb: Int): Double {
+        val red = ((argb shr 16) and 0xFF) / 255.0
+        val green = ((argb shr 8) and 0xFF) / 255.0
+        val blue = (argb and 0xFF) / 255.0
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+    }
 }

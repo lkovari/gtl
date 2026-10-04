@@ -1,10 +1,9 @@
 package com.lkovari.mobile.apps.gtl.ui
 
-import android.app.Activity
 import android.content.Intent
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -31,7 +30,7 @@ import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 @Composable
 fun GtlApp(viewModel: GtlViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     val keepScreenOn = state.live.logging && state.settings.keepScreenOnWhileLogging
     DisposableEffect(keepScreenOn, activity) {
         val window = activity?.window
@@ -44,7 +43,7 @@ fun GtlApp(viewModel: GtlViewModel = viewModel()) {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
-    GtlTheme(darkTheme = isSystemInDarkTheme()) {
+    GtlTheme(darkTheme = state.darkTheme) {
         when (launchScreen(state.settingsLoaded, state.settings.disclaimerAccepted)) {
             LaunchScreen.Hold -> Unit
             LaunchScreen.Disclaimer -> DisclaimerScreen(
