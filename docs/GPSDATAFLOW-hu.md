@@ -129,7 +129,7 @@ A **Pontfelhő** (alapból ki) ugyanezt a nyers `lastLocation`-t mintavételezi 
 |---|---|
 | `START` | Első elfogadott fix (vagy folytatás, ha még nincs pont). |
 | `MOVE` | Elfogadott, és a sebesség ≥ a usage pauza-küszöbe. |
-| `PAUSE` | Elfogadott, és a sebesség a küszöb alatt (alap 0,4 m/s; Fut/túránál és kerékpárnál 0,25 m/s). |
+| `PAUSE` | Elfogadott, és a sebesség a küszöb alatt (alap 0,4 m/s; Fut/túránál és kerékpárnál 0,25 m/s). Legalább három egymás utáni lassú fix, és nem a Start utáni 5 s-on belül (`PauseDetection`). |
 | `STOP` | A user Stop; az utolsó helyzet akkor is beíródik, ha a kapu eldobná. |
 
 `isPlacemark` igaz START / PAUSE / STOP-nál (KMZ play / pause / stop ikonok).

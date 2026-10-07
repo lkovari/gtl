@@ -129,7 +129,7 @@ Rejected updates still refresh `lastLocation` for the GPS/Map HUD.
 |---|---|
 | `START` | First accepted fix (or resume with no prior point). |
 | `MOVE` | Accepted and speed ≥ usage pause threshold. |
-| `PAUSE` | Accepted and speed below pause threshold (default 0.4 m/s; 0.25 m/s for Run/Hike and bicycle). |
+| `PAUSE` | Accepted and speed below pause threshold (default 0.4 m/s; 0.25 m/s for Run/Hike and bicycle). At least three consecutive slow fixes, and not within 5 s of Start (`PauseDetection`). |
 | `STOP` | User Stop; last location written even if the gate would drop it. |
 
 `isPlacemark` is true for START / PAUSE / STOP (KMZ play / pause / stop icons).

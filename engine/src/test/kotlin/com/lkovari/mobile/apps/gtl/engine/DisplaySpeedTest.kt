@@ -70,7 +70,7 @@ class DisplaySpeedTest {
     }
 
     @Test
-    fun oneIdleSampleHoldsTheLastSpeedAndTheSecondReturnsToZero() {
+    fun twoIdleSamplesHoldTheLastSpeedAndTheThirdReturnsToZero() {
         val first = DisplaySpeed.apply(DisplaySpeedState(), fix(speed = 3f, speedAccuracy = 0.2f))
         val moving = DisplaySpeed.apply(first.state, fix(speed = 3.2f, speedAccuracy = 0.2f))
         assertEquals(3.2f, moving.metersPerSecond)
@@ -79,9 +79,62 @@ class DisplaySpeedTest {
         assertEquals(3.2f, held.metersPerSecond)
         assertEquals(DisplayMotion.Moving, held.state.motion)
 
-        val idle = DisplaySpeed.apply(held.state, fix(speed = 1.4f, speedAccuracy = 2f))
+        val stillHeld = DisplaySpeed.apply(held.state, fix(speed = 1.4f, speedAccuracy = 2f))
+        assertEquals(3.2f, stillHeld.metersPerSecond)
+        assertEquals(DisplayMotion.Moving, stillHeld.state.motion)
+
+        val idle = DisplaySpeed.apply(stillHeld.state, fix(speed = 1.4f, speedAccuracy = 2f))
         assertEquals(0f, idle.metersPerSecond)
         assertEquals(DisplayMotion.Idle, idle.state.motion)
+    }
+
+    @Test
+    fun indoorDopplerOnAPhoneAtRestStaysAtZero() {
+        var state = DisplaySpeedState()
+        repeat(8) {
+            val decision = DisplaySpeed.apply(
+                state,
+                fix(speed = 1.4f, speedAccuracy = 2f, deviceMoving = false),
+                DisplaySpeed.floorMps(UsageType.TWO_WHEELERS)
+            )
+            assertEquals(0f, decision.metersPerSecond)
+            state = decision.state
+        }
+    }
+
+    @Test
+    fun slowWalkBelowSpeedAccuracyShowsWhenTheAccelerometerMoves() {
+        // Session 16 (2026-10-07): the chip ramped 0.006 -> 1.48 m/s while hAcc was 11-16 m.
+        val speeds = listOf(0.006f, 0.077f, 0.171f, 0.264f, 0.461f, 0.827f, 0.995f, 1.155f, 1.213f, 0.984f)
+        var state = DisplaySpeedState()
+        var firstShown: Int? = null
+        speeds.forEachIndexed { index, speed ->
+            val decision = DisplaySpeed.apply(
+                state,
+                fix(speed = speed, speedAccuracy = 2f, deviceMoving = true),
+                DisplaySpeed.floorMps(UsageType.RUNNER)
+            )
+            if (firstShown == null && (decision.metersPerSecond ?: 0f) > 0f) {
+                firstShown = index
+            }
+            state = decision.state
+        }
+        assertEquals(5, firstShown)
+        assertEquals(DisplayMotion.Moving, state.motion)
+    }
+
+    @Test
+    fun standingStillWhileHoldingThePhoneStaysAtZero() {
+        var state = DisplaySpeedState()
+        listOf(0.006f, 0.077f, 0.171f, 0.12f, 0.2f).forEach { speed ->
+            val decision = DisplaySpeed.apply(
+                state,
+                fix(speed = speed, speedAccuracy = 2f, deviceMoving = true),
+                DisplaySpeed.floorMps(UsageType.RUNNER)
+            )
+            assertEquals(0f, decision.metersPerSecond)
+            state = decision.state
+        }
     }
 
     @Test
@@ -161,14 +214,16 @@ class DisplaySpeedTest {
         speed: Float?,
         speedAccuracy: Float? = null,
         latitude: Double = LAT,
-        horizontal: Float? = 15f
+        horizontal: Float? = 15f,
+        deviceMoving: Boolean? = null
     ): DisplaySpeedFix {
         return DisplaySpeedFix(
             speedMps = speed,
             speedAccuracyMps = speedAccuracy,
             latitude = latitude,
             longitude = LON,
-            horizontalAccuracyMeters = horizontal
+            horizontalAccuracyMeters = horizontal,
+            deviceMoving = deviceMoving
         )
     }
 

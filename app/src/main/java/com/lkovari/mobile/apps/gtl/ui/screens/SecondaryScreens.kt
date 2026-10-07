@@ -704,6 +704,21 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                         labelStyle = chipStyle
                                     )
                                 }
+                                val raw = sensors.rawPressureHpa
+                                Text(
+                                    text = when {
+                                        raw == null -> stringResource(R.string.settings_baro_sensor_silent)
+                                        sensors.pressureHpa == null ->
+                                            stringResource(R.string.settings_baro_sensor_ignored, raw)
+                                        else -> stringResource(R.string.settings_baro_sensor, raw)
+                                    },
+                                    style = chipStyle,
+                                    color = if (raw != null && sensors.pressureHpa != null) {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    } else {
+                                        MaterialTheme.colorScheme.error
+                                    }
+                                )
                             }
                         }
                     }

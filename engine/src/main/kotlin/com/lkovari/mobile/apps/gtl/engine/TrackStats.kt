@@ -31,6 +31,7 @@ data class TrackStats(
 
 object TrackStatsCalculator {
     private const val MOVING_SPEED_MPS = 0.5f
+    const val GapMillis = 3_000L
 
     fun compute(samples: List<TrackSample>): TrackStats {
         if (samples.isEmpty()) {
@@ -53,16 +54,20 @@ object TrackStatsCalculator {
         for (index in 1 until samples.size) {
             val previous = samples[index - 1]
             val current = samples[index]
-            odometer += FixAcceptance.haversineMeters(
+            val step = FixAcceptance.haversineMeters(
                 previous.latitude,
                 previous.longitude,
                 current.latitude,
                 current.longitude
             )
+            odometer += step
             val dt = (current.timestampMillis - previous.timestampMillis).coerceAtLeast(0L)
             val speed = current.speedMps
             if (speed != null) {
-                if (speed >= MOVING_SPEED_MPS) {
+                // Standing still stores few or no points, so the first point after a stop
+                // spans the whole wait while already carrying walking speed.
+                val stoodInGap = dt > GapMillis && step / (dt / 1000.0) < MOVING_SPEED_MPS
+                if (speed >= MOVING_SPEED_MPS && !stoodInGap) {
                     moving += dt
                 } else {
                     waiting += dt

@@ -114,3 +114,22 @@ object FixAcceptance {
     private const val EveryFixMinDistanceMeters = 1.0
     private const val PedestrianEveryFixMinDistanceMeters = 0.5
 }
+
+/**
+ * Standing still at a light rarely moves the fix past the spacing gate, so no point is
+ * stored and the stop is invisible. A held point every few seconds keeps it on the log.
+ */
+object StationaryHeartbeat {
+    const val IntervalMillis = 5_000L
+
+    fun isDue(previous: TrackFix?, current: TrackFix): Boolean {
+        if (previous == null) {
+            return false
+        }
+        return current.timestampMillis - previous.timestampMillis >= IntervalMillis
+    }
+
+    fun hold(previous: TrackFix, current: TrackFix): TrackFix {
+        return current.copy(latitude = previous.latitude, longitude = previous.longitude)
+    }
+}

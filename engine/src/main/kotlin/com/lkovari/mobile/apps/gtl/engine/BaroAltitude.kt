@@ -10,6 +10,8 @@ object BaroAltitude {
     const val MaxAltitudeJitterMeters = 15.0
     const val MinPlausiblePressureHpa = 300f
     const val MaxPlausiblePressureHpa = 1100f
+    const val MaxGpsMismatchHpa = 30f
+    const val MaxCalibrationVerticalAccuracyMeters = 15f
     private const val IsaScale = 44330.0
     private const val IsaExponent = 5.255
 
@@ -48,14 +50,44 @@ object BaroAltitude {
         return clampOffset(pressureHpa - expected)
     }
 
+    fun calibrationOffsetHpa(pressureHpa: Float, gpsMeters: Double, qnhHpa: Float): Float? {
+        if (!isPlausiblePressureHpa(pressureHpa)) {
+            return null
+        }
+        val expected = expectedStationHpa(gpsMeters, qnhHpa) ?: return null
+        val raw = pressureHpa - expected
+        if (!raw.isFinite() || kotlin.math.abs(raw) > MaxGpsMismatchHpa) {
+            return null
+        }
+        return clampOffset(raw)
+    }
+
+    fun matchesGps(pressureHpa: Float, gpsMeters: Double?, qnhHpa: Float, offsetHpa: Float = 0f): Boolean {
+        if (!isPlausiblePressureHpa(pressureHpa)) {
+            return false
+        }
+        if (gpsMeters == null || !GpsAltitude.isPlausible(gpsMeters)) {
+            return true
+        }
+        val expected = expectedStationHpa(gpsMeters, qnhHpa) ?: return true
+        val corrected = pressureHpa - clampOffset(offsetHpa)
+        return kotlin.math.abs(corrected - expected) <= MaxGpsMismatchHpa
+    }
+
     fun autoCalibrateEligible(
         pressureHpa: Float?,
         gpsAltitudeMeters: Double?,
         alreadyCalibratedThisSession: Boolean,
         enabled: Boolean,
-        previousGpsAltitudeMeters: Double?
+        previousGpsAltitudeMeters: Double?,
+        verticalAccuracyMeters: Float? = null
     ): Boolean {
         if (!enabled || alreadyCalibratedThisSession) {
+            return false
+        }
+        if (verticalAccuracyMeters != null &&
+            (!verticalAccuracyMeters.isFinite() || verticalAccuracyMeters > MaxCalibrationVerticalAccuracyMeters)
+        ) {
             return false
         }
         if (pressureHpa == null || !isPlausiblePressureHpa(pressureHpa) ||

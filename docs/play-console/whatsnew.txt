@@ -1,21 +1,21 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.21)
+GTL GPS Track Logger — Play Console “What’s new” (next release after v2.0.21)
 
-EN (426 / 500 characters)
+EN (378 / 500 characters)
 
-Fix: blank screen after tapping Back.
+Fixes for altitude, speed, and stops.
 
-• A quick double tap on Back no longer leaves an empty screen with no buttons
-• It showed up most often after switching offline maps, for example to Turistautak
-• Settings, Download Offline map, Saved tracks, Help, Location settings, About, and Error log all return to the main screen
-• A double tap on a menu item opens its screen only once
-• A running recording was never stopped by it
+• Baro altitude no longer shows a wrong value like 1930 m when the pressure sensor stalls
+• Speed shows within seconds after Start and stays on during a slow walk or run
+• A phone lying still indoors still shows 0 km/h
+• No false Pause marker right after Start
+• Time waiting now counts while you stand at a red light, also on saved tracks
 
-HU (424 / 500 characters)
+HU (398 / 500 characters)
 
-Javítva: üres képernyő a Vissza után.
+Javítások a magasságban, a sebességben és a megállásoknál.
 
-• A Vissza gyors dupla koppintása után már nem marad üres, gomb nélküli képernyő
-• Leginkább offline térkép váltása után jött elő, például Turistautakra
-• A Beállítások, Offline térkép, Mentett útvonalak, Súgó, Helymeghatározás, Névjegy és Hibanapló mind a főképernyőre tér vissza
-• Menüpont dupla koppintása csak egyszer nyitja meg a képernyőt
-• A futó rögzítést ez sosem állította le
+• A baro magasság nem mutat hibás értéket (pl. 1930 m), ha a nyomásszenzor leáll
+• A sebesség a Start után másodpercek alatt megjelenik, és lassú séta, futás közben is látszik
+• Az asztalon fekvő telefon továbbra is 0 km/h-t mutat
+• Nincs hamis Pause jelölés a Start után
+• A várakozás ideje piros lámpánál is nő, a mentett útvonalakon is

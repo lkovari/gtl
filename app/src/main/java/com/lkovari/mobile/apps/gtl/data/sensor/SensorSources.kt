@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.SystemClock
 import com.lkovari.mobile.apps.gtl.engine.HeadingYawRate
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -64,6 +65,11 @@ class AccelerometerSource(context: Context) {
     }
 }
 
+data class PressureSample(
+    val hpa: Float,
+    val receivedNanos: Long
+)
+
 class PressureSource(context: Context) {
     private val sensorManager =
         context.applicationContext.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -71,7 +77,7 @@ class PressureSource(context: Context) {
 
     val isAvailable: Boolean get() = sensor != null
 
-    fun pressures(): Flow<Float> = callbackFlow {
+    fun samples(): Flow<PressureSample> = callbackFlow {
         val current = sensor
         if (current == null) {
             close()
@@ -80,7 +86,7 @@ class PressureSource(context: Context) {
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
                 if (event.values.isNotEmpty()) {
-                    trySend(event.values[0])
+                    trySend(PressureSample(event.values[0], SystemClock.elapsedRealtimeNanos()))
                 }
             }
 

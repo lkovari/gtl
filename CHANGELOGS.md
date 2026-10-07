@@ -9,6 +9,25 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Fixed
+
+- Barometric altitude showed 1930 m at 130 m GPS altitude. The pressure sensor delivered one 798.86 hPa reading and then stalled, and auto-calibration clamped the −207 hPa mismatch to −10 hPa instead of rejecting it. The pressure feed is now re-registered when no event arrives for 5 s or the value repeats exactly for 120 s, and a reading more than 30 hPa (about 250 m) away from the GPS-expected pressure is ignored: no live baro, null in the log, no calibration. Auto-calibration also skips fixes with vertical accuracy worse than 15 m. Settings → Baro shows the raw sensor hPa.
+- HUD speed stayed 0 for about 20 s after Start and during a slow walk or run, because the speed rarely beat its own speed accuracy on an L1-only chip. Speed now also counts as motion when it reaches the usage floor (0.3 m/s Run/Hike, 0.5 m/s bicycle, 0.8 m/s vehicles, 1.5 m/s aircraft) and the accelerometer shows motion, so a phone lying still indoors still reads 0. It returns to 0 after three quiet fixes instead of two.
+- A Pause marker appeared one second after Start while the chip speed was still ramping up. `PAUSE` now needs three consecutive slow fixes and is never written in the first 5 s.
+- Time waiting did not grow at a red light. Standing still stored no points, and the first point after the stop carried the whole wait as moving time. A stretch longer than 3 s with less than 0.5 m/s ground speed now counts as waiting (saved tracks recompute too), and a held point is stored every 5 s while you stand still.
+
+### Changed
+
+- Fused location requests ask for fine granularity and no batched delivery.
+
+### Magyar
+
+- A barometrikus magasság 1930 m-t mutatott 130 m-es GPS-magasságnál. A nyomásszenzor egyetlen 798,86 hPa-s értéket adott, majd leállt, az automatikus kalibrálás pedig a −207 hPa-s eltérést elutasítás helyett −10 hPa-ra szorította. A nyomásforrás mostantól újraregisztrál, ha 5 s-ig nem jön esemény, vagy 120 s-ig pontosan ugyanaz az érték, és a GPS-ből várt nyomástól 30 hPa-nál (kb. 250 m) jobban eltérő értéket figyelmen kívül hagyja: nincs élő baro, a logban null, nincs kalibráció. Az automatikus kalibrálás a 15 m-nél rosszabb függőleges pontosságú fixeket is kihagyja. Beállítások → Baro mutatja a nyers szenzor hPa-t.
+- A HUD sebessége a Start után kb. 20 s-ig és lassú séta vagy futás közben 0 maradt, mert csak L1-es chipen a sebesség ritkán haladta meg a saját sebességpontosságát. Mostantól mozgásnak számít az is, ha eléri a usage alsó küszöbét (0,3 m/s Fut/túra, 0,5 m/s kerékpár, 0,8 m/s járművek, 1,5 m/s repülő), és a gyorsulásmérő is mozgást jelez, így a beltérben fekvő telefon továbbra is 0-t mutat. Kettő helyett három csendes fix után lesz újra 0.
+- Pause jelölés jelent meg egy másodperccel a Start után, amíg a chip sebessége még felfutott. A `PAUSE` mostantól három egymás utáni lassú fixet kíván, és az első 5 s-ban soha nem íródik.
+- A várakozás ideje nem nőtt piros lámpánál. Álló helyzetben nem tárolódott pont, és a megállás utáni első pont a teljes várakozást mozgásidőként vitte. A 3 s-nál hosszabb, 0,5 m/s-nál kisebb talajsebességű szakasz mostantól várakozás (a mentett trackek is újraszámolódnak), és állás közben 5 s-onként egy tartott pont tárolódik.
+- A Fused helykérés finom granularitást kér, kötegelt kézbesítés nélkül.
+
 ## [2.0.21] — 2026-10-04
 
 Play production track **39 (2.0.21)** (signed AAB). Blank screen after leaving a secondary screen.

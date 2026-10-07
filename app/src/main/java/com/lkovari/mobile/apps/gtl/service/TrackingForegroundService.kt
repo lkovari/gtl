@@ -9,6 +9,7 @@ import android.content.pm.ServiceInfo
 import android.database.SQLException
 import android.os.Build
 import android.os.SystemClock
+import androidx.core.location.LocationCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
@@ -19,13 +20,15 @@ import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
 import com.lkovari.mobile.apps.gtl.data.location.LocationClient
 import com.lkovari.mobile.apps.gtl.data.prefs.GtlSettings
-import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
+import com.lkovari.mobile.apps.gtl.data.sensor.freshPressures
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
 import com.lkovari.mobile.apps.gtl.engine.EventKind
 import com.lkovari.mobile.apps.gtl.engine.FixAcceptance
 import com.lkovari.mobile.apps.gtl.engine.GpsQualityNotice
 import com.lkovari.mobile.apps.gtl.engine.KalmanTrackFilter
+import com.lkovari.mobile.apps.gtl.engine.PauseDetection
+import com.lkovari.mobile.apps.gtl.engine.StationaryHeartbeat
 import com.lkovari.mobile.apps.gtl.engine.TrackFix
 import java.util.concurrent.atomic.AtomicInteger
 import com.lkovari.mobile.apps.gtl.diagnostics.RecordingInterruptNotice
@@ -59,6 +62,8 @@ class TrackingForegroundService : LifecycleService() {
     private var kalman = KalmanTrackFilter()
     private var autoCalibratedThisSession = false
     private var pendingCalibrationAltitude: Double? = null
+    private var slowFixStreak = 0
+    private var startFixMillis: Long? = null
     @Volatile
     private var foregroundRejected = false
 
@@ -132,6 +137,8 @@ class TrackingForegroundService : LifecycleService() {
                 lastHeading = null
                 autoCalibratedThisSession = false
                 pendingCalibrationAltitude = null
+                slowFixStreak = 0
+                startFixMillis = null
                 val accepted = lastAccepted
                 if (accepted != null) {
                     kalman.seedFrom(accepted)
@@ -171,7 +178,7 @@ class TrackingForegroundService : LifecycleService() {
                     }
                     launch {
                         app.accelerometerSource.accelerations().collectLatest { value ->
-                            app.trackingState.update { it.copy(accel = value) }
+                            app.trackingState.acceptAcceleration(value, SystemClock.elapsedRealtimeNanos())
                         }
                     }
                     launch {
@@ -194,18 +201,12 @@ class TrackingForegroundService : LifecycleService() {
                     }
                     launch {
                         combine(
-                            app.pressureSource.pressures(),
+                            app.pressureSource.freshPressures(),
                             app.preferences.settings
                         ) { value, prefs ->
                             Triple(value, prefs.qnhHpa, prefs.baroPressureOffsetHpa)
                         }.collectLatest { (value, qnh, offset) ->
-                            app.trackingState.update {
-                                it.copy(
-                                    pressureHpa = value,
-                                    baroAltitude = AndroidBaroAltitude.metersFromPressureHpa(value, qnh, offset),
-                                    pressureAvailable = true
-                                )
-                            }
+                            app.trackingState.acceptPressure(value, qnh, offset)
                         }
                     }
                 }
@@ -257,7 +258,7 @@ class TrackingForegroundService : LifecycleService() {
                 satellitesInFix = gnss?.satellitesInFix ?: 0
             )
             val wasGpsOff = app.trackingState.state.value.gpsOff
-            app.trackingState.acceptFix(location) {
+            app.trackingState.acceptFix(location, settings.usageType) {
                 it.copy(provider = location.provider, gpsOff = false)
             }
             if (wasGpsOff) {
@@ -277,8 +278,14 @@ class TrackingForegroundService : LifecycleService() {
                 return@collect
             }
             publishLiveLean(app, fix, location.hasBearing())
+            slowFixStreak = PauseDetection.slowStreak(slowFixStreak, reportedSpeed, settings.usageType)
             if (location.hasAltitude()) {
-                maybeAutoCalibrateBaro(app, settings, fix.altitude)
+                val verticalAccuracy = if (LocationCompat.hasVerticalAccuracy(location)) {
+                    LocationCompat.getVerticalAccuracyMeters(location)
+                } else {
+                    null
+                }
+                maybeAutoCalibrateBaro(app, settings, fix.altitude, verticalAccuracy)
             }
             val forStore = if (settings.trackSmoothingEnabled) {
                 val filtered = kalman.observe(
@@ -292,44 +299,51 @@ class TrackingForegroundService : LifecycleService() {
             } else {
                 fix
             }
-            if (!FixAcceptance.shouldAccept(
-                    lastAccepted,
-                    forStore,
-                    filter,
-                    settings.recordingDensityValue,
-                    settings.usageType
-                )
-            ) {
-                noteRejected(app)
-                return@collect
+            val spaced = FixAcceptance.shouldAccept(
+                lastAccepted,
+                forStore,
+                filter,
+                settings.recordingDensityValue,
+                settings.usageType
+            )
+            val heldFrom = lastAccepted
+            val toStore = when {
+                spaced -> forStore
+                heldFrom != null && StationaryHeartbeat.isDue(heldFrom, forStore) ->
+                    StationaryHeartbeat.hold(heldFrom, forStore)
+                else -> {
+                    noteRejected(app)
+                    return@collect
+                }
             }
+            val sinceStart = startFixMillis?.let { toStore.timestampMillis - it }
             val kind = when {
                 lastAccepted == null -> EventKind.START
                 !location.hasSpeed() -> EventKind.MOVE
-                forStore.speedMps < settings.usageType.pauseSpeedMps() -> EventKind.PAUSE
+                PauseDetection.isPause(slowFixStreak, sinceStart) -> EventKind.PAUSE
                 else -> EventKind.MOVE
             }
-            val storedAltitude = if (location.hasAltitude()) forStore.altitude else null
-            val storedSpeed = if (location.hasSpeed()) forStore.speedMps else null
+            val storedAltitude = if (location.hasAltitude()) toStore.altitude else null
+            val storedSpeed = if (location.hasSpeed()) toStore.speedMps else null
                 val live = app.trackingState.state.value
                 val temp = if (live.temperatureAvailable) live.temperatureCelsius else null
                 try {
                     app.trackRepository.insertEvent(
                         GpsEventEntity(
                             sessionId = sessionId,
-                            timestamp = forStore.timestampMillis,
-                            latitude = forStore.latitude,
-                            longitude = forStore.longitude,
+                            timestamp = toStore.timestampMillis,
+                            latitude = toStore.latitude,
+                            longitude = toStore.longitude,
                             altitude = storedAltitude,
                             speed = storedSpeed,
-                            bearing = forStore.bearing,
-                            accuracy = forStore.accuracyMeters,
-                            satellitesInFix = forStore.satellitesInFix,
+                            bearing = toStore.bearing,
+                            accuracy = toStore.accuracyMeters,
+                            satellitesInFix = toStore.satellitesInFix,
                             ambientTemperature = temp,
                             accelX = live.accel?.getOrNull(0),
                             accelY = live.accel?.getOrNull(1),
                             accelZ = live.accel?.getOrNull(2),
-                            leanAngle = storedLean(lastAccepted, forStore),
+                            leanAngle = storedLean(lastAccepted, toStore),
                             usageType = usageTypeName,
                             isPlacemark = kind != EventKind.MOVE,
                             eventKind = kind.name,
@@ -343,11 +357,14 @@ class TrackingForegroundService : LifecycleService() {
                     stopRecording()
                     return@collect
                 }
-                lastAccepted = forStore
+                lastAccepted = toStore
                 lastStoredAltitude = storedAltitude
                 lastStoredSpeed = storedSpeed
                 lastAcceptElapsed = SystemClock.elapsedRealtime()
                 lastKind = kind
+                if (kind == EventKind.START) {
+                    startFixMillis = toStore.timestampMillis
+                }
                 val nextCount = live.acceptedFixCount + 1
                 app.trackingState.update { it.copy(acceptedFixCount = nextCount, poorGps = false) }
                 refreshNotification()
@@ -411,7 +428,12 @@ class TrackingForegroundService : LifecycleService() {
         app.trackingState.update { it.copy(rejectedFixCount = it.rejectedFixCount + 1) }
     }
 
-    private suspend fun maybeAutoCalibrateBaro(app: GtlApplication, settings: GtlSettings, gpsAltitudeMeters: Double) {
+    private suspend fun maybeAutoCalibrateBaro(
+        app: GtlApplication,
+        settings: GtlSettings,
+        gpsAltitudeMeters: Double,
+        verticalAccuracyMeters: Float?
+    ) {
         if (autoCalibratedThisSession || !settings.autoCalibrateBaroEnabled) {
             return
         }
@@ -423,12 +445,13 @@ class TrackingForegroundService : LifecycleService() {
             gpsAltitudeMeters,
             autoCalibratedThisSession,
             settings.autoCalibrateBaroEnabled,
-            previousAltitude
+            previousAltitude,
+            verticalAccuracyMeters
         )
         if (!eligible || pressure == null || !BaroAltitude.isPlausiblePressureHpa(pressure)) {
             return
         }
-        val offset = BaroAltitude.offsetHpa(pressure, gpsAltitudeMeters, settings.qnhHpa)
+        val offset = BaroAltitude.calibrationOffsetHpa(pressure, gpsAltitudeMeters, settings.qnhHpa) ?: return
         app.preferences.setBaroPressureOffsetHpa(offset)
         autoCalibratedThisSession = true
     }

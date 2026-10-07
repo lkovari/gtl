@@ -14,6 +14,7 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationCompat
+import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -130,10 +131,11 @@ class LocationClient(context: Context) {
                 }
             }
             registerProviderChanges(receiver)
-            val request = LocationRequest.Builder(
-                Priority.PRIORITY_HIGH_ACCURACY,
-                minTimeMillis.coerceAtLeast(500L)
-            )
+            val intervalMillis = minTimeMillis.coerceAtLeast(500L)
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMillis)
+                .setGranularity(Granularity.GRANULARITY_FINE)
+                .setMinUpdateIntervalMillis(intervalMillis)
+                .setMaxUpdateDelayMillis(0L)
                 .setMinUpdateDistanceMeters(minDistanceMeters)
                 .setWaitForAccurateLocation(recording)
                 .build()

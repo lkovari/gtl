@@ -22,6 +22,7 @@ import com.lkovari.mobile.apps.gtl.domain.KmlExportUseCase
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFailure
 import com.lkovari.mobile.apps.gtl.domain.TrackShareFormat
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
+import com.lkovari.mobile.apps.gtl.data.sensor.freshPressures
 import com.lkovari.mobile.apps.gtl.engine.AppTheme
 import com.lkovari.mobile.apps.gtl.engine.BaroAltitude
 import com.lkovari.mobile.apps.gtl.engine.BikeLeanAngle
@@ -319,7 +320,7 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             settings.map { it.gnssOnly }.distinctUntilChanged().collectLatest { gnssOnly ->
                 val client = com.lkovari.mobile.apps.gtl.data.location.LocationClient(app)
                 client.locations(1000L, 0f, gnssOnly, recording = false).collect { location ->
-                    app.trackingState.acceptFix(location) {
+                    app.trackingState.acceptFix(location, settings.value.usageType) {
                         it.copy(provider = location.provider)
                     }
                     val current = app.trackingState.state.value
@@ -374,14 +375,8 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                 app.trackingState.update {
                     it.copy(pressureAvailable = app.pressureSource.isAvailable)
                 }
-                app.pressureSource.pressures().collect { value ->
-                    app.trackingState.update {
-                        it.copy(
-                            pressureHpa = value,
-                            baroAltitude = AndroidBaroAltitude.metersFromPressureHpa(value, qnh, offset),
-                            pressureAvailable = true
-                        )
-                    }
+                app.pressureSource.freshPressures().collect { value ->
+                    app.trackingState.acceptPressure(value, qnh, offset)
                 }
             }
         }
@@ -995,11 +990,11 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
             if (!GpsAltitude.isPlausible(location.altitude)) {
                 return@launch
             }
-            val offset = BaroAltitude.offsetHpa(
+            val offset = BaroAltitude.calibrationOffsetHpa(
                 pressure,
                 location.altitude,
                 settings.value.qnhHpa
-            )
+            ) ?: return@launch
             app.preferences.setBaroPressureOffsetHpa(offset)
         }
     }
