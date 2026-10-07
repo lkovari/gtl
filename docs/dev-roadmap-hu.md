@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Állapot:** termékterv a 2.0.21 (versionCode 39) után, frissítve 2026-10-04. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás, az OSM fájl/kamera védelem, a usage szerinti sebességsávokkal színezett térképvonal (jelmagyarázattal), az Útvonal nagy élő sebessége sparkline-nal, a mentett-útvonal kártyák, a sötét térkép helyzet szerinti témával (1.) és az álló sebesség a HUD-on (2.).  
+**Állapot:** termékterv a 2.0.22 (versionCode 40) után, frissítve 2026-10-07. A fában már benne van a térkép HUD, a GPX 1.1, a skyplot, a magasságprofil, a QNH, a GPS-magasság választás, az OSM fájl/kamera védelem, a usage szerinti sebességsávokkal színezett térképvonal (jelmagyarázattal), az Útvonal nagy élő sebessége sparkline-nal, a mentett-útvonal kártyák, a sötét térkép helyzet szerinti témával (1.) és az álló sebesség a HUD-on (2.).  
 **Nem kódspec:** ez a sorrend *miértjét* és a hullámokat rögzíti. Implementáció előtt a kiválasztott hullámra külön brief / tesztlista kell.  
 **Effort:** egy, a kódbázist ismerő fejlesztő naptári napja (nem emberhónap, nem naptári hét csapatra).
 
@@ -12,7 +12,7 @@ Kapcsolódó: [README-hu.md](../README-hu.md), [CHANGELOGS.md](../CHANGELOGS.md)
 
 ## Hogyan olvasd
 
-A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.21 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás, az OSM **fájlellenőrzés**, a **sebesség szerint színezett** térképvonal, a **mentett-útvonal kártyák**, a **sötét térkép** helyzet szerinti témával és az **álló sebesség** a HUD-on is megvan.
+A GTL (GPS Track Logger) 2014-es Eclipse-app Kotlin + Compose újraírása. A 2.0.x kiadások a **naplózási láncot** rakták helyre: Room az egyetlen igazságforrás, Kalman a letárolt pontokon, GNSS-only Fut/túra és kerékpár, KMZ, OSM, pontfelhő. A 2.0.22 utáni fában a felvétel közbeni **térkép HUD**, a **GPX**, a GPS **skyplot**, a **magasságprofil** (QNH-s baro vonallal), a **GPS-magasság** választás, az OSM **fájlellenőrzés**, a **sebesség szerint színezett** térképvonal, a **mentett-útvonal kártyák**, a **sötét térkép** helyzet szerinti témával és az **álló sebesség** a HUD-on is megvan.
 
 A következő hiány **egy élő, menettel forduló térkép, az élő értesítés és a motornapló**: a térkép mindig északra néz, a minden ponton tárolt dőlésből a felület egy fokot mutat, az értesítés statikus. A Play feature graphic sötét cockpitet és izzó tracket ígér; a HUD, a skyplot, a sebesség-szín és a sötét csempe a kódban megvan, a listing képe még a régi kivágás.
 
