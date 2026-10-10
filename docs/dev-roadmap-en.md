@@ -2,7 +2,7 @@
 
 [English](dev-roadmap-en.md) · [Magyar](dev-roadmap-hu.md)
 
-**Status:** Product plan after 2.0.22 (versionCode 40), updated 2026-10-07. The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, OSM file/camera guards, the map line coloured by usage speed bands (with a legend), the large live speed with a sparkline on Route, saved-track cards, the dark map with a position-based theme (1), and standing speed on the HUD (2).  
+**Status:** Product plan after 2.0.23 (versionCode 41), updated 2026-10-10. The tree already has the map HUD, GPX 1.1, skyplot, elevation profile, QNH, GPS altitude pick, OSM file/camera guards, the map line coloured by usage speed bands (with a legend), the large live speed with a sparkline on Route, saved-track cards, the dark map with a position-based theme (1), and standing speed on the HUD (2).  
 **Not a code spec:** this document records *why* the order is this order, and the release waves. Write a short brief / test list for the wave you actually start.  
 **Effort:** calendar days for one developer who already knows this repo (not person-months, not a team week).
 
@@ -12,7 +12,7 @@ Related: [README-en.md](../README-en.md), [CHANGELOGS.md](../CHANGELOGS.md), [DB
 
 ## How to read this
 
-GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.22 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line), **GPS altitude** pick, OSM **file validation**, **speed-coloured** map tracks, **saved-track cards**, a **dark map** with a position-based theme, and **standing speed** on the HUD.
+GTL (GPS Track Logger) is the Kotlin + Compose rewrite of the 2014 Eclipse app. The 2.0.x releases fixed the **logging chain**: Room is the single source of truth, Kalman runs on stored points, GNSS-only for Run/Hike and bicycle, KMZ, OSM, fix cloud. After 2.0.23 the tree also has the live **map HUD**, **GPX**, GPS **skyplot**, an **elevation profile** (dashed baro line), **GPS altitude** pick, OSM **file validation**, **speed-coloured** map tracks, **saved-track cards**, a **dark map** with a position-based theme, and **standing speed** on the HUD.
 
 The remaining gap is **a live map that turns with the ride, a live notification, and the motorbike log**: the map always faces north, the lean stored on every point shows as one number, and the notification is static. The Play feature graphic promises a dark cockpit and a glowing track; HUD, skyplot, speed colour, and dark tiles are in the code, and the listing image is still the old crop.
 

@@ -1,21 +1,17 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.22)
+GTL GPS Track Logger — Play Console “What’s new” (v2.0.23)
 
-EN (378 / 500 characters)
+EN (421 / 500 characters)
 
-Fixes for altitude, speed, and stops.
+Recording no longer stops with the screen off.
 
-• Baro altitude no longer shows a wrong value like 1930 m when the pressure sensor stalls
-• Speed shows within seconds after Start and stays on during a slow walk or run
-• A phone lying still indoors still shows 0 km/h
-• No false Pause marker right after Start
-• Time waiting now counts while you stand at a red light, also on saved tracks
+• Some phones stopped GTL about 15 minutes after the screen went off, and the track broke off. Start now offers to let GTL run without battery optimization, so recording continues
+• If the phone still stops a recording, the track closes at the last saved point and the app tells you on the next launch
+• A new Start no longer joins an interrupted track with a straight line
 
-HU (398 / 500 characters)
+HU (458 / 500 characters)
 
-Javítások a magasságban, a sebességben és a megállásoknál.
+A felvétel kikapcsolt képernyőnél sem áll le.
 
-• A baro magasság nem mutat hibás értéket (pl. 1930 m), ha a nyomásszenzor leáll
-• A sebesség a Start után másodpercek alatt megjelenik, és lassú séta, futás közben is látszik
-• Az asztalon fekvő telefon továbbra is 0 km/h-t mutat
-• Nincs hamis Pause jelölés a Start után
-• A várakozás ideje piros lámpánál is nő, a mentett útvonalakon is
+• Egyes telefonok kb. 15 perccel a képernyő kikapcsolása után leállították a GTL-t, és a track megszakadt. A Start mostantól felajánlja, hogy a GTL akkumulátor-optimalizálás nélkül fusson, így a rögzítés folytatódik
+• Ha a telefon mégis leállítja a felvételt, a track az utolsó mentett pontnál lezárul, és az app a következő megnyitáskor jelzi
+• Az új Start nem köti össze egyenes vonallal a megszakadt trackkel
