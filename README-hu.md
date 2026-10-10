@@ -30,6 +30,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 - [Architektúra](#architektúra)
   - [Adatok](#adatok)
   - [Hogyan működik a naplózás](#hogyan-működik-a-naplózás)
+  - [Háttérben rögzítés és akkumulátor](#háttérben-rögzítés-és-akkumulátor)
   - [GNSS skyplot](#gnss-skyplot)
   - [Barometrikus magasság (Baro)](#barometrikus-magasság-baro)
   - [Hogyan naplóz a Fut/túra, mint egy sportóra](#hogyan-naplóz-a-futtúra-mint-egy-sportóra)
@@ -54,7 +55,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
 
 ### Naplózás
 
-- **Indít / Leállít** a munkamenetet látható előtér-szolgáltatásként rögzíti, értesítéssel. A rögzítés megy tovább, ha az app háttérbe kerül, és akkor is, ha a képernyő zárolódik. Ha a rendszer a folyamat halála után nem tudja újraindítani a szolgáltatást, a track az utolsó mentett pontnál lezárul, és a következő megnyitáskor egyszer jelzi.
+- **Indít / Leállít** a munkamenetet látható előtér-szolgáltatásként rögzíti, értesítéssel. A rögzítés megy tovább, ha az app háttérbe kerül, és akkor is, ha a képernyő zárolódik. Amíg a GTL nincs kivételként engedélyezve az akkumulátor-optimalizálás alól, az Indít előbb felajánlja ezt (**Engedélyezés** / **Most nem**); a felvétel mindkét esetben elindul. Egyes gyártói feladatölők kikapcsolt képernyőnél a foreground service-t is leállítják. Ha a folyamat meghal, és a rendszer nem tudja újraindítani a szolgáltatást, a track az utolsó mentett pontnál lezárul, és a következő megnyitáskor egyszer jelzi. Lásd [Háttérben rögzítés és akkumulátor](#háttérben-rögzítés-és-akkumulátor).
 - A fixek csak akkor tárolódnak, ha átmennek a pontossági és műholdszám-kapun. Opcionális **Kalman**-simítás utána elmozdítja a pontot. Az **Okos** vagy **Minden jó fix** sűrűség dönti el, hogy beíródik-e (lásd Beállítások). Fut/túránál az alap: **Csak GNSS** (műholdchip, nem fused hely) simítás nélkül, hogy a kis úttest-alakzatok megmaradjanak a tracklogban. Teljes lánc: [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
 - Eseménytípusok: `START`, `MOVE`, `PAUSE` (a usage pauza-sebesség alatt), `STOP`.
 - Használati módok: repülő, hajó, autó, motor (alap), kerékpár, Fut/túra. A használat választása egy teljes előbeállítást ír (szűrők, csak GNSS, simítás, sűrűség, térkép-egyszerűsítés). A Fut/túra és a kerékpár lazább pontossági szűrőt és alacsonyabb pauza-küszöböt használ.
@@ -292,6 +293,20 @@ Semmi nem kerül fel. A Stop utáni `RemoteTrackSync` no-op.
 
 Pipeline mermaid (ugyanaz a folyamat, több dobozzal): [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
 
+### Háttérben rögzítés és akkumulátor
+
+A `TrackingForegroundService` `location` típusú foreground service, folyamatos értesítéssel. A gyári Android kikapcsolt képernyőnél is életben tartja, és a folyamat halála után újraindítja (`START_STICKY`). A null intenttel érkező újraindítás csak **folytatja** a nyitott sessiont, újat soha nem indít.
+
+Egyes gyártói ROM-ok ezen felül saját feladatölőt futtatnak. A Xever 7 Pro-n a `com.pri.screenoff.killer` 15 perccel a képernyő kikapcsolása után a felvételt futtató foreground service-t is leállítja, naponta 03:01-kor pedig force stopot küld. Ilyen leállítás után az Android néha újraindítja a service-t, néha elutasítja (`process is bad`); force stop után soha. A killer kihagyja az akkumulátor-optimalizálás alóli kivétellistán lévő appokat (`dumpsys deviceidle whitelist`): a telefonon kivétel nélkül minden körben leállította a GTL-t, kivétellel minden körben kihagyta. Részletek és bizonyíték: [logging-stopped.md](logging-stopped.md).
+
+Amit az app tesz:
+
+- **Indítás előtt**: amíg a `PowerManager.isIgnoringBatteryOptimizations` hamis, egy ablak felajánlja az **Engedélyezés** (rendszerablak: `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, ha nincs, a kivétellista képernyője) vagy a **Most nem** lehetőséget. A felvétel mindkét esetben elindul, és ha a GTL már kivétel, az ablak nem jelenik meg. Vissza gomb vagy az ablakon kívüli koppintás megszakítja az indítást.
+- **A halál utáni első megnyitáskor**: az `InterruptedRecordingRecovery` lezárja azt a sessiont, amely még nyitva van, de ebben a folyamatban egyetlen service sem birtokolja. `STOP`-ot ír az utolsó mentett pontra, beállítja a `stoppedAt` mezőt, és egyszer megmutatja **A felvétel leállt** ablakot (amíg a GTL nem kivétel, **Akkumulátor-beállítás** gombbal). Az előző kilépés oka az `ActivityManager.getHistoricalProcessExitReasons` alapján `track.interrupted` néven a hibanaplóba kerül (Android 11+). A következő Indít új sessiont kezd, így nem húzódik egyenes vonal a résen át.
+- **Egyszerre egy tulajdonos**: a service a start elfogadásakor azonnal lefoglalja a sessiont a `RecordingSessionGate`-ben, és mindkét oldal ugyanazt a folyamatszintű zárat használja. A rendszer általi újraindítás és az induláskori helyreállítás így soha nem nyúl egyszerre ugyanahhoz a sessionhöz.
+
+Ha a gyártói ROM-nak saját háttér- vagy autostart-listája is van (például Xiaomi, Huawei, Oppo, Transsion), ott is engedélyezd a GTL-t. Ezeket a listákat az Android API-n keresztül nem lehet olvasni vagy módosítani.
+
 ### GNSS skyplot
 
 A GPS fül polar plotja **az égbolt térképe, ahogy a chip látja**, nem 3D földgömb és nem második tracklog. Az SNR alatt van, a konstelláció-chippek után. A chippek maradnak: ezek a villantható `used/in view` számok (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). A skyplot azt mutatja, **hol** vannak ezek a műholdak. Mi a különbség a rendszerek és sávok között: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md). Adatút: [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md#skyplot-körök-gps-fül).
@@ -452,7 +467,7 @@ Ez **csak megjelenítés**. A `gps_events`, az Útvonal odométer / sebességek 
 
 ### Engedélyek
 
-`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE` / `_LOCATION`, `POST_NOTIFICATIONS`, `INTERNET` / `ACCESS_NETWORK_STATE` (térképek + OSM-letöltés). GPS-hardver kötelező; iránytű és környezeti hőmérséklet opcionális. Nincs `ACCESS_BACKGROUND_LOCATION`, nincs telefonállapot / IMEI.
+`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE` / `_LOCATION`, `POST_NOTIFICATIONS`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (kérés, hogy kikapcsolt képernyőnél is folytatódjon a rögzítés, lásd [Háttérben rögzítés és akkumulátor](#háttérben-rögzítés-és-akkumulátor)), `INTERNET` / `ACCESS_NETWORK_STATE` (térképek + OSM-letöltés). GPS-hardver kötelező; iránytű és környezeti hőmérséklet opcionális. Nincs `ACCESS_BACKGROUND_LOCATION`, nincs telefonállapot / IMEI.
 
 ---
 
@@ -495,6 +510,11 @@ Navigációs regressziós tesztek (Robolectric + Compose UI teszt, valódi `NavH
 
 - `NavigationGuardsTest` — második vissza-koppintás a kilépő animáció alatt. A védtelen `popBackStack()` kiüríti a backstacket (az üres képernyős hiba, reprodukcióként megtartva). A `rememberGuardedPop` és a `dropUnlessResumedWith` mellett a `main` marad az aktuális célpont. Az egyszeri, védett koppintás továbbra is visszalép. Lásd [white-crash.md](white-crash.md).
 
+Megszakadt felvétel tesztjei (Robolectric, memóriabeli Room):
+
+- `InterruptedRecordingRecoveryTest` — a nyitott, de egyetlen service által sem birtokolt session az utolsó mentett pontjának `STOP` másolatával lezárul, és `stoppedAt` értéket kap. A futó service által birtokolt session nyitva marad. Ha nincs nyitott session, nem történik semmi. Az üres session jelölő nélkül zárul le. Kétszeri lezárás csak egy `STOP`-ot ír. Lásd [logging-stopped.md](logging-stopped.md).
+- `ProcessExitDiagnosticsTest` — a `track.interrupted` bejegyzés megnevezi a sessiont, jelzi, ha a kilépési ok nem érhető el (Android 11 alatt), és nincs benne stack trace.
+
 ### Hibakeresés a telefonon
 
 Ha a telefonon hibás képernyő látszik (például fehér képernyő), hagyd úgy, ne zárd be az appot, és USB-n csatlakoztatott telefonnál futtasd Terminálból:
@@ -529,6 +549,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | [CHANGELOGS.md](CHANGELOGS.md)                                                 | Kanonikus verzióelőzmény (2.0.0 újraírás → Unreleased, angol és magyar)                                            |
 | [white-crash.md](white-crash.md)                                               | Üres képernyős hiba: tünet, root cause (a dupla vissza-koppintás kiüríti a NavHostot), bizonyíték, javítás (EN/HU) |
+| [logging-stopped.md](logging-stopped.md)                                       | Kikapcsolt képernyőnél leállt felvétel: gyártói feladatölő, bizonyíték a telefonról, javítás, ellenőrzés eszközön (EN/HU) |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console kiadásnév és EN/HU what’s-new szöveg                                                                   |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Adatvédelmi tájékoztató (az élő KLHome-oldal helyi másolata)                                                        |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Áruház feature graphic                                                                                         |

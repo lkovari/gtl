@@ -30,6 +30,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 - [Architecture](#architecture)
   - [Data](#data)
   - [How logging works](#how-logging-works)
+  - [Background recording and battery](#background-recording-and-battery)
   - [GNSS Skyplot](#gnss-skyplot)
   - [Barometric altitude (Baro)](#barometric-altitude-baro)
   - [How Run/Hike logs like a sports watch](#how-runhike-logs-like-a-sports-watch)
@@ -54,7 +55,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
 
 ### Logging
 
-- **Start / Stop** records a session as a visible foreground service with a notification. Recording continues when the app is in the background and when the screen is locked. If the system cannot restart the service after the process dies, the track closes at the last saved point, and the next launch says so once.
+- **Start / Stop** records a session as a visible foreground service with a notification. Recording continues when the app is in the background and when the screen is locked. While GTL is not exempt from battery optimization, Start first offers to exempt it (**Allow** / **Not now**); recording starts either way. Some vendor task killers stop even a foreground service with the screen off. If the process dies and the system cannot restart the service, the track closes at the last saved point, and the next launch says so once. See [Background recording and battery](#background-recording-and-battery).
 - Fixes are stored only after they pass accuracy and satellite-count gates. Optional **Kalman** smoothing then moves the point. **Smart** or **Every good fix** density decides whether to write it (see Settings). Run/Hike default is **Use GNSS only** (satellite chip, not fused location) with smoothing off so small on-road shapes stay in the tracklog. Full pipeline: [How logging works](#how-logging-works).
 - Event kinds: `START`, `MOVE`, `PAUSE` (below usage pause speed), `STOP`.
 - Usage modes: aircraft, watercraft, car, motorbike (default), bicycle, Run/Hike. Choosing a usage writes a full preset (filters, GNSS only, smoothing, density, map simplify). Run/Hike and bicycle use a looser accuracy filter and a lower pause threshold.
@@ -292,6 +293,20 @@ Nothing is uploaded. `RemoteTrackSync` on stop is a no-op.
 
 Pipeline mermaid (same flow, more boxes): [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md) / [docs/GPSDATAFLOW-hu.md](docs/GPSDATAFLOW-hu.md).
 
+### Background recording and battery
+
+`TrackingForegroundService` is a `location` foreground service with an ongoing notification. Stock Android keeps it alive with the screen off and restarts it after a process death (`START_STICKY`). A restart with a null intent only **resumes** the open session; it never starts a new one.
+
+Some vendor ROMs run their own task killer on top of that. On the Xever 7 Pro, `com.pri.screenoff.killer` kills even a recording foreground service 15 minutes after the screen goes off, and force-stops apps daily at 03:01. Android sometimes restarts the service after such a kill and sometimes refuses (`process is bad`); after a force stop it never does. The killer skips apps on the battery optimization exemption list (`dumpsys deviceidle whitelist`): on-device it killed GTL in every round without the exemption and skipped it in every round with it. Details and proof: [logging-stopped.md](logging-stopped.md).
+
+What the app does:
+
+- **Before Start**: while `PowerManager.isIgnoringBatteryOptimizations` is false, a dialog offers **Allow** (system dialog `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, falling back to the exemption list screen) or **Not now**. Recording starts in both cases and the dialog is not shown once GTL is exempt. Back or a tap outside cancels the Start.
+- **On the next launch after a death**: `InterruptedRecordingRecovery` closes a session that is still open but owned by no service in this process. It writes `STOP` at the last saved point, sets `stoppedAt`, and shows **Recording stopped** once (with **Battery settings** while GTL is not exempt). The previous exit reason from `ActivityManager.getHistoricalProcessExitReasons` goes to the error log as `track.interrupted` (Android 11+). The next Start begins a new session, so no straight line spans the gap.
+- **One owner at a time**: the service claims the session in `RecordingSessionGate` as soon as it accepts a start, and both sides take the same process-wide lock. A system restart and the launch-time recovery therefore never act on the same session at once.
+
+If a vendor ROM also has its own background or auto-start list (for example Xiaomi, Huawei, Oppo, Transsion), allow GTL there too. Android offers no API to read or change those lists.
+
 ### GNSS Skyplot
 
 The GPS tab polar plot is a **map of the sky as the chip sees it**, not a 3D globe and not a second tracklog. It sits under SNR, after the constellation chips. Those chips stay: they are the glanceable `used/in view` counts (GPS L1, GPS L5, Galileo, GLONASS, BeiDou, QZSS, NavIC). The skyplot shows **where** those satellites are. Constellation and band primer: [docs/all-gps-systems-hu.md](docs/all-gps-systems-hu.md) (Hungarian). Data path: [docs/GPSDATAFLOW-en.md](docs/GPSDATAFLOW-en.md#skyplot-circles-gps-tab).
@@ -452,7 +467,7 @@ So a nearly colinear stretch collapses to two endpoints, while a corner that sti
 
 ### Permissions
 
-`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE` / `_LOCATION`, `POST_NOTIFICATIONS`, `INTERNET` / `ACCESS_NETWORK_STATE` (maps + OSM download). GPS hardware required; compass and ambient temperature optional. No `ACCESS_BACKGROUND_LOCATION`, no phone-state / IMEI.
+`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE` / `_LOCATION`, `POST_NOTIFICATIONS`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (ask to keep recording with the screen off, see [Background recording and battery](#background-recording-and-battery)), `INTERNET` / `ACCESS_NETWORK_STATE` (maps + OSM download). GPS hardware required; compass and ambient temperature optional. No `ACCESS_BACKGROUND_LOCATION`, no phone-state / IMEI.
 
 ---
 
@@ -495,6 +510,11 @@ Navigation regression tests (Robolectric + Compose UI test, real `NavHost`, paus
 
 - `NavigationGuardsTest` — a second back tap during the exit transition. Unguarded `popBackStack()` empties the back stack (the blank-screen bug, kept as a reproduction). `rememberGuardedPop` and `dropUnlessResumedWith` keep `main` as the current destination. A single guarded tap still goes back. See [white-crash.md](white-crash.md).
 
+Interrupted-recording tests (Robolectric, in-memory Room):
+
+- `InterruptedRecordingRecoveryTest` — an open session that no service owns is closed with a `STOP` copy of its last saved point and gets `stoppedAt`. A session the running service owns stays open. No open session, nothing happens. An empty session is closed without a marker. Closing twice writes only one `STOP`. See [logging-stopped.md](logging-stopped.md).
+- `ProcessExitDiagnosticsTest` — the `track.interrupted` record names the session, says when the exit reason is unavailable (below Android 11), and carries no stack trace.
+
 ### Debugging on the phone
 
 When the phone shows a broken screen (for example a white screen), leave the app as it is, do not close it, and with the phone on USB run from Terminal:
@@ -529,6 +549,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | [CHANGELOGS.md](CHANGELOGS.md)                                                 | Canonical version history (2.0.0 rewrite through Unreleased, English and Hungarian)                                 |
 | [white-crash.md](white-crash.md)                                               | Blank-screen bug: symptom, root cause (double back tap empties the NavHost), proof, and the fix (EN/HU)             |
+| [logging-stopped.md](logging-stopped.md)                                       | Recording stopped with the screen off: vendor task killer, evidence from the phone, the fix, and on-device checks (EN/HU) |
 | [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt)               | Play Console release name and EN/HU what’s-new text                                                                 |
 | [docs/play-console/privacy-policy.html](docs/play-console/privacy-policy.html) | Privacy policy (local copy of the live KLHome page)                                                                 |
 | [docs/play-console/feature-graphic.png](docs/play-console/feature-graphic.png) | Play Store feature graphic                                                                                          |

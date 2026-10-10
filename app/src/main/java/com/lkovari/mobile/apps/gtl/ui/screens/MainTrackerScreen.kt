@@ -2,6 +2,7 @@ package com.lkovari.mobile.apps.gtl.ui.screens
 
 import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
@@ -11,6 +12,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -70,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lkovari.mobile.apps.gtl.R
 import com.lkovari.mobile.apps.gtl.engine.CompassHeading
+import com.lkovari.mobile.apps.gtl.data.device.BatteryOptimization
 import com.lkovari.mobile.apps.gtl.data.sensor.AndroidBaroAltitude
 import com.lkovari.mobile.apps.gtl.data.sensor.GeomagneticDeclination
 import com.lkovari.mobile.apps.gtl.engine.ElevationPoint
@@ -112,6 +115,22 @@ fun MainTrackerScreen(
     var showPermissionSettings by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val locationAsked by viewModel.locationPermissionAsked.collectAsStateWithLifecycle()
+    var showBatteryPrompt by remember { mutableStateOf(false) }
+    val batteryStartLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.startLogging()
+    }
+    val batterySettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { }
+    val requestStart: () -> Unit = {
+        if (BatteryOptimization.isIgnoring(context)) {
+            viewModel.startLogging()
+        } else {
+            showBatteryPrompt = true
+        }
+    }
     val previewLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
@@ -140,7 +159,7 @@ fun MainTrackerScreen(
             Manifest.permission.ACCESS_FINE_LOCATION
         )
         when (locationPermissionResult(fineGranted, coarseGranted, canAskAgain)) {
-            LocationStartAction.StartLogging -> viewModel.startLogging()
+            LocationStartAction.StartLogging -> requestStart()
             LocationStartAction.PreciseRequired -> {
                 Toast.makeText(context, R.string.location_fine_required, Toast.LENGTH_LONG).show()
             }
@@ -220,7 +239,7 @@ fun MainTrackerScreen(
                                 ) {
                                     LocationStartAction.StartLogging -> {
                                         if (notifyGranted) {
-                                            viewModel.startLogging()
+                                            requestStart()
                                         } else {
                                             startLauncher.launch(
                                                 arrayOf(Manifest.permission.POST_NOTIFICATIONS)
@@ -248,7 +267,7 @@ fun MainTrackerScreen(
                                             }
                                         }
                                         if (needed.isEmpty()) {
-                                            viewModel.startLogging()
+                                            requestStart()
                                         } else {
                                             startLauncher.launch(needed.toTypedArray())
                                         }
@@ -409,6 +428,49 @@ fun MainTrackerScreen(
                 TextButton(onClick = { viewModel.dismissRecordingInterrupted() }) {
                     Text(stringResource(R.string.action_accept))
                 }
+            },
+            dismissButton = if (BatteryOptimization.isIgnoring(context)) {
+                null
+            } else {
+                {
+                    TextButton(
+                        onClick = {
+                            viewModel.dismissRecordingInterrupted()
+                            batterySettingsLauncher.launchBatteryExemption(context)
+                        }
+                    ) {
+                        Text(stringResource(R.string.battery_optimization_open))
+                    }
+                }
+            }
+        )
+    }
+    if (showBatteryPrompt) {
+        AlertDialog(
+            onDismissRequest = { showBatteryPrompt = false },
+            title = { Text(stringResource(R.string.battery_optimization_title)) },
+            text = { Text(stringResource(R.string.battery_optimization_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showBatteryPrompt = false
+                        if (!batteryStartLauncher.launchBatteryExemption(context)) {
+                            viewModel.startLogging()
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.battery_optimization_allow))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showBatteryPrompt = false
+                        viewModel.startLogging()
+                    }
+                ) {
+                    Text(stringResource(R.string.battery_optimization_later))
+                }
             }
         )
     }
@@ -445,6 +507,25 @@ private fun Context.findActivity(): Activity? {
         current = current.baseContext
     }
     return null
+}
+
+/**
+ * Opens the system "ignore battery optimizations" request for this app, or the list screen on
+ * ROMs without that dialog. Returns false when neither screen exists.
+ */
+private fun ActivityResultLauncher<Intent>.launchBatteryExemption(context: Context): Boolean {
+    val candidates = listOf(
+        BatteryOptimization.requestIntent(context),
+        BatteryOptimization.settingsIntent()
+    )
+    for (intent in candidates) {
+        try {
+            launch(intent)
+            return true
+        } catch (_: ActivityNotFoundException) {
+        }
+    }
+    return false
 }
 
 private fun Context.openAppPermissionSettings() {

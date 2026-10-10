@@ -48,7 +48,12 @@
     <string name="location_open_gps_panel">GPS-panel megnyitása</string>
     <string name="status_logging_error">Naplózás leállt</string>
     <string name="recording_interrupted_title">A felvétel leállt</string>
-    <string name="recording_interrupted_body">A folyamat leállása után a rögzítés nem tudott folytatódni, ezért a track az utolsó mentett pontnál lezárult.</string>
+    <string name="recording_interrupted_body">A telefon leállította a GTL-t felvétel közben, ezért a track az utolsó mentett pontnál lezárult. Hogy kikapcsolt képernyővel is folytatódjon a rögzítés, engedd a GTL-nek, hogy akkumulátor-optimalizálás nélkül fusson, és ha a telefon gyártójának van saját háttér- vagy autostart-listája, ott is engedélyezd.</string>
+    <string name="battery_optimization_title">Rögzítés kikapcsolt képernyővel</string>
+    <string name="battery_optimization_body">Az akkumulátorkímélés kikapcsolt képernyőnél leállíthatja a GTL-t, és a track megszakad. Engedd, hogy a GTL akkumulátor-optimalizálás nélkül fusson, így a rögzítés folytatódik. Ha a telefon gyártójának van saját háttér- vagy autostart-listája, ott is engedélyezd a GTL-t.</string>
+    <string name="battery_optimization_allow">Engedélyezés</string>
+    <string name="battery_optimization_later">Most nem</string>
+    <string name="battery_optimization_open">Akkumulátor-beállítás</string>
     <string name="status_idle">Várakozik</string>
     <string name="route_elapsed">Eltelt idő</string>
     <string name="route_odometer">Út</string>

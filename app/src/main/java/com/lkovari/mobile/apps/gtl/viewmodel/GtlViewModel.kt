@@ -2,12 +2,14 @@ package com.lkovari.mobile.apps.gtl.viewmodel
 
 import android.app.Application
 import android.content.Intent
+import android.database.SQLException
 import android.os.Build
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lkovari.mobile.apps.gtl.GtlApplication
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
+import com.lkovari.mobile.apps.gtl.diagnostics.ProcessExitDiagnostics
 import com.lkovari.mobile.apps.gtl.diagnostics.RecordingInterruptNotice
 import com.lkovari.mobile.apps.gtl.data.db.GpsEventEntity
 import com.lkovari.mobile.apps.gtl.data.db.TrackSessionEntity
@@ -256,8 +258,20 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         observeThemeClock()
         observeThemeAnchor()
         viewModelScope.launch(Dispatchers.IO) {
+            closeOrphanedRecording()
             recordingInterruptedState.value = RecordingInterruptNotice.pending(app) != null
         }
+    }
+
+    private suspend fun closeOrphanedRecording() {
+        val closedId = try {
+            app.interruptedRecording.closeOrphanedSession()
+        } catch (error: SQLException) {
+            AppErrorLog.record("track.recover", error)
+            null
+        } ?: return
+        RecordingInterruptNotice.mark(app, closedId)
+        ProcessExitDiagnostics.recordLastExit(app, closedId)
     }
 
     fun dismissRecordingInterrupted() {

@@ -48,7 +48,12 @@
     <string name="location_open_gps_panel">Open GPS panel</string>
     <string name="status_logging_error">Logging stopped</string>
     <string name="recording_interrupted_title">Recording stopped</string>
-    <string name="recording_interrupted_body">The recording could not keep running after the app process stopped, so the track was closed at the last saved point.</string>
+    <string name="recording_interrupted_body">The phone stopped GTL while it was recording, so the track was closed at the last saved point. To keep recording with the screen off, let GTL run without battery optimization, and also allow it in your phone maker\'s background or auto-start list if there is one.</string>
+    <string name="battery_optimization_title">Keep recording with the screen off</string>
+    <string name="battery_optimization_body">Battery saving can stop GTL while the screen is off, and the track then breaks off. Let GTL run without battery optimization so recording continues. If your phone maker has its own background or auto-start list, allow GTL there too.</string>
+    <string name="battery_optimization_allow">Allow</string>
+    <string name="battery_optimization_later">Not now</string>
+    <string name="battery_optimization_open">Battery settings</string>
     <string name="status_idle">Idle</string>
     <string name="route_elapsed">Elapsed</string>
     <string name="route_odometer">Odometer</string>

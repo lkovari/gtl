@@ -9,6 +9,27 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Fixed
+
+- Run/Hike recording stopped for 26 minutes with the screen off, and the track drew a 492 m straight line across the gap. The vendor task killer `com.pri.screenoff.killer` (Xever 7 Pro) killed GTL while its location foreground service was running. It does this 15 minutes after the screen goes off. Android scheduled the sticky restart but refused it (`Unable to launch app … process is bad`), so the service never came back. The session stayed open with no writer. The next Start appended to it, which drew the line. Root cause, evidence, and on-device verification: [logging-stopped.md](logging-stopped.md).
+  - Start now asks to run GTL without battery optimization while it is not exempt (**Allow** / **Not now**). Recording always starts: after the system dialog closes, or straight away on **Not now**. The killer reads the exemption list and skips it: on the same phone it killed GTL in 2 of 2 rounds without the exemption and skipped it (`skip filter process`) in 3 of 3 rounds with it, one of them a 16-minute screen-off recording with no gap.
+  - A session left open by a dead process is closed at its last saved point when the app opens, and the existing **Recording stopped** dialog says so. Before, that dialog appeared only when the system restarted the service and Android refused its foreground start. The dialog has a **Battery settings** button while GTL is not exempt. The previous process exit reason goes to the error log as `track.interrupted` (Android 11+).
+  - A system restart of the service (`START_STICKY`, null intent) only resumes an open session. It no longer starts a new recording when there is nothing to resume.
+  - The service and the launch-time recovery share one process-wide lock (`RecordingSessionGate`), so they never act on the same session at once.
+
+### Added
+
+- `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission for the battery dialog above.
+
+### Magyar
+
+- A Run/Hike felvétel kikapcsolt képernyőnél 26 percre leállt, és a track 492 m-es egyenes vonallal hidalta át a rést. A gyártói feladatölő `com.pri.screenoff.killer` (Xever 7 Pro) leállította a GTL-t, miközben a helymeghatározó foreground service futott. Ezt 15 perccel a képernyő kikapcsolása után teszi. Az Android ütemezte a sticky újraindítást, de elutasította (`Unable to launch app … process is bad`), így a service nem indult újra. A session nyitva maradt, írta senki. A következő Start ehhez fűzött hozzá, ebből lett a vonal. Root cause, bizonyíték és eszközön végzett ellenőrzés: [logging-stopped.md](logging-stopped.md).
+  - A Start mostantól kéri, hogy a GTL akkumulátor-optimalizálás nélkül fusson, amíg nincs kivételként engedélyezve (**Engedélyezés** / **Most nem**). A felvétel mindig elindul: a rendszer ablakának bezárása után, vagy **Most nem** esetén azonnal. A killer beolvassa a kivétellistát, és kihagyja a rajta lévő appokat: ugyanezen a telefonon kivétel nélkül 2 körből 2-ben leállította a GTL-t, kivétellel 3 körből 3-ban kihagyta (`skip filter process`), ebből az egyik egy 16 perces, kikapcsolt képernyős felvétel volt, rés nélkül.
+  - A halott folyamat után nyitva maradt sessiont az app megnyitásakor lezárja az utolsó mentett pontnál, és a meglévő **A felvétel leállt** ablak jelzi ezt. Korábban ez az ablak csak akkor jelent meg, ha a rendszer újraindította a service-t, és az Android megtagadta a foreground indítást. Amíg a GTL nincs kivételként engedélyezve, az ablakban **Akkumulátor-beállítás** gomb is van. Az előző folyamat kilépési oka `track.interrupted` néven a hibanaplóba kerül (Android 11+).
+  - A service rendszer általi újraindítása (`START_STICKY`, null intent) csak nyitott sessiont folytat. Ha nincs mit folytatni, nem indít új felvételt.
+  - A service és az induláskori helyreállítás egy közös, folyamatszintű zárat használ (`RecordingSessionGate`), így soha nem nyúlnak egyszerre ugyanahhoz a sessionhöz.
+- Új engedély: `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` a fenti akkumulátor-ablakhoz.
+
 ## [2.0.22] — 2026-10-07
 
 Play production track **40 (2.0.22)** (signed AAB). Baro guard, slow-walk HUD speed, Pause and waiting time.

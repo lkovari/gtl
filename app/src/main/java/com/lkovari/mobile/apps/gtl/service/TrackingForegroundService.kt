@@ -41,11 +41,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 class TrackingForegroundService : LifecycleService() {
-    private val recordingLock = Mutex()
     private val recordingGeneration = AtomicInteger(0)
     private var locationJob: Job? = null
     private var activeSessionId: Long? = null
@@ -80,7 +78,8 @@ class TrackingForegroundService : LifecycleService() {
                 return START_NOT_STICKY
             }
             else -> {
-                if (!startRecording()) {
+                // A null intent is the system's START_STICKY restart after the process died.
+                if (!startRecording(resumeOnly = intent == null)) {
                     return START_NOT_STICKY
                 }
             }
@@ -88,8 +87,9 @@ class TrackingForegroundService : LifecycleService() {
         return START_STICKY
     }
 
-    private fun startRecording(): Boolean {
+    private fun startRecording(resumeOnly: Boolean): Boolean {
         val app = application as GtlApplication
+        val gate = app.recordingGate
         if (!startAsForeground()) {
             if (locationJob == null) {
                 abandonInterruptedStart(app)
@@ -98,9 +98,12 @@ class TrackingForegroundService : LifecycleService() {
             return true
         }
         foregroundRejected = false
+        // Claim before the coroutine runs, so recovery started by the UI at the same moment
+        // leaves a session alone that a system restart is about to resume.
+        gate.serviceOwnsSession = true
         val generation = recordingGeneration.incrementAndGet()
         lifecycleScope.launch {
-            recordingLock.withLock {
+            gate.mutex.withLock {
                 if (foregroundRejected || recordingGeneration.get() != generation) {
                     return@withLock
                 }
@@ -110,6 +113,14 @@ class TrackingForegroundService : LifecycleService() {
                 }
                 val settings = app.preferences.settings.first()
                 val existing = app.trackRepository.openSession()
+                if (existing == null && resumeOnly) {
+                    // Nothing left to resume (already stopped or closed by recovery): never start
+                    // a recording the user did not ask for.
+                    gate.serviceOwnsSession = false
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@withLock
+                }
                 val sessionId = existing?.id
                     ?: app.trackRepository.startSession(settings.usageType, settings.measurementSystem)
                 val usageTypeName = existing?.usageType ?: settings.usageType.name
@@ -460,7 +471,7 @@ class TrackingForegroundService : LifecycleService() {
         val app = application as GtlApplication
         val stopGen = recordingGeneration.get()
         lifecycleScope.launch {
-            recordingLock.withLock {
+            app.recordingGate.mutex.withLock {
                 val sessionId = activeSessionId
                 val live = app.trackingState.state.value
                 val last = live.lastLocation
@@ -522,6 +533,7 @@ class TrackingForegroundService : LifecycleService() {
                 if (recordingGeneration.get() != stopGen) {
                     return@withLock
                 }
+                app.recordingGate.serviceOwnsSession = false
                 app.trackingState.update {
                     LiveTrackingState(
                         loggingError = live.loggingError,
@@ -568,6 +580,7 @@ class TrackingForegroundService : LifecycleService() {
         locationJob?.cancel()
         locationJob = null
         activeSessionId = null
+        app.recordingGate.serviceOwnsSession = false
         app.trackingState.update {
             LiveTrackingState(
                 temperatureAvailable = app.ambientTemperatureSource.isAvailable,
@@ -583,21 +596,7 @@ class TrackingForegroundService : LifecycleService() {
 
     private suspend fun closeInterruptedSession(app: GtlApplication) {
         val session = app.trackRepository.openSession() ?: return
-        val latest = app.trackRepository.latestEvent(session.id)
-        if (latest != null && latest.eventKind != EventKind.STOP.name) {
-            try {
-                app.trackRepository.insertEvent(
-                    latest.copy(
-                        id = 0,
-                        isPlacemark = true,
-                        eventKind = EventKind.STOP.name
-                    )
-                )
-            } catch (error: SQLException) {
-                AppErrorLog.recordSync("track.stop", error)
-            }
-        }
-        app.trackRepository.stopSession(session.id)
+        app.interruptedRecording.closeAtLastPoint(session.id)
         RecordingInterruptNotice.mark(app, session.id)
     }
 

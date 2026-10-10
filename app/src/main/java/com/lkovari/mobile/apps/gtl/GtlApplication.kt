@@ -16,6 +16,8 @@ import com.lkovari.mobile.apps.gtl.data.sensor.AmbientTemperatureSource
 import com.lkovari.mobile.apps.gtl.data.sensor.CompassSource
 import com.lkovari.mobile.apps.gtl.data.sensor.PressureSource
 import com.lkovari.mobile.apps.gtl.data.sync.NoOpRemoteTrackSync
+import com.lkovari.mobile.apps.gtl.service.InterruptedRecordingRecovery
+import com.lkovari.mobile.apps.gtl.service.RecordingSessionGate
 import com.lkovari.mobile.apps.gtl.service.TrackingStateHolder
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 
@@ -27,6 +29,9 @@ class GtlApplication : Application() {
     lateinit var preferences: GtlPreferences
         private set
     lateinit var trackingState: TrackingStateHolder
+        private set
+    val recordingGate = RecordingSessionGate()
+    lateinit var interruptedRecording: InterruptedRecordingRecovery
         private set
     lateinit var gnssStatusSource: GnssStatusSource
         private set
@@ -53,6 +58,7 @@ class GtlApplication : Application() {
         AndroidGraphicFactory.createInstance(this)
         database = GtlDatabase.create(this)
         trackRepository = TrackRepository(database, NoOpRemoteTrackSync())
+        interruptedRecording = InterruptedRecordingRecovery(trackRepository, recordingGate)
         preferences = GtlPreferences(this)
         trackingState = TrackingStateHolder()
         gnssStatusSource = GnssStatusSource(this)
