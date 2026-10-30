@@ -1843,6 +1843,34 @@ class MapTrackVisibilityTest {
     }
 }
 
+class MapBroomTest {
+    @Test
+    fun liveLoggingWithAnImportClearsOnlyTheImport() {
+        assertTrue(MapBroom.visible(viewingSaved = false, importedTrack = true))
+        assertTrue(MapBroom.clearImported(importedTrack = true))
+        assertFalse(MapBroom.clearSaved(viewingSaved = false))
+    }
+
+    @Test
+    fun savedTrackOnlyClearsTheSavedTrack() {
+        assertTrue(MapBroom.visible(viewingSaved = true, importedTrack = false))
+        assertFalse(MapBroom.clearImported(importedTrack = false))
+        assertTrue(MapBroom.clearSaved(viewingSaved = true))
+    }
+
+    @Test
+    fun bothClearBoth() {
+        assertTrue(MapBroom.visible(viewingSaved = true, importedTrack = true))
+        assertTrue(MapBroom.clearImported(importedTrack = true))
+        assertTrue(MapBroom.clearSaved(viewingSaved = true))
+    }
+
+    @Test
+    fun hiddenWhenNothingIsOnTheMap() {
+        assertFalse(MapBroom.visible(viewingSaved = false, importedTrack = false))
+    }
+}
+
 class MapDisplayUsageTest {
     @Test
     fun selectedSavedTrackFollowsSettings() {

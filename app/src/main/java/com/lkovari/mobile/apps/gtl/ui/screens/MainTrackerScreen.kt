@@ -93,6 +93,7 @@ import com.lkovari.mobile.apps.gtl.ui.theme.TitleMagenta
 import com.lkovari.mobile.apps.gtl.ui.theme.TrackingOrange
 import com.lkovari.mobile.apps.gtl.ui.theme.gtlWash
 import com.lkovari.mobile.apps.gtl.tuhu.TuhuLayerActions
+import com.lkovari.mobile.apps.gtl.viewmodel.GpxImportNotice
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlUiState
 import com.lkovari.mobile.apps.gtl.viewmodel.GtlViewModel
 import java.util.Locale
@@ -384,6 +385,7 @@ fun MainTrackerScreen(
                         mapActive = tab == 2,
                         onOsmFailed = { viewModel.onOsmMapFailed() },
                         onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
+                        onGoogleTraffic = { viewModel.setGoogleTraffic(it) },
                         onOsmLayers = osmLayerActions(viewModel),
                         onTuhuLayers = tuhuLayerActions(viewModel),
                         onSearchQuery = { viewModel.searchPlaces(it) },
@@ -401,6 +403,7 @@ fun MainTrackerScreen(
                             onClearMap = { viewModel.clearShownTrack() },
                             onOsmFailed = { viewModel.onOsmMapFailed() },
                             onGoogleMapLayer = { viewModel.setGoogleMapLayer(it) },
+                            onGoogleTraffic = { viewModel.setGoogleTraffic(it) },
                             onOsmLayers = osmLayerActions(viewModel),
                             onTuhuLayers = tuhuLayerActions(viewModel),
                             onSearchQuery = { viewModel.searchPlaces(it) },
@@ -419,6 +422,24 @@ fun MainTrackerScreen(
         }
     }
     val recordingInterrupted by viewModel.recordingInterrupted.collectAsStateWithLifecycle()
+    val gpxImportNotice = state.gpxImportNotice
+    if (gpxImportNotice != null) {
+        val noticeBody = when (gpxImportNotice) {
+            GpxImportNotice.NotGpx -> R.string.gpx_import_not_gpx
+            GpxImportNotice.NoTrack -> R.string.gpx_import_no_track
+            GpxImportNotice.Unreadable -> R.string.gpx_import_unreadable
+        }
+        AlertDialog(
+            onDismissRequest = { viewModel.consumeGpxImportNotice() },
+            title = { Text(stringResource(R.string.help_gpx_import_title)) },
+            text = { Text(stringResource(noticeBody)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.consumeGpxImportNotice() }) {
+                    Text(stringResource(R.string.action_accept))
+                }
+            }
+        )
+    }
     if (recordingInterrupted) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissRecordingInterrupted() },

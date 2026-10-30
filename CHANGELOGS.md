@@ -9,6 +9,16 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+### Added
+
+- Map tab: a file button imports a GPX 1.0 or 1.1 track or route, with or without a namespace, and draws it in T-Mobile magenta (`#E20074`) on Google Maps and OSM. Segments stay separate. The broom removes that line, and a saved track when one is showing. The file is not stored on the phone. While logging, the camera keeps following the ride.
+- Map tab: the Google layers menu has a Traffic switch, off by default. It draws live road colors on the Google map only. OSM, Turistautak, and the stored track stay unchanged.
+
+### Magyar
+
+- Térkép fül: egy fájl gomb GPX 1.0 vagy 1.1 nyomvonalat vagy útvonalat importál, névtérrel vagy anélkül, és T-Mobile magentával (`#E20074`) rajzolja a Google Térképre és az OSM-re. A szakaszok külön vonalak maradnak. A seprő leveszi ezt a vonalat, és a mentett tracket is, ha az is látszik. A fájl nem kerül a telefonra. Naplózás közben a kamera a menetet követi.
+- Térkép fül: a Google rétegmenüben Forgalom kapcsoló van, alapból ki. Élő útszíneket rajzol csak a Google térképre. Az OSM, a Turistautak és a letárolt nyomvonal változatlan.
+
 ## [2.0.23] — 2026-10-10
 
 Play production track **41 (2.0.23)** (signed AAB). Recording continues with the screen off; orphaned sessions close at the last saved point.

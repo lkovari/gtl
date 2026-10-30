@@ -1537,6 +1537,15 @@ fun HelpScreen(onBack: () -> Unit, tuhuMapDownloaded: Boolean = false) {
             }
             item {
                 AccordionSection(
+                    title = stringResource(R.string.help_gpx_import_title),
+                    expanded = expandedId == HelpSectionGpxImport,
+                    onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionGpxImport) }
+                ) {
+                    Text(stringResource(R.string.help_gpx_import_body), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            item {
+                AccordionSection(
                     title = stringResource(R.string.help_osm_title),
                     expanded = expandedId == HelpSectionOsm,
                     onToggle = { expandedId = toggleExclusiveSection(expandedId, HelpSectionOsm) }
@@ -1615,6 +1624,7 @@ private const val HelpSectionLogging = "logging"
 private const val HelpSectionGps = "gps"
 private const val HelpSectionRoute = "route"
 private const val HelpSectionMap = "map"
+private const val HelpSectionGpxImport = "gpx-import"
 private const val HelpSectionOsm = "osm"
 private const val HelpSectionTuhu = "tuhu"
 private const val HelpSectionCompass = "compass"

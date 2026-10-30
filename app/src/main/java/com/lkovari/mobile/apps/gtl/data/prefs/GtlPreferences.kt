@@ -77,6 +77,7 @@ data class GtlSettings(
     val baroPressureOffsetHpa: Float,
     val autoCalibrateBaroEnabled: Boolean,
     val googleMapLayer: GoogleMapLayer,
+    val googleTraffic: Boolean,
     val osmBuildings: Boolean,
     val osmPoi: Boolean,
     val osmTransit: Boolean,
@@ -140,6 +141,7 @@ data class GtlSettings(
                 baroPressureOffsetHpa = 0f,
                 autoCalibrateBaroEnabled = true,
                 googleMapLayer = GoogleMapLayer.NORMAL,
+                googleTraffic = false,
                 osmBuildings = true,
                 osmPoi = false,
                 osmTransit = false,
@@ -289,6 +291,10 @@ class GtlPreferences(context: Context) {
         dataStore.edit { it[Keys.googleMapLayer] = value.name }
     }
 
+    suspend fun setGoogleTraffic(value: Boolean) {
+        dataStore.edit { it[Keys.googleTraffic] = value }
+    }
+
     suspend fun setThemeMode(value: ThemeMode) {
         dataStore.edit { it[Keys.themeMode] = value.name }
     }
@@ -421,6 +427,7 @@ class GtlPreferences(context: Context) {
             ),
             autoCalibrateBaroEnabled = prefs[Keys.autoCalibrateBaro] ?: true,
             googleMapLayer = GoogleMapLayer.fromStored(prefs[Keys.googleMapLayer]),
+            googleTraffic = prefs[Keys.googleTraffic] ?: false,
             osmBuildings = prefs[Keys.osmBuildings] ?: true,
             osmPoi = prefs[Keys.osmPoi] ?: false,
             osmTransit = prefs[Keys.osmTransit] ?: false,
@@ -506,6 +513,7 @@ class GtlPreferences(context: Context) {
         val baroPressureOffsetHpa = floatPreferencesKey("baro_pressure_offset_hpa")
         val autoCalibrateBaro = booleanPreferencesKey("auto_calibrate_baro")
         val googleMapLayer = stringPreferencesKey("google_map_layer")
+        val googleTraffic = booleanPreferencesKey("google_traffic")
         val osmBuildings = booleanPreferencesKey("osm_buildings")
         val osmPoi = booleanPreferencesKey("osm_poi")
         val osmTransit = booleanPreferencesKey("osm_transit")

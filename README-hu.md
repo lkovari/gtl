@@ -25,6 +25,7 @@ Adatvédelmi tájékoztató: [https://lkovari.github.io/KLHome/assets/bigfiles/g
   - [Mentett útvonalak](#mentett-útvonalak)
   - [KMZ export](#kmz-export)
   - [GPX export](#gpx-export)
+  - [GPX import](#gpx-import)
   - [Beállítások](#beállítások)
   - [További képernyők](#további-képernyők)
 - [Architektúra](#architektúra)
@@ -82,7 +83,7 @@ Az Indítás utáni összesítők (és a mentett / utolsó sessionre a Térképe
 
 - A jelenlegi helyre centrál, amikor a fület nyitod. Idle-ben elhúzhatod (Google és OSM). Indítás után a kamera követ. A **Teljes útvonal a képernyőn** minden GPS-frissítés után a teljes nyomvonalat a képernyőre illeszti (a nagyítás és mozgatás a következő fixig megengedett). A **Saját hely** gomb (bal felső: cián GPS-kereszt, ugyanolyan kör, mint a seprő) a GPS-fixre centrál, a zoomot nem változtatja.
 - Sebesség szerint színezett polyline a Room-ból (élő munkamenet, utoljára mentett track, vagy a Mentett útvonalakban választott track). A térképvonal **maga** a letárolt log; nincs külön vázlat. Lásd [Hogyan működik a naplózás](#hogyan-működik-a-naplózás).
-- **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet.
+- **Google Maps**, ha a `MAPS_API_KEY` be van állítva; különben a telefonon megjelenő üzenet. A réteg gomb (jobb alsó) Térkép, Műhold, Hibrid vagy Domborzat. A **Forgalom** kapcsoló ugyanabban a menüben van, alapból ki. Élő útszíneket rajzol csak a Google térképre, és hálózat kell hozzá, ugyanúgy, mint a Google térképhez.
 - **OSM Mapsforge**, ha letöltöttél egy régiót (vagy Turistautakot) és **Használatban** van az **Offline térkép letöltése** listán (vagy be van a **Letöltött OSM térkép használata**). Ugyanaz a polyline és pontossági gyűrű rajzolódik az OSM-re. Hiányzó vagy nem Mapsforge fájl üzenetet mutat, és kikapcsolja a kapcsolót, hogy a következő indítás ne crash-loop legyen. A letöltés csak `mapsforge binary OSM` mágiájú, egyező header-méretű fájlt tart meg. A kamera a `.map` start/bounds pontját használja, ha a GPS a fájlon kívül van; élő követés csak a fájlon belül. Az OSM `MapView` mérete megmarad, ha elhagyod a Térkép fület.
 - Világos lila pontossági kör (sugár = GPS pontosság méterben). Beállításokban kapcsolható. A kör a **nyers** helyet követi (GNSS chip vagy fused), nem a Kalman-simított letárolt tracket.
 - **HUD** mindkét térképmotor fölött: nagy sebesség (a Beállítások mértékegysége), pontosság, GNSS used/in view. Állva a sebesség 0, a GPS-zaj nem mozgás. Mozgásnak számít, ha a sebesség nagyobb a saját sebességpontosságánál, vagy ha eléri a usage alsó küszöbét (0,3 m/s Fut/túra, 0,5 m/s kerékpár, 0,8 m/s járművek, 1,5 m/s repülő) és a gyorsulásmérő is mozgást jelez. Két ilyen fix után jelenik meg, három csendes fix után lesz újra 0. Naplózáskor: út, eltelt idő, pulzáló REC. Idle GPS-fixszel: halkított panel bal lent. Mentett tracknél, ha nincs naplózás, rejtve.
@@ -136,6 +137,17 @@ Mágneses heading (MAG) a forgásérzékelőből, vagy TRUE (földrajzi észak =
 - START / PAUSE / STOP `<wpt>` neve Start, Pause, Stop. A Stop waypoint az utolsó path-pont (ugyanaz a pattinás, mint a KMZ).
 - Több kijelölt session → egy `.gpx` több `<trk>`-kel. Fájlnév `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
 - Mentett útvonalak → kijelölés → GPX vagy KMZ.
+
+### GPX import
+
+- Térkép fül, bal fent, fájl gomb. A választó minden fájlt listáz, mert sok GPX sima XML-ként van tárolva. A `GpxImporter` olvassa a streamet. A szín az `ImportedGpxStyle`, T-Mobile magenta `#E20074`.
+- GPX 1.0 és 1.1, hiányzó vagy szokatlan `version`, alapértelmezett névtér, névtér nélkül, és prefixelt címkék (`gpx:trkpt`). A geometria `trk` / `trkseg` / `trkpt` és `rte` / `rtept`. A `trk` alá közvetlenül írt `trkpt` egy vonal. A Garmin és a többi kiterjesztés kimarad; a pont `lat` és `lon` értéke megmarad, a nevek kis- és nagybetűre érzéketlenek. A vesszős tizedes és a tudományos jelölés elfogadott. A hiányzó `<ele>` és `<time>` nem gond. A −90…90 szélességen vagy −180…180 hosszúságon kívüli koordináta kimarad.
+- Minden track-szakasz és minden útvonal külön vonal, ezért a pauza rése nem kapcsolódik össze. Az útpont nem track. A csak útpontot tartalmazó fájlt jelzi, és nem rajzolja ki.
+- A vonal teli `#E20074`, 8 px, a Google Térképen és az OSM-en, a sebesség szerint színezett napló fölött. Nincs zöld S és piros E. Nem kerül a Roomba, és nem osztható vissza. Az új fájl lecseréli az előző overlayt. A folyamat kilépése eldobja; a forgatás megtartja.
+- Idle-ben a kamera egyszer a fájl határaira illeszkedik. Naplózás közben a kamera a menetet követi, és a magenta vonal a térképen marad.
+- A 8 000 pontnál hosszabb vonal csak a rajzoláshoz ritkul, Douglas–Peucker, 5 m. A rövidebb vonal úgy marad, ahogy bejött.
+- A seprő akkor látszik, ha mentett track vagy importált vonal van a térképen. Egy nyomás leveszi az importot, ha van, és a mentett tracket is, ha azt eddig is a seprő vette le. Az élő felvétel vonalát nem rejti el, és sessiont nem töröl.
+- A nem GPX fájl, a kirajzolhatatlan GPX és a beolvashatatlan fájl ablakot kap. A térképen lévő vonal marad.
 
 
 
@@ -210,7 +222,7 @@ Két Gradle-modul:
 
 | Modul     | Szerep                                                                                                                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1, térkép-HUD láthatóság, koppintásos légvonal- és koordinátafelirat, célmutató a koppintásos légvonalhoz, Útvonal-fül idle sebesség, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, OSM megjelenítési kategóriák, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
+| `:engine` | Tiszta JVM: GNSS-osztályozás, skyplot-projekció, GPS-magasság választás, baro/QNH, Kalman trackszűrő, fix-elfogadás, sebességadaptív térköz, Douglas–Peucker, trackstatisztika, KML/KMZ, GPX 1.1 export, GPX import, térkép-HUD láthatóság, koppintásos légvonal- és koordinátafelirat, célmutató a koppintásos légvonalhoz, Útvonal-fül idle sebesség, iránytű MAG/TRUE heading, magasságprofil, OSM fájl/kamera/újrarajzolás, OSM megjelenítési kategóriák, térkép-láthatósági szabályok, track végpontok, pontfelhő-buffer. A JUnit tesztek itt vannak. |
 | `:app`    | Android: Compose UI, Room, DataStore, hely/GNSS/szenzorok, előtér-szolgáltatás, Google Maps, Mapsforge, WorkManager OSM-letöltés, FileProvider megosztás.                            |
 
 
@@ -225,7 +237,7 @@ docs/    Adatvédelmi tájékoztató, Play-anyagok
 ### Adatok
 
 - **Room:** `track_sessions` + `gps_events` (kaszkád törlés). A Map polyline mindig a Room-ból olvasódik, nem memóriabeli vázlatból. Ezért a látott vonal az a log, amit eltároltál.
-- **DataStore:** nyilatkozat, használat, mértékegység, QNH, baro nyomás-offset, szűrők, OSM-fájlútvonal, OSM rétegkapcsolók, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
+- **DataStore:** nyilatkozat, használat, mértékegység, QNH, baro nyomás-offset, szűrők, OSM-fájlútvonal, OSM rétegkapcsolók, Google forgalom kapcsoló, térképbeállítások, Kalman / sűrűség / csak GNSS / térkép-egyszerűsítés / pontfelhő.
 - **Fájlok:** OSM `.map` letöltések; KMZ a `files/gtltracklogs/` alatt (FileProvider). Hibanapló a `files/diagnostics/` alatt (`errors.log`, az előző fájl `errors.log.1`, ha az aktuális átlépi a kb. 256 KB-ot).
 - **RemoteTrackSync:** no-op csonk egy későbbi backendhez. Nincs élő helyfeltöltés.
 
@@ -573,6 +585,7 @@ Kotlin 2.2 · AGP 9.2 · Compose BOM 2025.12 · Room 2.7 · DataStore · Navigat
 - `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (dátumidő, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
 - `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markerek KMZ-hez és GPX-hez; KMZ baro a `pressureHpa`-ból a megosztáskori QNH-val (`displayedMeters`, 1500 m GPS-őr)
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
+- `engine/.../GpxImporter.kt` — GPX 1.0 és 1.1 nyomvonalak és útvonalak térképvonalakra; az `ImportedGpxStyle` `#E20074`
 - `engine/.../Gnss.kt` — konstelláció / L1 vs L5 / SNR / műholdlista
 - `engine/.../Skyplot.kt` — polar projekció / kétfrekvenciás összevonás
 - `engine/.../GpsAltitude.kt` — új pont EGM2008 MSL; −430…20000 m-en kívül eldobva

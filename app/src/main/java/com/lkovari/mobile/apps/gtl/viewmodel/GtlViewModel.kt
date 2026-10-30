@@ -37,6 +37,8 @@ import com.lkovari.mobile.apps.gtl.engine.FixCloudSample
 import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.GnssSnapshot
+import com.lkovari.mobile.apps.gtl.engine.GpxImport
+import com.lkovari.mobile.apps.gtl.engine.GpxImporter
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
 import com.lkovari.mobile.apps.gtl.engine.TrackPresentation
 import com.lkovari.mobile.apps.gtl.engine.TrackPresentationKey
@@ -92,6 +94,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.time.Instant
 
 private data class OsmTuhuBits(
@@ -116,6 +119,12 @@ private data class MapUiBits(
     val tuhuRenderOptions: TuhuRenderOptions,
     val tuhuMapDownloaded: Boolean
 )
+
+enum class GpxImportNotice {
+    NotGpx,
+    NoTrack,
+    Unreadable
+}
 
 data class MapSearchUi(
     val indexing: Boolean = false,
@@ -150,7 +159,10 @@ data class GtlUiState(
     val speedLegendVisible: Boolean = false,
     val speedRuns: List<SpeedRun> = emptyList(),
     val speedSamples: List<SpeedSample> = emptyList(),
-    val darkTheme: Boolean = false
+    val darkTheme: Boolean = false,
+    val importedLines: List<List<GeoPoint>> = emptyList(),
+    val importFitToken: Int = 0,
+    val gpxImportNotice: GpxImportNotice? = null
 ) {
     val showingOsmMap: Boolean
         get() = OsmOfflineAvailability.effectiveUseOffline(settings.useOfflineMap, hasDownloadedOsmMap) &&
@@ -172,6 +184,9 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     private val requestedTab = MutableStateFlow<Int?>(null)
     private val mainTab = MutableStateFlow(0)
     private val mapCleared = MutableStateFlow(false)
+    private val importedLines = MutableStateFlow<List<List<GeoPoint>>>(emptyList())
+    private val importFitToken = MutableStateFlow(0)
+    private val gpxImportNotice = MutableStateFlow<GpxImportNotice?>(null)
     private var gnssJob: Job? = null
     private var locationJob: Job? = null
     private var compassJob: Job? = null
@@ -623,14 +638,18 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                     tuhuMapDownloaded = osmTuhu.tuhuMapDownloaded
                 )
             },
-            mapFiles
-        ) { bits, files ->
-            bits to files
+            mapFiles,
+            combine(importedLines, importFitToken, gpxImportNotice) { lines, token, notice ->
+                ImportedGpxOverlay(lines, token, notice)
+            }
+        ) { bits, files, imported ->
+            Triple(bits, files, imported)
         }
     ) { startup, liveState, drawn, sessionList, bitsAndFiles ->
         val prefs = startup.settings
         val mapBits = bitsAndFiles.first
         val files = bitsAndFiles.second
+        val imported = bitsAndFiles.third
         GtlUiState(
             settings = prefs,
             settingsLoaded = startup.loaded,
@@ -660,7 +679,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
                 liveState.lastLocation?.latitude ?: prefs.themeLatitude,
                 liveState.lastLocation?.longitude ?: prefs.themeLongitude,
                 Instant.now()
-            )
+            ),
+            importedLines = imported.lines,
+            importFitToken = imported.fitToken,
+            gpxImportNotice = imported.notice
         )
     }.stateIn(
         viewModelScope,
@@ -803,6 +825,47 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     fun clearShownTrack() {
         selectedSessionId.value = null
         mapCleared.value = true
+    }
+
+    fun importGpx(stream: InputStream?) {
+        if (stream == null) {
+            gpxImportNotice.value = GpxImportNotice.Unreadable
+            return
+        }
+        viewModelScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    stream.use { GpxImporter.parse(it) }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                AppErrorLog.record("gpx.import", error)
+                GpxImport.Unreadable
+            }
+            when (result) {
+                is GpxImport.Track -> {
+                    importedLines.value = result.lines
+                    if (!live.value.logging) {
+                        importFitToken.value = importFitToken.value + 1
+                    }
+                    gpxImportNotice.value = null
+                    mainTab.value = 2
+                    requestedTab.value = 2
+                }
+                GpxImport.NotGpx -> gpxImportNotice.value = GpxImportNotice.NotGpx
+                GpxImport.NoTrack -> gpxImportNotice.value = GpxImportNotice.NoTrack
+                GpxImport.Unreadable -> gpxImportNotice.value = GpxImportNotice.Unreadable
+            }
+        }
+    }
+
+    fun clearImportedGpx() {
+        importedLines.value = emptyList()
+    }
+
+    fun consumeGpxImportNotice() {
+        gpxImportNotice.value = null
     }
 
     fun deleteSession(id: Long) {
@@ -1023,6 +1086,10 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setGoogleMapLayer(value: GoogleMapLayer) {
         viewModelScope.launch { app.preferences.setGoogleMapLayer(value) }
+    }
+
+    fun setGoogleTraffic(value: Boolean) {
+        viewModelScope.launch { app.preferences.setGoogleTraffic(value) }
     }
 
     fun setThemeAutomatic(enabled: Boolean) {
@@ -1472,6 +1539,12 @@ private data class DrawnTrack(
     val speedLegendVisible: Boolean,
     val speedRuns: List<SpeedRun>,
     val speedSamples: List<SpeedSample>
+)
+
+private data class ImportedGpxOverlay(
+    val lines: List<List<GeoPoint>>,
+    val fitToken: Int,
+    val notice: GpxImportNotice?
 )
 
 private data class MapFileSnapshot(

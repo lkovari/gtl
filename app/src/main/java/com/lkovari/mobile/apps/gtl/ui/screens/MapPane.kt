@@ -6,6 +6,8 @@ import android.location.Location
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Search
@@ -93,6 +97,8 @@ import com.lkovari.mobile.apps.gtl.engine.FixCloudSnapshot
 import com.lkovari.mobile.apps.gtl.engine.FixCloudStats
 import com.lkovari.mobile.apps.gtl.engine.GeoPoint
 import com.lkovari.mobile.apps.gtl.engine.LatLonBounds
+import com.lkovari.mobile.apps.gtl.engine.ImportedGpxStyle
+import com.lkovari.mobile.apps.gtl.engine.MapBroom
 import com.lkovari.mobile.apps.gtl.engine.MapCameraMode
 import com.lkovari.mobile.apps.gtl.engine.MapFitZoom
 import com.lkovari.mobile.apps.gtl.engine.PostalAddress
@@ -174,6 +180,7 @@ fun MapPane(
     mapActive: Boolean = true,
     onOsmFailed: () -> Unit = {},
     onGoogleMapLayer: (GoogleMapLayer) -> Unit = {},
+    onGoogleTraffic: (Boolean) -> Unit = {},
     onOsmLayers: OsmLayerActions? = null,
     onTuhuLayers: TuhuLayerActions? = null,
     onSearchQuery: (String) -> Unit = {},
@@ -270,7 +277,9 @@ fun MapPane(
                         if (cameraHold) {
                             cameraHold = false
                         }
-                    }
+                    },
+                    importedLines = state.importedLines,
+                    importFitToken = state.importFitToken
                 )
                 Column(
                     modifier = Modifier
@@ -334,6 +343,7 @@ fun MapPane(
                 points,
                 locateRequest,
                 onGoogleMapLayer,
+                onGoogleTraffic,
                 tapPoint,
                 onMapTap,
                 onAnchorScreen = { tapAnchor.screen = it },
@@ -349,8 +359,31 @@ fun MapPane(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (viewingSaved) {
-                ClearMapButton(onClick = onClearMap)
+            val context = LocalContext.current
+            val openGpx = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri == null) {
+                    return@rememberLauncherForActivityResult
+                }
+                val stream = try {
+                    context.contentResolver.openInputStream(uri)
+                } catch (_: Exception) {
+                    null
+                }
+                viewModel.importGpx(stream)
+            }
+            val importedTrack = state.importedLines.any { it.size >= 2 }
+            ImportGpxButton(onClick = { openGpx.launch(arrayOf("*/*")) })
+            if (MapBroom.visible(viewingSaved, importedTrack)) {
+                ClearMapButton(
+                    onClick = {
+                        if (MapBroom.clearImported(importedTrack)) {
+                            viewModel.clearImportedGpx()
+                        }
+                        if (MapBroom.clearSaved(viewingSaved)) {
+                            onClearMap()
+                        }
+                    }
+                )
             }
             LocateMeButton(
                 enabled = state.live.lastLocation != null,
@@ -647,6 +680,7 @@ private fun GoogleMapContent(
     points: List<GeoPoint>,
     locateRequest: Int,
     onGoogleMapLayer: (GoogleMapLayer) -> Unit,
+    onGoogleTraffic: (Boolean) -> Unit,
     tapAnchor: GeoPoint?,
     onTap: (GeoPoint) -> Unit,
     onAnchorScreen: (Offset) -> Unit,
@@ -675,6 +709,7 @@ private fun GoogleMapContent(
         cameraPositionState = camera,
         properties = MapProperties(
             mapType = state.settings.googleMapLayer.toComposeType(),
+            isTrafficEnabled = state.settings.googleTraffic,
             mapStyleOptions = if (nightTiles) nightStyle else null
         ),
         contentPadding = PaddingValues(bottom = logoPadding),
@@ -712,6 +747,25 @@ private fun GoogleMapContent(
                 startCap = RoundCap(),
                 endCap = RoundCap()
             )
+        }
+        val importedLatLngs = remember(state.importedLines) {
+            state.importedLines.map { line ->
+                line.map { LatLng(it.latitude, it.longitude) }
+            }
+        }
+        importedLatLngs.forEach { line ->
+            if (line.size >= 2) {
+                Polyline(
+                    points = line,
+                    color = Color(ImportedGpxStyle.Argb),
+                    width = SpeedBands.CoreWidthPx,
+                    zIndex = 1.5f,
+                    clickable = false,
+                    jointType = JointType.ROUND,
+                    startCap = RoundCap(),
+                    endCap = RoundCap()
+                )
+            }
         }
         val startPoint = TrackEndpoints.start(points)
         if (startPoint != null) {
@@ -823,6 +877,8 @@ private fun GoogleMapContent(
     MapLayerButton(
         selected = state.settings.googleMapLayer,
         onSelect = onGoogleMapLayer,
+        trafficEnabled = state.settings.googleTraffic,
+        onTraffic = onGoogleTraffic,
         modifier = Modifier
             .align(Alignment.BottomEnd)
             .padding(end = 60.dp, bottom = 12.dp)
@@ -883,6 +939,13 @@ private fun GoogleMapContent(
         val target = live ?: return@LaunchedEffect
         camera.animate(CameraUpdateFactory.newLatLng(target))
     }
+    LaunchedEffect(state.importFitToken) {
+        if (state.importFitToken == 0 || state.live.logging) {
+            return@LaunchedEffect
+        }
+        val bounds = TrackCameraBounds.of(state.importedLines.flatten(), null) ?: return@LaunchedEffect
+        animateToTrackBounds(camera, bounds)
+    }
 }
 
 private suspend fun animateToTrackBounds(camera: CameraPositionState, bounds: LatLonBounds) {
@@ -934,6 +997,26 @@ private fun CurrentPositionMarker(usageType: UsageType, liveFix: Boolean) {
             contentDescription = null,
             tint = UsageMarkerRed,
             modifier = Modifier.size(if (liveFix) 18.dp else 24.dp)
+        )
+    }
+}
+
+@Composable
+private fun ImportGpxButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(40.dp)
+            .background(
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                CircleShape
+            )
+    ) {
+        Icon(
+            imageVector = Icons.Filled.FileOpen,
+            contentDescription = stringResource(R.string.map_import_gpx),
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(22.dp)
         )
     }
 }
@@ -1042,6 +1125,8 @@ private fun NorthIndicator(mapBearingDegrees: Float, modifier: Modifier = Modifi
 private fun MapLayerButton(
     selected: GoogleMapLayer,
     onSelect: (GoogleMapLayer) -> Unit,
+    trafficEnabled: Boolean,
+    onTraffic: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -1090,6 +1175,17 @@ private fun MapLayerButton(
                     }
                 )
             }
+            HorizontalDivider()
+            SettingSwitch(
+                label = stringResource(R.string.map_layer_traffic),
+                checked = trafficEnabled,
+                labelStyle = MaterialTheme.typography.bodyMedium,
+                switchScale = 0.75f,
+                modifier = Modifier
+                    .width(220.dp)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                onChange = onTraffic
+            )
         }
     }
 }
@@ -1299,6 +1395,9 @@ private class OsmMapOverlays {
     var lastDrawKey: OsmDrawKey? = null
     var drawnPoints: List<GeoPoint>? = null
     var drawnRuns: List<SpeedRun>? = null
+    var importLines: MutableList<ForgePolyline> = ArrayList()
+    var drawnImportLines: List<List<GeoPoint>>? = null
+    var lastImportFitToken: Int = 0
 }
 
 private class OsmDrawKey(
@@ -1319,11 +1418,15 @@ private class OsmDrawKey(
     val keepWholeTrack: Boolean,
     val viewingSaved: Boolean,
     val render: OsmRenderOptions,
-    val tuhu: TuhuRenderOptions
+    val tuhu: TuhuRenderOptions,
+    val importedLines: List<List<GeoPoint>>,
+    val importFitToken: Int
 ) {
     fun same(other: OsmDrawKey): Boolean {
         return points === other.points &&
             runs === other.runs &&
+            importedLines === other.importedLines &&
+            importFitToken == other.importFitToken &&
             night == other.night &&
             logging == other.logging &&
             latitude == other.latitude &&
@@ -1356,6 +1459,7 @@ private class OsmDrawKey(
         return night != previous.night ||
             focusToken != previous.focusToken ||
             locateRequest != previous.locateRequest ||
+            importFitToken != previous.importFitToken ||
             render != previous.render ||
             tuhu != previous.tuhu ||
             mapActive != previous.mapActive ||
@@ -1394,7 +1498,9 @@ private fun OsmMapView(
     tapAnchor: GeoPoint?,
     onTap: (GeoPoint) -> Unit,
     onAnchorScreen: (Offset) -> Unit,
-    onUserPan: () -> Unit
+    onUserPan: () -> Unit,
+    importedLines: List<List<GeoPoint>>,
+    importFitToken: Int
 ) {
     val overlays = remember(filePath) { OsmMapOverlays() }
     val usageBitmap = rememberUsageMarkerBitmap(usageType, liveFix = location != null)
@@ -1454,7 +1560,9 @@ private fun OsmMapView(
                     keepWholeTrack = keepWholeTrack,
                     viewingSaved = viewingSaved,
                     render = osmRenderOptions,
-                    tuhu = tuhuRenderOptions
+                    tuhu = tuhuRenderOptions,
+                    importedLines = importedLines,
+                    importFitToken = importFitToken
                 )
                 val previousKey = overlays.lastDrawKey
                 if (previousKey != null && drawKey.same(previousKey)) {
@@ -1512,6 +1620,17 @@ private fun OsmMapView(
                     followOsmLiveCamera(mapView, overlays, location, points, logging)
                 }
                 updateOsmTrack(mapView, overlays, points, speedRuns, night)
+                updateOsmImportedLines(mapView, overlays, importedLines)
+                if (importFitToken != 0 && importFitToken != overlays.lastImportFitToken && !logging) {
+                    overlays.lastImportFitToken = importFitToken
+                    val bounds = TrackCameraBounds.of(importedLines.flatten(), null)
+                    if (bounds != null) {
+                        mapView.suppressUserPan = true
+                        fitOsmToBounds(mapView, bounds)
+                        mapView.post { mapView.suppressUserPan = false }
+                        overlays.didInitialCenter = true
+                    }
+                }
                 updateOsmTrackEnds(overlays, points, logging)
                 updateOsmAccuracy(mapView, overlays, location, showAccuracyMarker, night)
                 updateOsmFixCloud(overlays, showFixCloud, fixCloud, night)
@@ -1529,6 +1648,9 @@ private fun OsmMapView(
                 overlays.usageLiveFix = null
                 overlays.casing = null
                 overlays.speedLines.clear()
+                overlays.importLines.clear()
+                overlays.drawnImportLines = null
+                overlays.lastImportFitToken = 0
                 overlays.speedSignature = emptyList()
                 overlays.accuracy = null
                 overlays.cloud = null
@@ -1834,6 +1956,39 @@ private fun trackPaint(argb: Int, width: Float): ForgePaint {
     paint.setStrokeCap(Cap.ROUND)
     paint.setStrokeJoin(Join.ROUND)
     return paint
+}
+
+private fun updateOsmImportedLines(
+    mapView: GtlOsmMapView,
+    overlays: OsmMapOverlays,
+    lines: List<List<GeoPoint>>
+) {
+    if (overlays.drawnImportLines === lines) {
+        return
+    }
+    val layers = mapView.layerManager.layers
+    overlays.importLines.forEach { line -> layers.remove(line) }
+    overlays.importLines.clear()
+    val graphic = AndroidGraphicFactory.INSTANCE
+    var insertAt = overlays.usage?.let { layers.indexOf(it) } ?: -1
+    if (insertAt < 0) {
+        insertAt = layers.size()
+    }
+    lines.forEach { line ->
+        if (line.size < 2) {
+            return@forEach
+        }
+        val polyline = ForgePolyline(
+            trackPaint(ImportedGpxStyle.Argb, SpeedBands.CoreWidthPx),
+            graphic
+        )
+        polyline.setPoints(line.map { LatLong(it.latitude, it.longitude) })
+        layers.add(insertAt, polyline)
+        insertAt += 1
+        overlays.importLines.add(polyline)
+        polyline.requestRedraw()
+    }
+    overlays.drawnImportLines = lines
 }
 
 private fun updateOsmTrackEnds(overlays: OsmMapOverlays, points: List<GeoPoint>, logging: Boolean) {

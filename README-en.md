@@ -25,6 +25,7 @@ Privacy policy: [https://lkovari.github.io/KLHome/assets/bigfiles/gtl-privacy-po
   - [Saved tracks](#saved-tracks)
   - [KMZ export](#kmz-export)
   - [GPX export](#gpx-export)
+  - [GPX import](#gpx-import)
   - [Settings](#settings)
   - [Other screens](#other-screens)
 - [Architecture](#architecture)
@@ -82,7 +83,7 @@ Session totals after Start (and for a saved / last session on Map): elapsed time
 
 - Centers on current location when you open the tab. Idle, you can pan away (Google and OSM). After Start the camera follows. **Keep whole track on the screen** fits the whole route after each GPS refresh (pan and zoom stay allowed until the next fix). A **My location** button (top left: cyan GPS crosshair, same circle as the broom) recenters on the GPS fix without changing zoom.
 - Speed-coloured polyline from Room (live session, last saved track, or a track chosen in Saved tracks). The Map line **is** the stored log; there is no separate sketch. See [How logging works](#how-logging-works).
-- **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message.
+- **Google Maps** when `MAPS_API_KEY` is set; otherwise an on-device message. The layers button (bottom right) is Map, Satellite, Hybrid, or Terrain. **Traffic** is a switch in that menu, off by default. It draws live road colors on the Google map only, and it needs a network the same way the Google map does.
 - **OSM Mapsforge** after you download a region (or Turistautak) and put it **In Use** on **Download Offline map** (or turn on **Use downloaded OSM map**). The same polyline and accuracy ring draw on OSM. A missing or non-Mapsforge file shows an on-device message and turns that switch off so the next launch is not a crash loop. Download keeps only files with magic `mapsforge binary OSM` and a matching header size. Camera starts on the `.map` start/bounds when the GPS fix is outside that file; live follow only inside the file. The OSM `MapView` stays laid out when you leave the Map tab.
 - Pale purple accuracy circle (radius = GPS accuracy in metres). Toggle in Settings. The circle follows the **raw** location (GNSS chip or fused), not a Kalman-smoothed stored track.
 - **HUD** over both map engines: large speed (units from Settings), accuracy, GNSS used/in view. While you stand still the speed is 0, so GPS jitter does not look like motion. A fix counts as motion when its speed beats its own speed accuracy, or when it reaches the usage floor (0.3 m/s Run/Hike, 0.5 m/s bicycle, 0.8 m/s vehicles, 1.5 m/s aircraft) and the accelerometer also shows motion. Speed appears after two such fixes and returns to 0 after three quiet ones. While logging: odometer, elapsed time, pulsing REC. Idle with a fix: dim compact panel at the bottom left. Hidden when a saved track is shown and you are not logging.
@@ -136,6 +137,17 @@ Magnetic heading (MAG) from the rotation sensor, or TRUE (geographic north = MAG
 - START / PAUSE / STOP are `<wpt>` named Start, Pause, Stop. The Stop waypoint uses the last path point (same snap as KMZ).
 - Several selected sessions → one `.gpx` with several `<trk>`. Filename `GTL_yyyyMMdd_HHmmss.gpx`. MIME `application/gpx+xml`.
 - Saved tracks → select → GPX or KMZ.
+
+### GPX import
+
+- Map tab, top left, file button. The picker lists every file, because many GPX files are stored as plain XML. `GpxImporter` reads the stream. The colour is `ImportedGpxStyle`, T-Mobile magenta `#E20074`.
+- GPX 1.0 and 1.1, a missing or odd `version`, a default namespace, no namespace, and prefixed tags (`gpx:trkpt`). Geometry is `trk` / `trkseg` / `trkpt` and `rte` / `rtept`. A `trkpt` written directly under `trk` is one line. Garmin and other extensions are ignored; `lat` and `lon` on the point are still read, and those attribute names are case-insensitive. Comma decimals and scientific notation are accepted. Missing `<ele>` and `<time>` are fine. A coordinate outside latitude −90…90 or longitude −180…180 is skipped.
+- Each track segment and each route is its own line, so a pause gap is not joined. Waypoints are not a track. A waypoint-only file is reported and not drawn.
+- The line is solid `#E20074`, 8 px, on Google Maps and OSM, above the speed-coloured log. No green S or red E. It is not written to Room and not shared back out. A new file replaces the previous overlay. Leaving the process drops it; rotation keeps it.
+- While idle, the camera fits the imported bounds once. While logging, the camera keeps following the ride and the magenta line stays on the map.
+- A line longer than 8 000 points is thinned with Douglas–Peucker at 5 m for drawing only. Shorter lines are kept as read.
+- The broom shows when a saved track or an imported line is on the map. One press clears the import if one is up, and still clears a saved track when that is what the broom already clears. It never hides the live recording line and does not delete a session.
+- A file that is not GPX, a GPX with no drawable track, or a file that cannot be read shows a dialog. The line already on the map stays.
 
 
 
@@ -210,7 +222,7 @@ Two Gradle modules:
 
 | Module    | Role                                                                                                                                                                            |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1, map HUD visibility, tap straight-line and coordinate labels, target pointer for the tap straight-line, Route-tab idle speeds, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, OSM render-option categories, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
+| `:engine` | Pure JVM: GNSS classification, skyplot projection, GPS altitude pick, baro/QNH, Kalman track filter, fix acceptance, speed-adaptive spacing, Douglas–Peucker, track stats, KML/KMZ, GPX 1.1 export, GPX import, map HUD visibility, tap straight-line and coordinate labels, target pointer for the tap straight-line, Route-tab idle speeds, compass MAG/TRUE heading, elevation series, OSM file/camera/redraw, OSM render-option categories, map-visibility rules, track endpoints, fix-cloud buffer. JUnit tests live here. |
 | `:app`    | Android: Compose UI, Room, DataStore, location/GNSS/sensors, foreground service, Google Maps, Mapsforge, WorkManager OSM download, FileProvider share.                          |
 
 
@@ -225,7 +237,7 @@ docs/    Privacy policy, Play assets
 ### Data
 
 - **Room:** `track_sessions` + `gps_events` (cascade delete). The Map polyline is always read from Room, not from an in-memory sketch. That is why the line you see is the log you stored.
-- **DataStore:** disclaimer, usage, units, QNH, baro pressure offset, filters, OSM file path, OSM layer switches, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
+- **DataStore:** disclaimer, usage, units, QNH, baro pressure offset, filters, OSM file path, OSM layer switches, Google traffic switch, map options, Kalman / density / GNSS-only / map-simplify / fix-cloud settings.
 - **Files:** OSM `.map` downloads; KMZ under `files/gtltracklogs/` (FileProvider). Error log under `files/diagnostics/` (`errors.log`, previous file `errors.log.1` once the current file passes about 256 KB).
 - **RemoteTrackSync:** no-op stub for a later backend. No live location upload.
 
@@ -573,6 +585,7 @@ Engine entry points worth reading:
 - `engine/.../KmlDescriptions.kt` — Start / Pause / Stop Earth details (datetime, temp, lon/lat, Altitude, Baro, Speed / Avg. Speed / Max speed, duration, distance)
 - `engine/.../TrackLogExport.kt` — path vs Start/Pause/Stop markers for KMZ and GPX; KMZ baro from `pressureHpa` at share-time QNH (`displayedMeters`, 1500 m GPS guard)
 - `engine/.../GpxExporter.kt` — GPX 1.1 `trk` / `trkseg` / `trkpt` + Start/Pause/Stop `wpt`
+- `engine/.../GpxImporter.kt` — GPX 1.0 and 1.1 tracks and routes onto map lines; `ImportedGpxStyle` is `#E20074`
 - `engine/.../Gnss.kt` — constellation / L1 vs L5 / SNR / satellite list
 - `engine/.../Skyplot.kt` — polar projection / dual-frequency merge
 - `engine/.../GpsAltitude.kt` — new points stored as EGM2008 MSL; drop outside −430…20000 m
