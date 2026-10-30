@@ -1,17 +1,17 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.23)
+GTL GPS Track Logger — Play Console “What’s new” (v2.0.24)
 
-EN (421 / 500 characters)
+EN (≤500 characters)
 
-Recording no longer stops with the screen off.
+Import a GPX onto the map, and a Google Traffic switch.
 
-• Some phones stopped GTL about 15 minutes after the screen went off, and the track broke off. Start now offers to let GTL run without battery optimization, so recording continues
-• If the phone still stops a recording, the track closes at the last saved point and the app tells you on the next launch
-• A new Start no longer joins an interrupted track with a straight line
+• Map file button opens a GPX 1.0 or 1.1 track or route and draws it in magenta
+• Segments stay separate. The broom removes that line. The file is not stored
+• Google layers: Traffic, off by default. Live road colors on Google Maps only
 
-HU (458 / 500 characters)
+HU (≤500 characters)
 
-A felvétel kikapcsolt képernyőnél sem áll le.
+GPX import a térképre, és Google Forgalom kapcsoló.
 
-• Egyes telefonok kb. 15 perccel a képernyő kikapcsolása után leállították a GTL-t, és a track megszakadt. A Start mostantól felajánlja, hogy a GTL akkumulátor-optimalizálás nélkül fusson, így a rögzítés folytatódik
-• Ha a telefon mégis leállítja a felvételt, a track az utolsó mentett pontnál lezárul, és az app a következő megnyitáskor jelzi
-• Az új Start nem köti össze egyenes vonallal a megszakadt trackkel
+• A Térkép fájl gombja GPX 1.0 vagy 1.1 nyomvonalat vagy útvonalat nyit, magentával rajzolja
+• A szakaszok külön maradnak. A seprő leveszi a vonalat. A fájl nem kerül a telefonra
+• Google rétegek: Forgalom, alapból ki. Élő útszínek csak a Google térképen
