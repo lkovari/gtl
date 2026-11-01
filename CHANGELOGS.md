@@ -3,11 +3,15 @@
 All notable changes to **GPS Track Logger** (`com.lkovari.mobile.apps.gtl`).
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning matches `versionName` **2.0.24** / `versionCode` **42** (minSdk 24, targetSdk 36).
+Versioning matches `versionName` **2.0.25** / `versionCode` **43** (minSdk 24, targetSdk 36).
 
 Canonical history is this file. Play Console what’s-new: [docs/play-console/whatsnew.txt](docs/play-console/whatsnew.txt). How logging writes the Map polyline: [README-en.md — How logging works](README-en.md#how-logging-works) / [README-hu.md](README-hu.md#hogyan-működik-a-naplózás).
 
 ## [Unreleased]
+
+## [2.0.25] — 2026-11-01
+
+Play production track **43 (2.0.25)** (signed AAB). Pause waypoint kept before Stop; QNH from weather model or METAR at startup.
 
 A stop of at least 5 seconds before Stop keeps its Pause waypoint in GPX and KMZ. QNH loads at startup from a weather model or a nearby METAR, for example 1022 hPa, with no message. The slider keeps a manual value. If the site cannot be reached, the previous value stays and one line is written to the menu error log.
 
