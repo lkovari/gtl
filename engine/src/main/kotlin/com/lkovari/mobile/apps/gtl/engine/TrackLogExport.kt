@@ -25,6 +25,7 @@ data class TrackLogMarker(
 
 object TrackLogExport {
     const val MARKER_OVERLAP_METERS = 1.0
+    const val PAUSE_STOP_SAME_MOMENT_MILLIS = 5_000L
 
     fun path(events: List<TrackLogEvent>): List<TrackLogEvent> {
         if (events.isEmpty()) {
@@ -61,7 +62,7 @@ object TrackLogExport {
         }
         val pauses = firstOfEachPauseRun(path)
             .filter { pause -> !near(pause, startEvent) }
-            .filter { pause -> stopEvent == null || !near(pause, stopEvent) }
+            .filter { pause -> stopEvent == null || !sameMomentAsStop(pause, stopEvent) }
         val result = mutableListOf(TrackLogMarker(EventKind.START, startEvent))
         pauses.forEach { pause ->
             result.add(TrackLogMarker(EventKind.PAUSE, pause))
@@ -121,6 +122,13 @@ object TrackLogExport {
             right.latitude,
             right.longitude
         ) < MARKER_OVERLAP_METERS
+    }
+
+    private fun sameMomentAsStop(pause: TrackLogEvent, stop: TrackLogEvent): Boolean {
+        if (!near(pause, stop)) {
+            return false
+        }
+        return stop.timestampMillis - pause.timestampMillis < PAUSE_STOP_SAME_MOMENT_MILLIS
     }
 }
 

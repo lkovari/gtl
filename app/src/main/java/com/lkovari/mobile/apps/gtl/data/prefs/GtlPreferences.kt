@@ -17,6 +17,7 @@ import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.FixFilter
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmRenderOptions
+import com.lkovari.mobile.apps.gtl.engine.QnhOrigin
 import com.lkovari.mobile.apps.gtl.engine.RecordingDensity
 import com.lkovari.mobile.apps.gtl.engine.SmoothingStrength
 import com.lkovari.mobile.apps.gtl.engine.ThemeMode
@@ -74,6 +75,13 @@ data class GtlSettings(
     val gnssOnly: Boolean,
     val compassTrueNorth: Boolean,
     val qnhHpa: Float,
+    val qnhManual: Boolean,
+    val qnhOrigin: String,
+    val qnhFetchedAtMillis: Long,
+    val qnhIcao: String,
+    val qnhDistanceKm: Int,
+    val qnhLatitude: Double?,
+    val qnhLongitude: Double?,
     val baroPressureOffsetHpa: Float,
     val autoCalibrateBaroEnabled: Boolean,
     val googleMapLayer: GoogleMapLayer,
@@ -138,6 +146,13 @@ data class GtlSettings(
                 gnssOnly = smoothing.gnssOnly,
                 compassTrueNorth = false,
                 qnhHpa = SensorManager.PRESSURE_STANDARD_ATMOSPHERE,
+                qnhManual = false,
+                qnhOrigin = "",
+                qnhFetchedAtMillis = 0L,
+                qnhIcao = "",
+                qnhDistanceKm = -1,
+                qnhLatitude = null,
+                qnhLongitude = null,
                 baroPressureOffsetHpa = 0f,
                 autoCalibrateBaroEnabled = true,
                 googleMapLayer = GoogleMapLayer.NORMAL,
@@ -276,7 +291,50 @@ class GtlPreferences(context: Context) {
     }
 
     suspend fun setQnhHpa(value: Float) {
-        dataStore.edit { it[Keys.qnhHpa] = BaroAltitude.clampQnh(value) }
+        dataStore.edit { prefs ->
+            prefs[Keys.qnhHpa] = BaroAltitude.clampQnh(value)
+            prefs[Keys.qnhManual] = true
+            prefs[Keys.qnhOrigin] = QnhOrigin.MANUAL.name
+        }
+    }
+
+    suspend fun clearQnhManual() {
+        dataStore.edit { prefs ->
+            prefs[Keys.qnhManual] = false
+        }
+    }
+
+    suspend fun applyAutomaticQnh(
+        hpa: Int,
+        origin: QnhOrigin,
+        icao: String?,
+        distanceKm: Int?,
+        latitude: Double,
+        longitude: Double,
+        fetchedAtMillis: Long,
+        blocked: () -> Boolean
+    ) {
+        dataStore.edit { prefs ->
+            if (blocked() || prefs[Keys.qnhManual] == true) {
+                return@edit
+            }
+            prefs[Keys.qnhHpa] = hpa.toFloat()
+            prefs[Keys.qnhManual] = false
+            prefs[Keys.qnhOrigin] = origin.name
+            prefs[Keys.qnhFetchedAtMillis] = fetchedAtMillis
+            if (icao.isNullOrBlank()) {
+                prefs.remove(Keys.qnhIcao)
+            } else {
+                prefs[Keys.qnhIcao] = icao
+            }
+            if (distanceKm == null) {
+                prefs.remove(Keys.qnhDistanceKm)
+            } else {
+                prefs[Keys.qnhDistanceKm] = distanceKm
+            }
+            prefs[Keys.qnhLatitude] = latitude.toFloat()
+            prefs[Keys.qnhLongitude] = longitude.toFloat()
+        }
     }
 
     suspend fun setBaroPressureOffsetHpa(value: Float) {
@@ -422,6 +480,13 @@ class GtlPreferences(context: Context) {
             qnhHpa = BaroAltitude.clampQnh(
                 prefs[Keys.qnhHpa] ?: SensorManager.PRESSURE_STANDARD_ATMOSPHERE
             ),
+            qnhManual = prefs[Keys.qnhManual] ?: false,
+            qnhOrigin = prefs[Keys.qnhOrigin] ?: "",
+            qnhFetchedAtMillis = prefs[Keys.qnhFetchedAtMillis] ?: 0L,
+            qnhIcao = prefs[Keys.qnhIcao] ?: "",
+            qnhDistanceKm = prefs[Keys.qnhDistanceKm] ?: -1,
+            qnhLatitude = prefs[Keys.qnhLatitude]?.toDouble(),
+            qnhLongitude = prefs[Keys.qnhLongitude]?.toDouble(),
             baroPressureOffsetHpa = BaroAltitude.clampOffset(
                 prefs[Keys.baroPressureOffsetHpa] ?: 0f
             ),
@@ -510,6 +575,13 @@ class GtlPreferences(context: Context) {
         val gnssOnly = booleanPreferencesKey("gnss_only")
         val compassTrueNorth = booleanPreferencesKey("compass_true_north")
         val qnhHpa = floatPreferencesKey("qnh_hpa")
+        val qnhManual = booleanPreferencesKey("qnh_manual")
+        val qnhOrigin = stringPreferencesKey("qnh_origin")
+        val qnhFetchedAtMillis = longPreferencesKey("qnh_fetched_at")
+        val qnhIcao = stringPreferencesKey("qnh_icao")
+        val qnhDistanceKm = intPreferencesKey("qnh_distance_km")
+        val qnhLatitude = floatPreferencesKey("qnh_latitude")
+        val qnhLongitude = floatPreferencesKey("qnh_longitude")
         val baroPressureOffsetHpa = floatPreferencesKey("baro_pressure_offset_hpa")
         val autoCalibrateBaro = booleanPreferencesKey("auto_calibrate_baro")
         val googleMapLayer = stringPreferencesKey("google_map_layer")

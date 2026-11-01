@@ -106,6 +106,7 @@ import com.lkovari.mobile.apps.gtl.engine.DouglasPeucker
 import com.lkovari.mobile.apps.gtl.engine.ElevationSample
 import com.lkovari.mobile.apps.gtl.engine.formatDownloadSize
 import com.lkovari.mobile.apps.gtl.engine.GpsAltitude
+import com.lkovari.mobile.apps.gtl.engine.QnhOrigin
 import com.lkovari.mobile.apps.gtl.engine.MeasurementSystem
 import com.lkovari.mobile.apps.gtl.engine.OsmOfflineAvailability
 import com.lkovari.mobile.apps.gtl.engine.SavedTrackCard
@@ -695,7 +696,10 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                     }
                                     EndpointSlider(
                                         value = qnhValue,
-                                        onValueChange = { qnhValue = it },
+                                        onValueChange = {
+                                            qnhValue = it
+                                            viewModel.holdQnhSlider()
+                                        },
                                         onValueChangeFinished = { viewModel.setQnhHpa(qnhValue) },
                                         valueRange = BaroAltitude.MinQnhHpa..BaroAltitude.MaxQnhHpa,
                                         steps = 199,
@@ -704,6 +708,55 @@ fun SettingsScreen(state: GtlUiState, viewModel: GtlViewModel, onBack: () -> Uni
                                         labelStyle = chipStyle
                                     )
                                 }
+                                Text(
+                                    text = stringResource(R.string.settings_qnh_hint),
+                                    style = chipStyle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                val qnhSettings = state.settings
+                                val source = when {
+                                    qnhSettings.qnhManual -> stringResource(R.string.settings_qnh_manual)
+                                    qnhSettings.qnhOrigin == QnhOrigin.METAR.name && qnhSettings.qnhIcao.isNotBlank() ->
+                                        stringResource(
+                                            R.string.settings_qnh_source_metar,
+                                            qnhSettings.qnhIcao,
+                                            qnhSettings.qnhDistanceKm.coerceAtLeast(0)
+                                        )
+                                    qnhSettings.qnhOrigin == QnhOrigin.METAR.name ->
+                                        stringResource(R.string.settings_qnh_source_metar_plain)
+                                    qnhSettings.qnhOrigin == QnhOrigin.MODEL.name ->
+                                        stringResource(R.string.settings_qnh_source_model)
+                                    else -> null
+                                }
+                                if (source != null) {
+                                    Text(text = source, style = chipStyle)
+                                }
+                                val fetchedAt = qnhSettings.qnhFetchedAtMillis
+                                if (fetchedAt > 0L) {
+                                    val ageMinutes = ((System.currentTimeMillis() - fetchedAt) / 60_000L).coerceAtLeast(0L)
+                                    Text(
+                                        text = if (ageMinutes == 0L) {
+                                            stringResource(R.string.settings_qnh_age_now)
+                                        } else {
+                                            stringResource(R.string.settings_qnh_age, ageMinutes.toInt())
+                                        },
+                                        style = chipStyle,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { viewModel.refreshQnh() },
+                                    enabled = !sensors.logging,
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.settings_qnh_automatic),
+                                            style = chipStyle,
+                                            maxLines = 1
+                                        )
+                                    },
+                                    modifier = Modifier.heightIn(max = chipHeight)
+                                )
                                 val raw = sensors.rawPressureHpa
                                 Text(
                                     text = when {

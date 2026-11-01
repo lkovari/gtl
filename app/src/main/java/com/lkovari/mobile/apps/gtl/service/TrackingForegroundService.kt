@@ -448,6 +448,7 @@ class TrackingForegroundService : LifecycleService() {
         if (autoCalibratedThisSession || !settings.autoCalibrateBaroEnabled) {
             return
         }
+        app.qnhRefresh.awaitIdle()
         val pressure = app.trackingState.state.value.pressureHpa
         val previousAltitude = pendingCalibrationAltitude
         pendingCalibrationAltitude = gpsAltitudeMeters
@@ -462,7 +463,8 @@ class TrackingForegroundService : LifecycleService() {
         if (!eligible || pressure == null || !BaroAltitude.isPlausiblePressureHpa(pressure)) {
             return
         }
-        val offset = BaroAltitude.calibrationOffsetHpa(pressure, gpsAltitudeMeters, settings.qnhHpa) ?: return
+        val qnh = app.preferences.settings.first().qnhHpa
+        val offset = BaroAltitude.calibrationOffsetHpa(pressure, gpsAltitudeMeters, qnh) ?: return
         app.preferences.setBaroPressureOffsetHpa(offset)
         autoCalibratedThisSession = true
     }

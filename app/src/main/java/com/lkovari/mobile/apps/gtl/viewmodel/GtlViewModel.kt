@@ -279,14 +279,18 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun closeOrphanedRecording() {
-        val closedId = try {
-            app.interruptedRecording.closeOrphanedSession()
-        } catch (error: SQLException) {
-            AppErrorLog.record("track.recover", error)
-            null
-        } ?: return
-        RecordingInterruptNotice.mark(app, closedId)
-        ProcessExitDiagnostics.recordLastExit(app, closedId)
+        try {
+            val closedId = try {
+                app.interruptedRecording.closeOrphanedSession()
+            } catch (error: SQLException) {
+                AppErrorLog.record("track.recover", error)
+                null
+            } ?: return
+            RecordingInterruptNotice.mark(app, closedId)
+            ProcessExitDiagnostics.recordLastExit(app, closedId)
+        } finally {
+            app.qnhRefresh.onRecoveryFinished()
+        }
     }
 
     fun dismissRecordingInterrupted() {
@@ -1049,8 +1053,19 @@ class GtlViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { app.preferences.setCompassTrueNorth(value) }
     }
 
+    fun holdQnhSlider() {
+        app.qnhRefresh.holdSlider()
+    }
+
     fun setQnhHpa(value: Float) {
-        viewModelScope.launch { app.preferences.setQnhHpa(value) }
+        viewModelScope.launch {
+            app.preferences.setQnhHpa(value)
+            app.qnhRefresh.releaseSliderHold()
+        }
+    }
+
+    fun refreshQnh() {
+        app.qnhRefresh.refreshNow()
     }
 
     fun calibrateBaroFromGps() {

@@ -1,6 +1,10 @@
 package com.lkovari.mobile.apps.gtl
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.app.Application
+import androidx.core.content.ContextCompat
+import com.lkovari.mobile.apps.gtl.data.qnh.QnhRefresh
 import com.lkovari.mobile.apps.gtl.diagnostics.AppErrorLog
 import com.lkovari.mobile.apps.gtl.data.db.GtlDatabase
 import com.lkovari.mobile.apps.gtl.data.db.TrackCardBackfillWorker
@@ -51,6 +55,8 @@ class GtlApplication : Application() {
         private set
     lateinit var mapSearch: MapSearchRepository
         private set
+    lateinit var qnhRefresh: QnhRefresh
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -77,5 +83,19 @@ class GtlApplication : Application() {
                 pressureAvailable = pressureSource.isAvailable
             )
         }
+        qnhRefresh = QnhRefresh(
+            preferences = preferences,
+            trackingState = trackingState,
+            gate = recordingGate,
+            repository = trackRepository,
+            pressureAvailable = { pressureSource.isAvailable },
+            fineLocationGranted = {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+        )
+        qnhRefresh.arm()
     }
 }

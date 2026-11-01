@@ -1475,6 +1475,48 @@ class TrackLogExportTest {
     }
 
     @Test
+    fun pauseAtTheGateTwentyTwoSecondsBeforeStopIsKept() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.60, 19.20, 10_000),
+            event(EventKind.PAUSE, 47.70, 19.30, 20_000),
+            event(EventKind.STOP, 47.90, 19.50, 42_000)
+        )
+        val markers = TrackLogExport.markers(events)
+        val pause = markers.single { it.kind == EventKind.PAUSE }
+        assertEquals(47.70, pause.event.latitude, 0.0)
+        assertEquals(19.30, pause.event.longitude, 0.0)
+        assertEquals(1, markers.count { it.kind == EventKind.STOP })
+    }
+
+    @Test
+    fun pauseFiveSecondsBeforeStopAtTheSamePlaceIsKept() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.60, 19.20, 10_000),
+            event(EventKind.PAUSE, 47.70, 19.30, 20_000),
+            event(EventKind.STOP, 47.90, 19.50, 25_000)
+        )
+        val markers = TrackLogExport.markers(events)
+        assertEquals(1, markers.count { it.kind == EventKind.PAUSE })
+        assertEquals(20_000L, markers.single { it.kind == EventKind.PAUSE }.event.timestampMillis)
+        assertEquals(1, markers.count { it.kind == EventKind.STOP })
+    }
+
+    @Test
+    fun pauseFourThousandNineHundredNinetyNineMillisBeforeStopAtTheSamePlaceIsDropped() {
+        val events = listOf(
+            event(EventKind.START, 47.50, 19.05, 0),
+            event(EventKind.MOVE, 47.60, 19.20, 10_000),
+            event(EventKind.PAUSE, 47.70, 19.30, 20_000),
+            event(EventKind.STOP, 47.90, 19.50, 24_999)
+        )
+        val markers = TrackLogExport.markers(events)
+        assertFalse(markers.any { it.kind == EventKind.PAUSE })
+        assertEquals(1, markers.count { it.kind == EventKind.STOP })
+    }
+
+    @Test
     fun pauseAtStartIsDropped() {
         val events = listOf(
             event(EventKind.START, 47.50, 19.05, 0),
@@ -1600,6 +1642,44 @@ class CoordinateFormatTest {
         assertTrue(gpx.contains("<ele>123.5</ele>"))
         assertFalse(gpx.contains("E-"))
         assertFalse(gpx.contains("E+"))
+    }
+
+    @Test
+    fun longDoubleExportsAtMostSevenCoordinateDecimalsAndOneAltitudeDecimal() {
+        val gpx = GpxExporter.export(
+            GpxDocument(
+                tracks = listOf(
+                    GpxTrack(
+                        name = "Long",
+                        points = listOf(
+                            GpxTrackPoint(
+                                GeoPoint(47.1234567890123, 19.9876543210987, 89.649999999),
+                                0L
+                            )
+                        ),
+                        waypoints = emptyList()
+                    )
+                )
+            )
+        )
+        val trackPoint = Regex("""<trkpt lat="([^"]+)" lon="([^"]+)">""").find(gpx)
+        val latitude = checkNotNull(trackPoint).groupValues[1]
+        val longitude = trackPoint.groupValues[2]
+        val elevation = checkNotNull(Regex("""<ele>([^<]+)</ele>""").find(gpx)).groupValues[1]
+        assertEquals("47.1234568", latitude)
+        assertEquals("19.9876543", longitude)
+        assertEquals("89.6", elevation)
+        assertTrue(decimalsAfter(latitude) <= 7)
+        assertTrue(decimalsAfter(longitude) <= 7)
+        assertTrue(decimalsAfter(elevation) <= 1)
+    }
+
+    private fun decimalsAfter(value: String): Int {
+        val dot = value.indexOf('.')
+        if (dot < 0) {
+            return 0
+        }
+        return value.length - dot - 1
     }
 }
 

@@ -20,6 +20,7 @@ playServicesMaps = "19.2.0"
 mapsCompose = "6.4.1"
 work = "2.10.3"
 mapsforge = "0.25.0"
+orgJson = "20250517"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -57,6 +58,7 @@ mapsforge-core = { group = "org.mapsforge", name = "mapsforge-core", version.ref
 mapsforge-map = { group = "org.mapsforge", name = "mapsforge-map", version.ref = "mapsforge" }
 mapsforge-map-android = { group = "org.mapsforge", name = "mapsforge-map-android", version.ref = "mapsforge" }
 mapsforge-themes = { group = "org.mapsforge", name = "mapsforge-themes", version.ref = "mapsforge" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

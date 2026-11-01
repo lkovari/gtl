@@ -9,6 +9,12 @@ Canonical history is this file. Play Console what’s-new: [docs/play-console/wh
 
 ## [Unreleased]
 
+A stop of at least 5 seconds before Stop keeps its Pause waypoint in GPX and KMZ. QNH loads at startup from a weather model or a nearby METAR, for example 1022 hPa, with no message. The slider keeps a manual value. If the site cannot be reached, the previous value stays and one line is written to the menu error log.
+
+### Magyar
+
+A Stop előtt legalább 5 másodperces állás Pause waypointja megmarad a GPX-ben és a KMZ-ben. A QNH induláskor töltődik időjárási modellből vagy közeli METAR-ból, például 1022 hPa, üzenet nélkül. A csúszka kézi értéke megmarad. Ha az oldal nem érhető el, a korábbi érték marad, és egy sor kerül a menü hibalogjába.
+
 ## [2.0.24] — 2026-10-30
 
 Play production track **42 (2.0.24)** (signed AAB). GPX import on the map, Google Traffic layer.

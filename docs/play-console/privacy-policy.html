@@ -180,15 +180,15 @@
     <section class="card">
       <h2 data-lang="en">Summary</h2>
       <h2 data-lang="hu">Összefoglaló</h2>
-      <p data-lang="en">GTL is a GPS track logger. It records your route, satellite status, and optional ambient temperature on this phone. There is no account. We do not operate a tracking server. The app uses the internet only for Google Maps tiles (if you set an API key) and for OpenStreetMap region file downloads that you start.</p>
-      <p data-lang="hu">A GTL GPS útvonalnapló. Az útvonalat, a műholdállapotot és — ha van szenzor — a környezeti hőmérsékletet ezen a telefonon rögzíti. Nincs fiók. Nem üzemeltetünk követőszervert. Internetre csak a Google Térkép csempéihez (ha beállítasz API-kulcsot) és az általad indított OpenStreetMap-letöltésekhez van szükség.</p>
+      <p data-lang="en">GTL is a GPS track logger. It records your route, satellite status, and optional ambient temperature on this phone. There is no account. We do not operate a tracking server. The app uses the internet for Google Maps tiles (if you set an API key), for OpenStreetMap region file downloads that you start, and, when this phone has a barometer and location access, to request sea-level pressure for the current position once when GTL starts.</p>
+      <p data-lang="hu">A GTL GPS útvonalnapló. Az útvonalat, a műholdállapotot és — ha van szenzor — a környezeti hőmérsékletet ezen a telefonon rögzíti. Nincs fiók. Nem üzemeltetünk követőszervert. Internet kell a Google Térkép csempéihez (ha beállítasz API-kulcsot), az általad indított OpenStreetMap-letöltésekhez, és — ha a telefonon van légnyomásmérő és a helyengedély megvan — induláskor egy tengerszinti légnyomás-lekéréshez az aktuális pozícióra.</p>
     </section>
 
     <section class="card">
       <h2 data-lang="en">Location and GNSS</h2>
       <h2 data-lang="hu">Helymeghatározás és GNSS</h2>
-      <p data-lang="en">While you tap Start, GTL reads precise location and GNSS status (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC when the chipset reports them). Recording runs as a visible foreground service with a notification. Fixes are stored in SQLite on the device. They are not uploaded to our servers.</p>
-      <p data-lang="hu">Amíg az Indít gombot használod, a GTL precíz helyet és GNSS-állapotot olvas (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, ha a chipset jelenti). A rögzítés látható előtér-szolgáltatásként, értesítéssel fut. A pontok SQLite-ban maradnak a készüléken. A mi szerverünkre nem kerülnek fel.</p>
+      <p data-lang="en">While you tap Start, GTL reads precise location and GNSS status (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC when the chipset reports them). Recording runs as a visible foreground service with a notification. Fixes are stored in SQLite on the device. They are not uploaded to our servers. When the phone has a barometer, startup also sends one rounded position to look up sea-level pressure, as described under Sea-level pressure (QNH). The track stays on the phone.</p>
+      <p data-lang="hu">Amíg az Indít gombot használod, a GTL precíz helyet és GNSS-állapotot olvas (GPS L1/L5, Galileo, GLONASS, BeiDou, QZSS, NavIC, ha a chipset jelenti). A rögzítés látható előtér-szolgáltatásként, értesítéssel fut. A pontok SQLite-ban maradnak a készüléken. A mi szerverünkre nem kerülnek fel. Ha van légnyomásmérő, induláskor egy kerekített pozíció elmegy tengerszinti légnyomásért, a Tengerszinti légnyomás (QNH) szakasz szerint. Az útvonal a telefonon marad.</p>
     </section>
 
     <section class="card">
@@ -213,12 +213,20 @@
     </section>
 
     <section class="card">
+      <h2 data-lang="en">Sea-level pressure (QNH)</h2>
+      <h2 data-lang="hu">Tengerszinti légnyomás (QNH)</h2>
+      <p data-lang="en">When the phone has a barometer and precise location is allowed, GTL looks up sea-level pressure once at startup and stores it in the QNH setting on the phone. The request sends the current latitude and longitude, rounded to about 100 metres, over HTTPS to the Norwegian Meteorological Institute (<a href="https://api.met.no/">api.met.no</a>). It may also send an area around that position to the US Aviation Weather Center (<a href="https://aviationweather.gov/">aviationweather.gov</a>) to read the nearest airport report. Those services see your IP address and that position. GTL does not send the track, speed, altitude history, or the barometer reading. If you set QNH yourself with the slider, GTL keeps that value and does not replace it. During an open recording the value is not replaced. Settings can ask again after a manual value. A successful result is stored on the phone without a message. If the weather service cannot be reached, there is no message, the previous QNH stays, and the failure is written only to the on-device error log opened from the menu, without the position or the request address. Norwegian Meteorological Institute terms: <a href="https://api.met.no/doc/TermsOfService">api.met.no/doc/TermsOfService</a>. Aviation Weather is a US National Weather Service service: <a href="https://www.weather.gov/privacy">weather.gov/privacy</a>.</p>
+      <p data-lang="hu">Ha a telefonon van légnyomásmérő és a precíz hely engedélyezve van, a GTL induláskor egyszer lekéri a tengerszinti légnyomást, és a telefonon a QNH beállításba írja. A kérés a jelenlegi szélességet és hosszúságot küldi, kb. 100 méterre kerekítve, HTTPS-en a Norvég Meteorológiai Intézetnek (<a href="https://api.met.no/">api.met.no</a>). Ugyanennek a pontnak a környékét elküldheti az amerikai Aviation Weather Centernek (<a href="https://aviationweather.gov/">aviationweather.gov</a>) a legközelebbi repülőtéri jelentésért. Ezek a szolgáltatások látják az IP-címet és ezt a pozíciót. A GTL nem küldi el az útvonalat, a sebességet, a magasságtörténetet és a légnyomásmérő saját értékét. Ha a QNH-t a csúszkával magad állítod be, a GTL megtartja, és nem cseréli le. Nyitott rögzítés közben az érték nem cserélődik. A Beállítások a kézi érték után újra lekérheti. A sikeres eredmény üzenet nélkül a telefonon tárolódik. Ha a szolgáltatás nem érhető el, nincs üzenet, a korábbi QNH marad, és a hiba csak a készülék menüből megnyitható hibalogjába kerül, pozíció és kéréscím nélkül. A Norvég Meteorológiai Intézet feltételei: <a href="https://api.met.no/doc/TermsOfService">api.met.no/doc/TermsOfService</a>. Az Aviation Weather az Egyesült Államok Nemzeti Időjárási Szolgálatának szolgáltatása: <a href="https://www.weather.gov/privacy">weather.gov/privacy</a>.</p>
+    </section>
+
+    <section class="card">
       <h2 data-lang="en">What we do not do</h2>
       <h2 data-lang="hu">Amit nem csinálunk</h2>
       <ul data-lang="en">
         <li>No account, login, or registration</li>
         <li>No IMEI, SIM serial, or phone-number collection</li>
         <li>No upload of live location to our servers</li>
+        <li>No upload of the track to the weather services named above</li>
         <li>No ads or third-party analytics SDKs</li>
         <li>No sale of personal data</li>
       </ul>
@@ -226,6 +234,7 @@
         <li>Nincs fiók, bejelentkezés vagy regisztráció</li>
         <li>Nem gyűjtünk IMEI-t, SIM-azonosítót vagy telefonszámot</li>
         <li>Nem töltünk fel élő helyet a szerverünkre</li>
+        <li>Az útvonalat nem küldjük el a fenti időjárási szolgáltatásoknak</li>
         <li>Nincs reklám és külső analitikai SDK</li>
         <li>Személyes adatot nem adunk el</li>
       </ul>

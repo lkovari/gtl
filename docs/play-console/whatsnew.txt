@@ -1,17 +1,9 @@
-GTL GPS Track Logger — Play Console “What’s new” (v2.0.24)
+GTL GPS Track Logger — Play Console “What’s new”
 
 EN (≤500 characters)
 
-Import a GPX onto the map, and a Google Traffic switch.
-
-• Map file button opens a GPX 1.0 or 1.1 track or route and draws it in magenta
-• Segments stay separate. The broom removes that line. The file is not stored
-• Google layers: Traffic, off by default. Live road colors on Google Maps only
+A stop of at least 5 seconds before Stop keeps its Pause waypoint in GPX and KMZ. QNH loads at startup from a weather model or a nearby METAR, for example 1022 hPa, with no message. The slider keeps a manual value. If the site cannot be reached, the previous value stays and one line is written to the menu error log.
 
 HU (≤500 characters)
 
-GPX import a térképre, és Google Forgalom kapcsoló.
-
-• A Térkép fájl gombja GPX 1.0 vagy 1.1 nyomvonalat vagy útvonalat nyit, magentával rajzolja
-• A szakaszok külön maradnak. A seprő leveszi a vonalat. A fájl nem kerül a telefonra
-• Google rétegek: Forgalom, alapból ki. Élő útszínek csak a Google térképen
+A Stop előtt legalább 5 másodperces állás Pause waypointja megmarad a GPX-ben és a KMZ-ben. A QNH induláskor töltődik időjárási modellből vagy közeli METAR-ból, például 1022 hPa, üzenet nélkül. A csúszka kézi értéke megmarad. Ha az oldal nem érhető el, a korábbi érték marad, és egy sor kerül a menü hibalogjába.
